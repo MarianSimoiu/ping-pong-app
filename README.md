@@ -56,3 +56,5 @@ npx expo start                 # scan the QR code with Expo Go
 
 Local Supabase prints its URL and anon key on `supabase start`; use those in
 `app/.env` for local development.
+
+For hosted setup, EAS builds, and shipping, see [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
