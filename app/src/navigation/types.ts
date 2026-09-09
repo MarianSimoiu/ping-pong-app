@@ -8,3 +8,21 @@ export type HomeStackParamList = {
 
 export type HomeStackScreenProps<T extends keyof HomeStackParamList> =
   NativeStackScreenProps<HomeStackParamList, T>;
+
+// The Leaderboard tab is a stack so a row can open a player's profile.
+export type LeaderboardStackParamList = {
+  Leaderboard: undefined;
+  PlayerProfile: { playerId: string; displayName: string };
+};
+
+export type LeaderboardStackScreenProps<T extends keyof LeaderboardStackParamList> =
+  NativeStackScreenProps<LeaderboardStackParamList, T>;
+
+// The Profile tab is a stack so "View my stats" can open the same profile screen.
+export type ProfileStackParamList = {
+  Account: undefined;
+  PlayerProfile: { playerId: string; displayName: string };
+};
+
+export type ProfileStackScreenProps<T extends keyof ProfileStackParamList> =
+  NativeStackScreenProps<ProfileStackParamList, T>;

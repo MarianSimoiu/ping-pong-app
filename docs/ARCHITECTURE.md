@@ -71,14 +71,19 @@ atomically. Later phases add: `tournaments`, `tournament_participants`, `seasons
 
 ```
 lib/supabase.ts     Configured Supabase client (session persisted via AsyncStorage)
+lib/                players, matches, leaderboard data-access helpers + constants
 context/AuthContext Session state + sign-in / sign-up / sign-out helpers
-navigation/         Root switch (auth vs app) + bottom-tab navigator
-screens/            SignIn, Home, Leaderboard, Tournaments, Profile
+navigation/         Root switch (auth vs app), bottom tabs, and per-tab stacks
+screens/            SignIn, Home, SubmitMatch, Leaderboard, PlayerProfile,
+                    Tournaments, Profile
+components/          RatingChart (react-native-svg), Placeholder
 theme.ts            Shared colors / spacing
 ```
 
 Navigation shows the sign-in screen when there is no session, and the tab
-navigator (Home · Leaderboard · Tournaments · Profile) once signed in.
+navigator (Home · Leaderboard · Tournaments · Profile) once signed in. The Home,
+Leaderboard, and Profile tabs are stacks so they can push the Submit-match and
+Player-profile screens.
 
 ## Build phases
 
@@ -86,7 +91,8 @@ navigator (Home · Leaderboard · Tournaments · Profile) once signed in.
    `players`/`player_ratings` + auth, this document.
 2. **Matches + rating engine** — match schema, `rating_events`, pure `glicko2.ts`
    + tests, `submit-match` Edge Function, submit-match screen, `RATING.md`.
-3. **Leaderboard & profiles** — ranking queries (min-matches gate), rating chart.
+3. **Leaderboard & profiles** *(done)* — ranking query (min-matches gate),
+   player profiles with W–L record, match history, and a rating-over-time chart.
 4. **Tournaments** — tournament schema, seeding, brackets, tournament matches.
 5. **Season points + anti-farming polish** — `seasons`/`season_points`, points on
    placement, finalize the four anti-farming guards.

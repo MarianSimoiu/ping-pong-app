@@ -3,8 +3,8 @@ import React from 'react';
 import { Text } from 'react-native';
 
 import { HomeStack } from '@/navigation/HomeStack';
-import { LeaderboardScreen } from '@/screens/LeaderboardScreen';
-import { ProfileScreen } from '@/screens/ProfileScreen';
+import { LeaderboardStack } from '@/navigation/LeaderboardStack';
+import { ProfileStack } from '@/navigation/ProfileStack';
 import { TournamentsScreen } from '@/screens/TournamentsScreen';
 import { colors } from '@/theme';
 
@@ -34,9 +34,9 @@ export function TabNavigator() {
       })}
     >
       <Tab.Screen name="Home" component={HomeStack} options={{ headerShown: false }} />
-      <Tab.Screen name="Leaderboard" component={LeaderboardScreen} options={{ headerShown: false }} />
+      <Tab.Screen name="Leaderboard" component={LeaderboardStack} options={{ headerShown: false }} />
       <Tab.Screen name="Tournaments" component={TournamentsScreen} options={{ headerShown: false }} />
-      <Tab.Screen name="Profile" component={ProfileScreen} options={{ headerShown: false }} />
+      <Tab.Screen name="Profile" component={ProfileStack} options={{ headerShown: false }} />
     </Tab.Navigator>
   );
 }

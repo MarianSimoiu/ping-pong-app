@@ -1,13 +1,30 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/context/AuthContext';
+import { fetchMyProfile } from '@/lib/players';
+import type { ProfileStackScreenProps } from '@/navigation/types';
 import { colors, radius, spacing } from '@/theme';
 
-export function ProfileScreen() {
+export function ProfileScreen({ navigation }: ProfileStackScreenProps<'Account'>) {
   const { session, signOut } = useAuth();
   const [busy, setBusy] = useState(false);
+  const [me, setMe] = useState<{ id: string; displayName: string } | null>(null);
+
+  const loadMe = useCallback(async () => {
+    if (!session) return;
+    try {
+      const p = await fetchMyProfile(session.user.id);
+      if (p) setMe({ id: p.id, displayName: p.display_name });
+    } catch {
+      // Non-fatal: the stats shortcut just won't be available.
+    }
+  }, [session]);
+
+  useEffect(() => {
+    loadMe();
+  }, [loadMe]);
 
   async function handleSignOut() {
     setBusy(true);
@@ -29,9 +46,16 @@ export function ProfileScreen() {
           <Text style={styles.value}>{session?.user.email}</Text>
         </View>
 
-        <Text style={styles.note}>
-          Match history and your rating-over-time chart arrive in Phase 3.
-        </Text>
+        {me && (
+          <Pressable
+            style={styles.statsLink}
+            onPress={() =>
+              navigation.navigate('PlayerProfile', { playerId: me.id, displayName: me.displayName })
+            }
+          >
+            <Text style={styles.statsLinkText}>View my stats & rating history →</Text>
+          </Pressable>
+        )}
 
         <Pressable
           style={[styles.signOut, busy && { opacity: 0.6 }]}
@@ -58,7 +82,15 @@ const styles = StyleSheet.create({
   },
   label: { color: colors.textMuted, fontSize: 13 },
   value: { color: colors.text, fontSize: 16, marginTop: spacing.xs },
-  note: { color: colors.textMuted, fontSize: 14, marginTop: spacing.lg, lineHeight: 20 },
+  statsLink: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginTop: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  statsLinkText: { color: colors.primary, fontSize: 15, fontWeight: '600' },
   signOut: {
     marginTop: 'auto',
     backgroundColor: colors.surfaceAlt,
