@@ -26,3 +26,20 @@ export type ProfileStackParamList = {
 
 export type ProfileStackScreenProps<T extends keyof ProfileStackParamList> =
   NativeStackScreenProps<ProfileStackParamList, T>;
+
+// The Tournaments tab is a stack: list -> create / detail -> record a bracket match.
+export type TournamentsStackParamList = {
+  TournamentsList: undefined;
+  CreateTournament: undefined;
+  TournamentDetail: { tournamentId: string; name: string };
+  RecordTournamentMatch: {
+    tournamentMatchId: string;
+    tournamentId: string;
+    playerAName: string;
+    playerBName: string;
+    bestOf: number;
+  };
+};
+
+export type TournamentsStackScreenProps<T extends keyof TournamentsStackParamList> =
+  NativeStackScreenProps<TournamentsStackParamList, T>;

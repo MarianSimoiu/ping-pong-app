@@ -55,8 +55,22 @@ The schema is built up across migrations in `supabase/migrations`. Phase 1
 
 Phase 2 (`0002_matches.sql`) adds `matches`, `match_games`, `rating_events`
 (append-only audit), and the `apply_rated_match` RPC that persists a rated match
-atomically. Later phases add: `tournaments`, `tournament_participants`, `seasons`,
-`season_points`.
+atomically. Phase 4 (`0003_tournaments.sql`) adds `tournaments`,
+`tournament_participants`, `tournament_matches` (one row per bracket node), plus
+`create_tournament` and `apply_tournament_result` RPCs. Later phases add:
+`seasons`, `season_points`.
+
+### Tournaments (Phase 4)
+
+Single-elimination brackets whose matches feed the **same** rating engine as
+casual play (`context = 'tournament'`). Bracket generation is pure, tested TS
+(`_shared/bracket.ts`); byes auto-advance top seeds. Two Edge Functions:
+`create-tournament` (generates the bracket, persists it via `create_tournament`)
+and `submit-tournament-match` (records a ready node's result through the shared
+rating engine, then `apply_tournament_result` completes the node and advances the
+winner — or finishes the tournament on the final). The rating orchestration lives
+in `_shared/engine.ts`, shared by both `submit-match` and
+`submit-tournament-match`.
 
 ## Security model (Row-Level Security)
 
@@ -93,7 +107,8 @@ Player-profile screens.
    + tests, `submit-match` Edge Function, submit-match screen, `RATING.md`.
 3. **Leaderboard & profiles** *(done)* — ranking query (min-matches gate),
    player profiles with W–L record, match history, and a rating-over-time chart.
-4. **Tournaments** — tournament schema, seeding, brackets, tournament matches.
+4. **Tournaments** *(done)* — single-elim schema, rating-seeded brackets with
+   byes, bracket UI, and tournament matches feeding the shared rating engine.
 5. **Season points + anti-farming polish** — `seasons`/`season_points`, points on
    placement, finalize the four anti-farming guards.
 6. **Ship** — EAS build, share APK, RLS review, optional OTA updates.

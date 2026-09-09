@@ -5,7 +5,7 @@ import { Text } from 'react-native';
 import { HomeStack } from '@/navigation/HomeStack';
 import { LeaderboardStack } from '@/navigation/LeaderboardStack';
 import { ProfileStack } from '@/navigation/ProfileStack';
-import { TournamentsScreen } from '@/screens/TournamentsScreen';
+import { TournamentsStack } from '@/navigation/TournamentsStack';
 import { colors } from '@/theme';
 
 const Tab = createBottomTabNavigator();
@@ -35,7 +35,7 @@ export function TabNavigator() {
     >
       <Tab.Screen name="Home" component={HomeStack} options={{ headerShown: false }} />
       <Tab.Screen name="Leaderboard" component={LeaderboardStack} options={{ headerShown: false }} />
-      <Tab.Screen name="Tournaments" component={TournamentsScreen} options={{ headerShown: false }} />
+      <Tab.Screen name="Tournaments" component={TournamentsStack} options={{ headerShown: false }} />
       <Tab.Screen name="Profile" component={ProfileStack} options={{ headerShown: false }} />
     </Tab.Navigator>
   );
