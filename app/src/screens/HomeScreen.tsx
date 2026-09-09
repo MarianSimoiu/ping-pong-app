@@ -1,6 +1,8 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
+import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
+  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -12,9 +14,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/context/AuthContext';
 import { fetchMyProfile } from '@/lib/players';
 import type { PlayerWithRating } from '@/lib/types';
+import type { HomeStackScreenProps } from '@/navigation/types';
 import { colors, radius, spacing } from '@/theme';
 
-export function HomeScreen() {
+export function HomeScreen({ navigation }: HomeStackScreenProps<'Home'>) {
   const { session } = useAuth();
   const [profile, setProfile] = useState<PlayerWithRating | null>(null);
   const [loading, setLoading] = useState(true);
@@ -33,9 +36,12 @@ export function HomeScreen() {
     }
   }, [session]);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  // Reload whenever the screen regains focus (e.g. after recording a match).
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load]),
+  );
 
   const rating = profile?.rating;
   const isProvisional = (rating?.matches_played ?? 0) < 10;
@@ -65,11 +71,16 @@ export function HomeScreen() {
           </View>
         )}
 
+        <Pressable style={styles.cta} onPress={() => navigation.navigate('SubmitMatch')}>
+          <Text style={styles.ctaText}>+ Record a match</Text>
+        </Pressable>
+
         <View style={styles.hintCard}>
-          <Text style={styles.hintTitle}>Coming next</Text>
+          <Text style={styles.hintTitle}>How your rating moves</Text>
           <Text style={styles.hintText}>
-            Submitting matches and the rating engine land in Phase 2. Your rating
-            starts at 1500 with a wide ±350 confidence band until you play.
+            Beating stronger players earns the most; losing to weaker ones costs
+            the most. Repeatedly playing the same person in a day counts for less.
+            The full math is in docs/RATING.md.
           </Text>
         </View>
       </ScrollView>
@@ -92,6 +103,14 @@ const styles = StyleSheet.create({
   ratingLabel: { color: colors.textMuted, fontSize: 14 },
   ratingValue: { color: colors.primary, fontSize: 56, fontWeight: '800', marginVertical: spacing.xs },
   ratingMeta: { color: colors.textMuted, fontSize: 13 },
+  cta: {
+    backgroundColor: colors.primary,
+    borderRadius: radius.md,
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+    marginTop: spacing.lg,
+  },
+  ctaText: { color: colors.primaryText, fontSize: 16, fontWeight: '600' },
   hintCard: {
     backgroundColor: colors.surfaceAlt,
     borderRadius: radius.md,

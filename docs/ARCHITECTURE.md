@@ -28,7 +28,7 @@ rating math specifically, see [`RATING.md`](RATING.md).
   - **Auth** handles sign-up / sign-in.
   - **Edge Functions** run the rating engine server-side.
 - **Rating engine**: pure functions in `supabase/functions/_shared` (unit-tested)
-  invoked by the `rate-match` Edge Function. Clients **never** compute or write
+  invoked by the `submit-match` Edge Function. Clients **never** compute or write
   ratings — enforced by Row-Level Security.
 
 ## Why these choices
@@ -53,8 +53,10 @@ The schema is built up across migrations in `supabase/migrations`. Phase 1
   `rd` (350), `volatility` (0.06), `matches_played`, `last_played_at`,
   `updated_at`.
 
-Later phases add: `matches`, `match_games`, `rating_events` (append-only audit),
-`tournaments`, `tournament_participants`, `seasons`, `season_points`.
+Phase 2 (`0002_matches.sql`) adds `matches`, `match_games`, `rating_events`
+(append-only audit), and the `apply_rated_match` RPC that persists a rated match
+atomically. Later phases add: `tournaments`, `tournament_participants`, `seasons`,
+`season_points`.
 
 ## Security model (Row-Level Security)
 
@@ -83,7 +85,7 @@ navigator (Home · Leaderboard · Tournaments · Profile) once signed in.
 1. **Foundation** *(this phase)* — Expo scaffold + navigation, Supabase client,
    `players`/`player_ratings` + auth, this document.
 2. **Matches + rating engine** — match schema, `rating_events`, pure `glicko2.ts`
-   + tests, `rate-match` Edge Function, submit-match screen, `RATING.md`.
+   + tests, `submit-match` Edge Function, submit-match screen, `RATING.md`.
 3. **Leaderboard & profiles** — ranking queries (min-matches gate), rating chart.
 4. **Tournaments** — tournament schema, seeding, brackets, tournament matches.
 5. **Season points + anti-farming polish** — `seasons`/`season_points`, points on

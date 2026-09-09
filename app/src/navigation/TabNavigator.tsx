@@ -2,7 +2,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import React from 'react';
 import { Text } from 'react-native';
 
-import { HomeScreen } from '@/screens/HomeScreen';
+import { HomeStack } from '@/navigation/HomeStack';
 import { LeaderboardScreen } from '@/screens/LeaderboardScreen';
 import { ProfileScreen } from '@/screens/ProfileScreen';
 import { TournamentsScreen } from '@/screens/TournamentsScreen';
@@ -33,7 +33,7 @@ export function TabNavigator() {
         ),
       })}
     >
-      <Tab.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
+      <Tab.Screen name="Home" component={HomeStack} options={{ headerShown: false }} />
       <Tab.Screen name="Leaderboard" component={LeaderboardScreen} options={{ headerShown: false }} />
       <Tab.Screen name="Tournaments" component={TournamentsScreen} options={{ headerShown: false }} />
       <Tab.Screen name="Profile" component={ProfileScreen} options={{ headerShown: false }} />
