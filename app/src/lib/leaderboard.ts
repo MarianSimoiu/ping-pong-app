@@ -33,6 +33,40 @@ export async function fetchLeaderboard(): Promise<LeaderboardEntry[]> {
   });
 }
 
+export type SeasonEntry = {
+  rank: number;
+  playerId: string;
+  displayName: string;
+  points: number;
+  events: number;
+};
+
+// WTA-style season standings: best-N non-expired results summed per player.
+export async function fetchSeasonStandings(): Promise<SeasonEntry[]> {
+  const { data, error } = await supabase.rpc('season_standings', { best_n: 8 });
+  if (error) throw error;
+  return (data ?? []).map((r: any, i: number) => ({
+    rank: i + 1,
+    playerId: r.player_id,
+    displayName: r.display_name,
+    points: Number(r.points),
+    events: r.events,
+  }));
+}
+
+// A single player's current season points (sum of best-8 non-expired results).
+export async function fetchPlayerSeasonPoints(playerId: string): Promise<number> {
+  const { data, error } = await supabase
+    .from('season_points')
+    .select('points, expires_at')
+    .eq('player_id', playerId)
+    .gt('expires_at', new Date().toISOString())
+    .order('points', { ascending: false })
+    .limit(8);
+  if (error) throw error;
+  return (data ?? []).reduce((sum: number, r: any) => sum + r.points, 0);
+}
+
 // A single player's profile card (player row + current rating).
 export async function fetchPlayerById(playerId: string): Promise<PlayerWithRating | null> {
   const { data, error } = await supabase

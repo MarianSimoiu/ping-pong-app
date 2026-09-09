@@ -10,8 +10,13 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { fetchLeaderboard, type LeaderboardEntry } from '@/lib/leaderboard';
 import { MIN_MATCHES_FOR_LEADERBOARD } from '@/lib/constants';
+import {
+  fetchLeaderboard,
+  fetchSeasonStandings,
+  type LeaderboardEntry,
+  type SeasonEntry,
+} from '@/lib/leaderboard';
 import type { LeaderboardStackScreenProps } from '@/navigation/types';
 import { colors, radius, spacing } from '@/theme';
 
@@ -19,14 +24,17 @@ type Tab = 'skill' | 'season';
 
 export function LeaderboardScreen({ navigation }: LeaderboardStackScreenProps<'Leaderboard'>) {
   const [tab, setTab] = useState<Tab>('skill');
-  const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
+  const [skill, setSkill] = useState<LeaderboardEntry[]>([]);
+  const [season, setSeason] = useState<SeasonEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (which: Tab) => {
+    setLoading(true);
     try {
       setError(null);
-      setEntries(await fetchLeaderboard());
+      if (which === 'skill') setSkill(await fetchLeaderboard());
+      else setSeason(await fetchSeasonStandings());
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load leaderboard');
     } finally {
@@ -36,9 +44,12 @@ export function LeaderboardScreen({ navigation }: LeaderboardStackScreenProps<'L
 
   useFocusEffect(
     useCallback(() => {
-      if (tab === 'skill') load();
+      load(tab);
     }, [load, tab]),
   );
+
+  const openProfile = (playerId: string, displayName: string) =>
+    navigation.navigate('PlayerProfile', { playerId, displayName });
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -49,50 +60,59 @@ export function LeaderboardScreen({ navigation }: LeaderboardStackScreenProps<'L
         <TabButton label="Season points" active={tab === 'season'} onPress={() => setTab('season')} />
       </View>
 
-      {tab === 'season' ? (
-        <View style={styles.center}>
-          <Text style={styles.emoji}>🎾</Text>
-          <Text style={styles.placeholder}>
-            Season points (WTA-style, from tournament results) arrive in Phase 5.
-          </Text>
-        </View>
-      ) : loading ? (
+      {loading ? (
         <ActivityIndicator color={colors.text} style={{ marginTop: spacing.xl }} />
       ) : error ? (
         <Text style={styles.error}>{error}</Text>
-      ) : entries.length === 0 ? (
-        <View style={styles.center}>
-          <Text style={styles.emoji}>🏓</Text>
-          <Text style={styles.placeholder}>
-            No ranked players yet. Players appear here once they've played at least{' '}
-            {MIN_MATCHES_FOR_LEADERBOARD} matches.
-          </Text>
-        </View>
+      ) : tab === 'skill' ? (
+        skill.length === 0 ? (
+          <Empty
+            emoji="🏓"
+            text={`No ranked players yet. Players appear once they've played at least ${MIN_MATCHES_FOR_LEADERBOARD} matches.`}
+          />
+        ) : (
+          <FlatList
+            data={skill}
+            keyExtractor={(e) => e.playerId}
+            contentContainerStyle={styles.list}
+            renderItem={({ item }) => (
+              <Pressable style={styles.row} onPress={() => openProfile(item.playerId, item.displayName)}>
+                <Text style={styles.rank}>{item.rank}</Text>
+                <View style={styles.rowMain}>
+                  <Text style={styles.rowName} numberOfLines={1}>
+                    {item.displayName}
+                  </Text>
+                  <Text style={styles.rowMeta}>
+                    ± {Math.round(item.rd)} · {item.matchesPlayed} matches
+                  </Text>
+                </View>
+                <Text style={styles.rowValue}>{Math.round(item.rating)}</Text>
+              </Pressable>
+            )}
+          />
+        )
+      ) : season.length === 0 ? (
+        <Empty
+          emoji="🎾"
+          text="No season points yet. Points are earned by placing in tournaments and count over a rolling 52-week window."
+        />
       ) : (
         <FlatList
-          data={entries}
+          data={season}
           keyExtractor={(e) => e.playerId}
-          contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.xl }}
+          contentContainerStyle={styles.list}
           renderItem={({ item }) => (
-            <Pressable
-              style={styles.row}
-              onPress={() =>
-                navigation.navigate('PlayerProfile', {
-                  playerId: item.playerId,
-                  displayName: item.displayName,
-                })
-              }
-            >
+            <Pressable style={styles.row} onPress={() => openProfile(item.playerId, item.displayName)}>
               <Text style={styles.rank}>{item.rank}</Text>
               <View style={styles.rowMain}>
                 <Text style={styles.rowName} numberOfLines={1}>
                   {item.displayName}
                 </Text>
                 <Text style={styles.rowMeta}>
-                  ± {Math.round(item.rd)} · {item.matchesPlayed} matches
+                  {item.events} {item.events === 1 ? 'result' : 'results'} counted
                 </Text>
               </View>
-              <Text style={styles.rowRating}>{Math.round(item.rating)}</Text>
+              <Text style={styles.rowValue}>{item.points}</Text>
             </Pressable>
           )}
         />
@@ -106,6 +126,15 @@ function TabButton({ label, active, onPress }: { label: string; active: boolean;
     <Pressable style={[styles.tab, active && styles.tabActive]} onPress={onPress}>
       <Text style={[styles.tabText, active && styles.tabTextActive]}>{label}</Text>
     </Pressable>
+  );
+}
+
+function Empty({ emoji, text }: { emoji: string; text: string }) {
+  return (
+    <View style={styles.center}>
+      <Text style={styles.emoji}>{emoji}</Text>
+      <Text style={styles.placeholder}>{text}</Text>
+    </View>
   );
 }
 
@@ -131,6 +160,7 @@ const styles = StyleSheet.create({
   tabActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   tabText: { color: colors.textMuted, fontSize: 14, fontWeight: '600' },
   tabTextActive: { color: colors.primaryText },
+  list: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xl },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -145,7 +175,7 @@ const styles = StyleSheet.create({
   rowMain: { flex: 1, marginLeft: spacing.sm },
   rowName: { color: colors.text, fontSize: 16, fontWeight: '600' },
   rowMeta: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
-  rowRating: { color: colors.primary, fontSize: 20, fontWeight: '800' },
+  rowValue: { color: colors.primary, fontSize: 20, fontWeight: '800' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   emoji: { fontSize: 44, marginBottom: spacing.md },
   placeholder: { color: colors.textMuted, fontSize: 14, textAlign: 'center', lineHeight: 20 },

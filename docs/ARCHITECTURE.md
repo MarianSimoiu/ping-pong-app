@@ -57,8 +57,9 @@ Phase 2 (`0002_matches.sql`) adds `matches`, `match_games`, `rating_events`
 (append-only audit), and the `apply_rated_match` RPC that persists a rated match
 atomically. Phase 4 (`0003_tournaments.sql`) adds `tournaments`,
 `tournament_participants`, `tournament_matches` (one row per bracket node), plus
-`create_tournament` and `apply_tournament_result` RPCs. Later phases add:
-`seasons`, `season_points`.
+`create_tournament` and `apply_tournament_result` RPCs. Phase 5
+(`0004_season_points.sql`) adds `season_points` plus the `award_season_points`
+RPC and the `season_standings(best_n)` ranking function.
 
 ### Tournaments (Phase 4)
 
@@ -109,6 +110,7 @@ Player-profile screens.
    player profiles with W–L record, match history, and a rating-over-time chart.
 4. **Tournaments** *(done)* — single-elim schema, rating-seeded brackets with
    byes, bracket UI, and tournament matches feeding the shared rating engine.
-5. **Season points + anti-farming polish** — `seasons`/`season_points`, points on
-   placement, finalize the four anti-farming guards.
+5. **Season points (WTA layer)** *(done)* — `season_points`, tier-weighted
+   placement points on a rolling 52-week best-N window, awarded when a tournament
+   completes; Season-points leaderboard tab and profile stat.
 6. **Ship** — EAS build, share APK, RLS review, optional OTA updates.

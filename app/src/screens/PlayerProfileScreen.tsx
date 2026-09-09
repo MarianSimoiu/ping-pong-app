@@ -14,6 +14,7 @@ import { RatingChart } from '@/components/RatingChart';
 import {
   fetchMatchHistory,
   fetchPlayerById,
+  fetchPlayerSeasonPoints,
   fetchRatingHistory,
   fetchRecord,
   type HistoryPoint,
@@ -33,22 +34,25 @@ export function PlayerProfileScreen() {
   const [history, setHistory] = useState<HistoryPoint[]>([]);
   const [matches, setMatches] = useState<MatchHistoryItem[]>([]);
   const [record, setRecord] = useState<{ wins: number; losses: number }>({ wins: 0, losses: 0 });
+  const [seasonPoints, setSeasonPoints] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
       setError(null);
-      const [p, h, m, r] = await Promise.all([
+      const [p, h, m, r, sp] = await Promise.all([
         fetchPlayerById(playerId),
         fetchRatingHistory(playerId),
         fetchMatchHistory(playerId),
         fetchRecord(playerId),
+        fetchPlayerSeasonPoints(playerId),
       ]);
       setPlayer(p);
       setHistory(h);
       setMatches(m);
       setRecord(r);
+      setSeasonPoints(sp);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load profile');
     } finally {
@@ -81,6 +85,7 @@ export function PlayerProfileScreen() {
               <Stat label="Rating" value={String(Math.round(rating?.rating ?? 1500))} />
               <Stat label="±RD" value={String(Math.round(rating?.rd ?? 350))} />
               <Stat label="W–L" value={`${record.wins}–${record.losses}`} />
+              <Stat label="Season" value={String(seasonPoints)} />
             </View>
             {isProvisional && (
               <Text style={styles.provisional}>

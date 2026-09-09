@@ -10,6 +10,14 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { corsHeaders, jsonResponse } from '../_shared/cors.ts';
 import { resolveMatch, type RawGame } from '../_shared/match.ts';
 import { computeRatingUpdate, roundRating, type RatingRow } from '../_shared/engine.ts';
+import {
+  WINDOW_DAYS,
+  computePlacements,
+  placementLabel,
+  placementPoints,
+} from '../_shared/points.ts';
+
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 type Body = { tournamentMatchId?: string; games?: RawGame[] };
 
@@ -107,7 +115,43 @@ Deno.serve(async (req) => {
     const { data: matchId, error: applyErr } = await admin.rpc('apply_tournament_result', { payload });
     if (applyErr) return jsonResponse({ error: applyErr.message }, 500);
 
+    // If that result finished the tournament, award WTA-style season points.
+    let seasonPointsAwarded = false;
+    const { data: finished } = await admin
+      .from('tournaments')
+      .select('status, tier, size')
+      .eq('id', tournament.id)
+      .single();
+    if (finished?.status === 'completed') {
+      const { data: allNodes } = await admin
+        .from('tournament_matches')
+        .select('round, slot, player_a, player_b, winner_id, status')
+        .eq('tournament_id', tournament.id);
+      const totalRoundsN = Math.log2(finished.size);
+      const bracketNodes = (allNodes ?? []).map((n: any) => ({
+        round: n.round,
+        slot: n.slot,
+        playerA: n.player_a,
+        playerB: n.player_b,
+        winner: n.winner_id,
+        status: n.status,
+      }));
+      const placements = computePlacements(bracketNodes, totalRoundsN);
+      const expiresAt = new Date(Date.now() + WINDOW_DAYS * DAY_MS).toISOString();
+      const awards = placements.map((p) => ({
+        player_id: p.playerId,
+        placement: placementLabel(p.lostRound, totalRoundsN),
+        points: placementPoints(p.lostRound, totalRoundsN, finished.tier),
+        expires_at: expiresAt,
+      }));
+      const { error: awardErr } = await admin.rpc('award_season_points', {
+        payload: { tournament_id: tournament.id, awards },
+      });
+      seasonPointsAwarded = !awardErr;
+    }
+
     return jsonResponse({
+      seasonPointsAwarded,
       matchId,
       winnerId,
       playerA: { before: roundRating(update.aBefore), after: roundRating(update.aAfter) },

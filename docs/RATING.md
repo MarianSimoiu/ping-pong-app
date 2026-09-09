@@ -134,15 +134,51 @@ to its inputs.
 
 ---
 
-## 4. Season points (WTA-style) — Phase 5 design
+## 4. Season points (WTA-style)
 
 A **separate** number from skill rating, answering "what have you achieved lately?"
-Planned rules (implemented in Phase 5, in `_shared/points.ts`):
+Implemented in [`_shared/points.ts`](../supabase/functions/_shared/points.ts) and
+asserted by `points.test.ts`.
 
-- Points are awarded only for **tournament** placements, weighted by the
-  tournament's **tier** (bigger events pay more — like a Grand Slam vs a 250).
-- A player's ranking = the sum of their **best N** results within a **rolling
-  52-week window**; older results **expire**. You cannot farm it with casual games,
-  and standing decays if you stop competing.
+**How points are earned.** Only **tournament placement** earns points — never
+casual games. When a tournament finishes, every participant is awarded points for
+how far they advanced, multiplied by the tournament's **tier** (a Grand-Slam-like
+event uses a higher tier and pays proportionally more). Base points for a tier-1
+event:
 
-This section will gain its own worked examples when Phase 5 lands.
+| Finish | Points (tier 1) |
+|---|---|
+| Champion | 100 |
+| Runner-up (lost final) | 60 |
+| Semifinalist | 36 |
+| Quarterfinalist | 18 |
+| Round of 16 | 9 |
+| Round of 32 | 4 |
+| Earlier | 2 |
+
+`placementPoints(lostRound, totalRounds, tier)` rounds `base × tier`. A player's
+finish is read from the completed bracket by `computePlacements`: everyone loses
+exactly one real match (byes don't count), and the final's winner is the champion.
+
+**The rolling window (this is the anti-farming part).** A player's **season
+standing** is the **sum of their best `N = 8` results** whose `expires_at` is still
+in the future, where each award expires **52 weeks** (`WINDOW_DAYS = 364`) after it
+was earned. Computed by the `season_standings(best_n)` SQL function. Consequences:
+
+- You **cannot** inflate it with easy games — points come only from tournaments.
+- It **rewards showing up and winning big events**, exactly like the WTA.
+- It **decays**: stop competing and old results roll off after a year.
+
+### Worked example
+
+A **4-player** tournament (`totalRounds = 2`), tier 1, played to seed (top seed
+wins every match):
+
+| Player | Finish | `lostRound` | Points |
+|---|---|---|---|
+| Seed 1 | Champion | — | **100** |
+| Seed 2 | Runner-up | 2 | **60** |
+| Seeds 3 & 4 | Lost round 1 (= semifinal in a 4-field) | 1 | **36** each |
+
+`points.test.ts` asserts these exact values, and that each participant is placed
+exactly once. At tier 2 every number doubles (champion 200, runner-up 120, …).
