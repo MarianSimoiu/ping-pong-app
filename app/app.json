@@ -1,0 +1,34 @@
+{
+  "expo": {
+    "name": "Ping Pong",
+    "slug": "ping-pong-app",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "pingpong",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#0B1220"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.pingpong.app"
+    },
+    "android": {
+      "package": "com.pingpong.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#0B1220"
+      }
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "extra": {
+      "eas": {
+        "projectId": ""
+      }
+    }
+  }
+}
