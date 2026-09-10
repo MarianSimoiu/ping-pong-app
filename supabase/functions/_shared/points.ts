@@ -51,16 +51,16 @@ export function computePlacements(nodes: BracketNode[], totalRounds: number): Pl
   const finish = new Map<string, number | null>();
 
   for (const n of nodes) {
-    if (n.status !== 'completed' || !n.winnerId) continue;
+    if (n.status !== 'completed' || !n.winner) continue;
     // Only real matches (two players) produce a loser; byes are skipped.
     if (n.playerA && n.playerB) {
-      const loser = n.winnerId === n.playerA ? n.playerB : n.playerA;
+      const loser = n.winner === n.playerA ? n.playerB : n.playerA;
       finish.set(loser, n.round);
     }
   }
 
   const final = nodes.find((n) => n.round === totalRounds);
-  if (final?.winnerId) finish.set(final.winnerId, null); // champion overrides
+  if (final?.winner) finish.set(final.winner, null); // champion overrides
 
   return [...finish.entries()].map(([playerId, lostRound]) => ({ playerId, lostRound }));
 }

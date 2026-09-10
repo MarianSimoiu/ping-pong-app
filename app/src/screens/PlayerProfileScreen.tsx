@@ -172,4 +172,5 @@ const styles = StyleSheet.create({
   matchDelta: { fontSize: 15, fontWeight: '600' },
   deltaUp: { color: colors.success },
   deltaDown: { color: colors.danger },
+  error: { color: colors.danger, marginTop: spacing.lg },
 });

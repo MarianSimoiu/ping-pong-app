@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase';
-import type { OpponentOption, SubmitMatchResult } from '@/lib/types';
+import type { OpponentOption, PendingMatch, SubmitMatchResult } from '@/lib/types';
 
 export type RawGameInput = { score_a: number; score_b: number };
 
@@ -30,5 +30,57 @@ export async function submitMatch(input: {
     throw new Error(message);
   }
   if (!data) throw new Error('No response from submit-match');
+  return data;
+}
+
+// Pending casual matches the given player must confirm (logged by the opponent).
+export async function fetchPendingConfirmations(myPlayerId: string): Promise<PendingMatch[]> {
+  const { data, error } = await supabase
+    .from('matches')
+    .select(
+      'id, player_a, player_b, winner_id, created_by, ' +
+        'creator:players!matches_created_by_fkey(display_name), ' +
+        'games:match_games(score_a, score_b)',
+    )
+    .eq('status', 'pending')
+    .neq('created_by', myPlayerId)
+    .or(`player_a.eq.${myPlayerId},player_b.eq.${myPlayerId}`)
+    .order('played_at', { ascending: false });
+  if (error) throw error;
+
+  return (data ?? []).map((m: any) => {
+    const creator = Array.isArray(m.creator) ? m.creator[0] : m.creator;
+    const iAmA = m.player_a === myPlayerId;
+    let myGames = 0;
+    let opponentGames = 0;
+    for (const g of m.games ?? []) {
+      const myScore = iAmA ? g.score_a : g.score_b;
+      const oppScore = iAmA ? g.score_b : g.score_a;
+      if (myScore > oppScore) myGames += 1;
+      else opponentGames += 1;
+    }
+    return {
+      matchId: m.id,
+      submitterName: creator?.display_name ?? 'Someone',
+      iWon: m.winner_id === myPlayerId,
+      myGames,
+      opponentGames,
+    };
+  });
+}
+
+// Confirm or decline a pending match (only the opponent may act).
+export async function confirmMatch(
+  matchId: string,
+  action: 'confirm' | 'decline',
+): Promise<{ status: string }> {
+  const { data, error } = await supabase.functions.invoke<{ status: string }>('confirm-match', {
+    body: { matchId, action },
+  });
+  if (error) {
+    const message = (data as { error?: string } | null)?.error ?? error.message;
+    throw new Error(message);
+  }
+  if (!data) throw new Error('No response from confirm-match');
   return data;
 }

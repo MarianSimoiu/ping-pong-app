@@ -59,7 +59,18 @@ atomically. Phase 4 (`0003_tournaments.sql`) adds `tournaments`,
 `tournament_participants`, `tournament_matches` (one row per bracket node), plus
 `create_tournament` and `apply_tournament_result` RPCs. Phase 5
 (`0004_season_points.sql`) adds `season_points` plus the `award_season_points`
-RPC and the `season_standings(best_n)` ranking function.
+RPC and the `season_standings(best_n)` ranking function. `0005_match_confirmation.sql`
+adds a `status` column to `matches` and the confirmation RPCs (below).
+
+### Match confirmation
+
+A **casual** match is not trusted on one player's word. `submit-match` stores it
+as **`pending`** (match + games only, no rating change) via `create_pending_match`.
+The **opponent** — the participant who did not submit it — then calls
+`confirm-match` to **confirm** (ratings are computed *at that moment* via the shared
+engine and applied by `confirm_match`) or **decline** (`reject_match` marks it
+`rejected`). The repeat-opponent guard counts only `confirmed` matches. Tournament
+matches are exempt: `apply_rated_match` writes them directly as `confirmed`.
 
 ### Tournaments (Phase 4)
 

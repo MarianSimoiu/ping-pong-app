@@ -78,15 +78,10 @@ export function SubmitMatchScreen({ navigation }: HomeStackScreenProps<'SubmitMa
 
     setSubmitting(true);
     try {
-      const result = await submitMatch({ opponentId, bestOf, games });
-      const delta = result.you.after.rating - result.you.before.rating;
-      const sign = delta >= 0 ? '+' : '';
+      await submitMatch({ opponentId, bestOf, games });
       Alert.alert(
-        'Match recorded',
-        `Your rating: ${result.you.before.rating} → ${result.you.after.rating} (${sign}${delta})` +
-          (result.repeatFactor < 1
-            ? `\n\nRepeat-opponent guard applied (×${result.repeatFactor}).`
-            : ''),
+        'Match submitted',
+        'Your opponent needs to confirm it before ratings update. They’ll see it under “Awaiting your confirmation”.',
       );
       navigation.goBack();
     } catch (e) {

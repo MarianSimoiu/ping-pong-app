@@ -2,6 +2,7 @@
 node_modules/
 .pnp/
 .pnp.js
+# (package-lock.json is intentionally committed for reproducible CI installs)
 
 # Expo / React Native
 .expo/
