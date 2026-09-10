@@ -65,10 +65,14 @@ export type RatingEvent = {
 // Minimal shape used by the opponent picker.
 export type OpponentOption = { id: string; display_name: string };
 
-// What the submit-match Edge Function returns.
-export type SubmitMatchResult = {
+// submit-match records a pending match (ratings apply after the opponent confirms).
+export type SubmitMatchResult = { matchId: string; status: 'pending' };
+
+// A pending casual match awaiting the current user's confirmation.
+export type PendingMatch = {
   matchId: string;
-  repeatFactor: number;
-  you: { before: { rating: number; rd: number }; after: { rating: number; rd: number } };
-  opponent: { before: { rating: number; rd: number }; after: { rating: number; rd: number } };
+  submitterName: string;
+  iWon: boolean;
+  myGames: number;
+  opponentGames: number;
 };
