@@ -30,7 +30,7 @@ function playOut(nodes: BracketNode[], totalRounds: number): BracketNode[] {
     for (const n of nodes.filter((x) => x.round === r)) {
       if (n.status === 'completed') continue; // bye already resolved
       if (!n.playerA || !n.playerB) continue;
-      n.winnerId = n.playerA;
+      n.winner = n.playerA;
       n.status = 'completed';
       if (r < totalRounds) {
         const parent = at(r + 1, Math.floor(n.slot / 2));
