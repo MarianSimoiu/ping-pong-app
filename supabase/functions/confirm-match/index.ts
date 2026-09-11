@@ -96,9 +96,21 @@ Deno.serve(async (req) => {
     });
     if (confirmErr) return jsonResponse({ error: confirmErr.message }, 500);
 
+    // The caller is always the confirming (non-submitting) participant, but
+    // may be either side of the match — surface their own before/after and
+    // delta directly so the client doesn't need to figure out which side it is.
+    const callerIsA = caller.id === match.player_a;
+    const callerBefore = callerIsA ? update.aBefore : update.bBefore;
+    const callerAfter = callerIsA ? update.aAfter : update.bAfter;
+
     return jsonResponse({
       status: 'confirmed',
       repeatFactor: factor,
+      you: {
+        delta: Math.round(callerAfter.rating - callerBefore.rating),
+        rating: Math.round(callerAfter.rating),
+        rd: Math.round(callerAfter.rd),
+      },
       playerA: { before: roundRating(update.aBefore), after: roundRating(update.aAfter) },
       playerB: { before: roundRating(update.bBefore), after: roundRating(update.bAfter) },
     });

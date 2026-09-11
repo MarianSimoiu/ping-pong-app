@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/context/AuthContext';
 import { fetchMyProfile } from '@/lib/players';
+import { showAlert } from '@/lib/platformAlert';
 import type { ProfileStackScreenProps } from '@/navigation/types';
 import { colors, radius, spacing } from '@/theme';
 
@@ -31,7 +32,7 @@ export function ProfileScreen({ navigation }: ProfileStackScreenProps<'Account'>
     try {
       await signOut();
     } catch (e) {
-      Alert.alert('Sign out failed', e instanceof Error ? e.message : 'Unknown error');
+      showAlert('Sign out failed', e instanceof Error ? e.message : 'Unknown error');
     } finally {
       setBusy(false);
     }

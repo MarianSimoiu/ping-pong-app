@@ -12,7 +12,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/context/AuthContext';
+import { pickDeclineLine, pickHomeTip, pickMatchResultLine } from '@/lib/commentary';
 import { confirmMatch, fetchPendingConfirmations } from '@/lib/matches';
+import { showAlert } from '@/lib/platformAlert';
 import { fetchMyProfile } from '@/lib/players';
 import type { PendingMatch, PlayerWithRating } from '@/lib/types';
 import type { HomeStackScreenProps } from '@/navigation/types';
@@ -25,6 +27,8 @@ export function HomeScreen({ navigation }: HomeStackScreenProps<'Home'>) {
   const [actingId, setActingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Picked once per mount so it doesn't change mid-view, but varies on revisit.
+  const [homeTip] = useState(() => pickHomeTip());
 
   const load = useCallback(async () => {
     if (!session) return;
@@ -41,10 +45,24 @@ export function HomeScreen({ navigation }: HomeStackScreenProps<'Home'>) {
   }, [session]);
 
   const act = useCallback(
-    async (matchId: string, action: 'confirm' | 'decline') => {
-      setActingId(matchId);
+    async (match: PendingMatch, action: 'confirm' | 'decline') => {
+      setActingId(match.matchId);
       try {
-        await confirmMatch(matchId, action);
+        const result = await confirmMatch(match.matchId, action);
+        if (action === 'confirm' && result.you) {
+          showAlert(
+            'MATCH CALLED!',
+            pickMatchResultLine({
+              iWon: match.iWon,
+              myGames: match.myGames,
+              opponentGames: match.opponentGames,
+              opponentName: match.submitterName,
+              delta: result.you.delta,
+            }),
+          );
+        } else if (action === 'decline') {
+          showAlert('Waved off', pickDeclineLine());
+        }
         await load();
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Failed to update match');
@@ -102,14 +120,14 @@ export function HomeScreen({ navigation }: HomeStackScreenProps<'Home'>) {
                 <View style={styles.pendingActions}>
                   <Pressable
                     style={[styles.confirmBtn, actingId === m.matchId && { opacity: 0.5 }]}
-                    onPress={() => act(m.matchId, 'confirm')}
+                    onPress={() => act(m, 'confirm')}
                     disabled={actingId === m.matchId}
                   >
                     <Text style={styles.confirmText}>Confirm</Text>
                   </Pressable>
                   <Pressable
                     style={[styles.declineBtn, actingId === m.matchId && { opacity: 0.5 }]}
-                    onPress={() => act(m.matchId, 'decline')}
+                    onPress={() => act(m, 'decline')}
                     disabled={actingId === m.matchId}
                   >
                     <Text style={styles.declineText}>Decline</Text>
@@ -125,12 +143,8 @@ export function HomeScreen({ navigation }: HomeStackScreenProps<'Home'>) {
         </Pressable>
 
         <View style={styles.hintCard}>
-          <Text style={styles.hintTitle}>How your rating moves</Text>
-          <Text style={styles.hintText}>
-            Beating stronger players earns the most; losing to weaker ones costs
-            the most. Repeatedly playing the same person in a day counts for less.
-            The full math is in docs/RATING.md.
-          </Text>
+          <Text style={styles.hintTitle}>From the booth 🎙️</Text>
+          <Text style={styles.hintText}>{homeTip}</Text>
         </View>
       </ScrollView>
     </SafeAreaView>

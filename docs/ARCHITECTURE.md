@@ -99,6 +99,8 @@ in `_shared/engine.ts`, shared by both `submit-match` and
 lib/env.ts          SUPABASE_URL/ANON_KEY + the DEMO flag (true when either is unset)
 lib/supabase.ts     Configured Supabase client (session persisted via AsyncStorage)
 lib/demo.ts         In-memory demo backend (sample players/matches/tournament)
+lib/commentary.ts   Hype play-by-play line pools + pickers (match result, champion,
+                    home tip, streaks) — pure, no I/O
 lib/                players, matches, leaderboard, tournaments data-access helpers
 context/AuthContext Session state + sign-in / sign-up / sign-out helpers
 navigation/         Root switch (auth vs app), bottom tabs, and per-tab stacks
@@ -123,6 +125,19 @@ Navigation shows the sign-in screen when there is no session, and the tab
 navigator (Home · Leaderboard · Tournaments · Profile) once signed in. The Home,
 Leaderboard, and Profile tabs are stacks so they can push the Submit-match and
 Player-profile screens.
+
+### Commentary
+
+`lib/commentary.ts` picks a hype play-by-play line from a small pool based on
+real match context — score margin, a rating-delta "upset" threshold
+(`UPSET_DELTA_THRESHOLD`), or a win/loss streak length — never generic filler.
+It's wired into: the match-confirmation alert on Home (using the actual rating
+delta from `confirm-match`'s response), the tournament champion banner, Home's
+rotating tip card, and small profile flourishes (a streak banner, an "UPSET"
+tag on big-swing matches) and leaderboard medals (🥇🥈🥉 for the top 3). To
+support the confirm-flow line, `confirm-match`'s response gained a
+caller-relative `you: { delta, rating, rd }` field (and `demoConfirm` mirrors
+it) alongside the existing `status`/`repeatFactor`.
 
 ## Build phases
 

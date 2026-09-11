@@ -1,16 +1,18 @@
-// Shared design tokens. Kept intentionally small for Phase 1.
+// Shared design tokens. "Court & Paddle" theme: warm paddle orange and net
+// teal on a deep charcoal-green ground.
 
 export const colors = {
-  background: '#0B1220',
-  surface: '#151E31',
-  surfaceAlt: '#1E2A42',
-  border: '#26324B',
-  text: '#F2F5FB',
-  textMuted: '#9AA7C0',
-  primary: '#4C8DFF',
+  background: '#14171A',
+  surface: '#1C2124',
+  surfaceAlt: '#262B2E',
+  border: '#33393D',
+  text: '#F4F1EB',
+  textMuted: '#A9A79C',
+  primary: '#FF5A2E', // paddle orange — CTAs, active states, the rating chart
   primaryText: '#FFFFFF',
-  success: '#3FB56B',
-  danger: '#E5544B',
+  accent: '#2EC4B6', // net teal — medals, streaks, hype tags (bonus flourishes only)
+  success: '#5CB85C',
+  danger: '#EF4444', // kept clearly apart in hue from the orange primary
 };
 
 export const spacing = {

@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -13,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/context/AuthContext';
 import { fetchOpponents, submitMatch, type RawGameInput } from '@/lib/matches';
+import { showAlert } from '@/lib/platformAlert';
 import type { OpponentOption } from '@/lib/types';
 import type { HomeStackScreenProps } from '@/navigation/types';
 import { colors, radius, spacing } from '@/theme';
@@ -79,7 +79,7 @@ export function SubmitMatchScreen({ navigation }: HomeStackScreenProps<'SubmitMa
     setSubmitting(true);
     try {
       await submitMatch({ opponentId, bestOf, games });
-      Alert.alert(
+      showAlert(
         'Match submitted',
         'Your opponent needs to confirm it before ratings update. They’ll see it under “Awaiting your confirmation”.',
       );

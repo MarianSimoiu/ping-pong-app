@@ -75,12 +75,17 @@ export async function fetchPendingConfirmations(myPlayerId: string): Promise<Pen
 }
 
 // Confirm or decline a pending match (only the opponent may act).
+export type ConfirmMatchResult = {
+  status: string;
+  you?: { delta: number; rating: number; rd: number };
+};
+
 export async function confirmMatch(
   matchId: string,
   action: 'confirm' | 'decline',
-): Promise<{ status: string }> {
+): Promise<ConfirmMatchResult> {
   if (DEMO) return demo.demoConfirm(matchId, action);
-  const { data, error } = await supabase.functions.invoke<{ status: string }>('confirm-match', {
+  const { data, error } = await supabase.functions.invoke<ConfirmMatchResult>('confirm-match', {
     body: { matchId, action },
   });
   if (error) {
