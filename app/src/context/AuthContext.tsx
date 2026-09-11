@@ -7,6 +7,8 @@ import React, {
   useState,
 } from 'react';
 
+import { DEMO } from '@/lib/env';
+import { DEMO_ME } from '@/lib/demo';
 import { supabase } from '@/lib/supabase';
 
 type AuthContextValue = {
@@ -19,11 +21,18 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
+// A stand-in session for DEMO mode so the app renders the signed-in experience.
+const demoSession = {
+  user: { id: DEMO_ME, email: 'you@demo.app' },
+} as unknown as Session;
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [session, setSession] = useState<Session | null>(null);
-  const [initializing, setInitializing] = useState(true);
+  const [session, setSession] = useState<Session | null>(DEMO ? demoSession : null);
+  const [initializing, setInitializing] = useState(!DEMO);
 
   useEffect(() => {
+    if (DEMO) return;
+
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
       setInitializing(false);

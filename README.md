@@ -30,22 +30,39 @@ See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the full design.
 ## Repository layout
 
 ```
-/app          Expo React Native app (TypeScript)
-/supabase     Database migrations + Edge Functions (rating engine)
-/docs         Architecture and rating-math documentation
+/app             Expo React Native app (TypeScript)
+/supabase        Database migrations + Edge Functions (rating engine)
+/docs            Architecture and rating-math documentation
+/.devcontainer   GitHub Codespaces config (zero local install)
 ```
 
-## Getting started
+## See it running — no local install needed
 
-### 1. Backend (Supabase)
+The app has a built-in **demo mode**: if no Supabase backend is configured, it
+boots with sample players, matches, and a tournament already loaded, so you can
+see and click through every screen immediately.
+
+**Fastest path — GitHub Codespaces (everything runs in your browser):**
+
+1. On this repo's GitHub page, click **`< > Code`** → **Codespaces** tab →
+   **Create codespace on main**. Wait ~1 minute for VS Code to open in your browser.
+2. In its terminal: `cd app && npm install && npm run web`
+3. A "port forwarded" popup appears — click **Open in Browser**.
+
+You're now looking at the real app (demo data, no backend). **Edit any file
+under `app/src` and save** — the page hot-reloads with your change. That's the
+whole develop-and-debug loop: no local Node, no Git, no Supabase account.
+
+## Connecting a real backend
+
+Demo mode is for UI work. To persist real players/matches/ratings, wire up
+Supabase:
 
 ```bash
 # Install the Supabase CLI, then from the repo root:
 supabase start                 # spins up local Postgres + Auth + Studio
 supabase db reset              # applies everything in supabase/migrations
 ```
-
-### 2. App (Expo)
 
 ```bash
 cd app
@@ -55,6 +72,7 @@ npx expo start                 # scan the QR code with Expo Go
 ```
 
 Local Supabase prints its URL and anon key on `supabase start`; use those in
-`app/.env` for local development.
+`app/.env`. Once `app/.env` has real values, demo mode turns itself off
+automatically and the app talks to that backend instead.
 
 For hosted setup, EAS builds, and shipping, see [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).

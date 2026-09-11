@@ -3,23 +3,20 @@ import 'react-native-url-polyfill/auto';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+import { DEMO, SUPABASE_ANON_KEY, SUPABASE_URL } from '@/lib/env';
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  // Fail loudly in development so a missing .env is obvious.
-  throw new Error(
-    'Missing Supabase config. Copy app/.env.example to app/.env and set ' +
-      'EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY.',
-  );
-}
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    storage: AsyncStorage,
-    autoRefreshToken: true,
-    persistSession: true,
-    // React Native has no URL-based session detection.
-    detectSessionInUrl: false,
+// In DEMO mode (no Supabase env) the client is never actually used — every data
+// function short-circuits to the in-memory demo backend — but we still create a
+// harmless placeholder so imports don't crash.
+export const supabase = createClient(
+  SUPABASE_URL ?? 'http://demo.invalid',
+  SUPABASE_ANON_KEY ?? 'demo-anon-key',
+  {
+    auth: {
+      storage: AsyncStorage,
+      autoRefreshToken: !DEMO,
+      persistSession: !DEMO,
+      detectSessionInUrl: false,
+    },
   },
-});
+);
