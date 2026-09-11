@@ -111,12 +111,14 @@ export function demoRatingHistory(id: string): HistoryPoint[] {
 
 export function demoMatchHistory(id: string): MatchHistoryItem[] {
   const names = players.filter((p) => p.id !== id).map((p) => p.name);
+  // A leading 3-win streak and a couple of big (|delta| >= 15) swings so the
+  // streak banner and upset tags both have something to show in the demo.
   const sample: Array<[string, 'win' | 'loss', number]> = [
-    [names[0], 'win', 18],
-    [names[1], 'loss', -22],
+    [names[0], 'win', 9],
+    [names[1], 'win', 22],
     [names[2], 'win', 7],
-    [names[3], 'win', 12],
-    [names[4] ?? 'Ana', 'loss', -15],
+    [names[3], 'loss', -15],
+    [names[4] ?? 'Ana', 'loss', -8],
   ];
   return sample.map(([opponentName, result, delta], i) => ({
     id: `mh-${id}-${i}`,
@@ -147,16 +149,21 @@ export function demoSubmitMatch(): { matchId: string; status: 'pending' } {
 
 export const demoPending = (): PendingMatch[] => [...pending];
 
-export function demoConfirm(matchId: string, action: 'confirm' | 'decline'): { status: string } {
+export function demoConfirm(
+  matchId: string,
+  action: 'confirm' | 'decline',
+): { status: string; you?: { delta: number; rating: number; rd: number } } {
   const match = pending.find((m) => m.matchId === matchId);
   pending = pending.filter((m) => m.matchId !== matchId);
-  const me = byId(DEMO_ME)!;
-  if (action === 'confirm' && match) {
-    me.matches += 1;
-    me.rating += match.iWon ? 14 : -12;
-    me.rd = Math.max(40, me.rd - 3);
+  if (action !== 'confirm' || !match) {
+    return { status: action === 'confirm' ? 'confirmed' : 'rejected' };
   }
-  return { status: action === 'confirm' ? 'confirmed' : 'rejected' };
+  const me = byId(DEMO_ME)!;
+  const delta = match.iWon ? 14 : -12;
+  me.matches += 1;
+  me.rating += delta;
+  me.rd = Math.max(40, me.rd - 3);
+  return { status: 'confirmed', you: { delta, rating: me.rating, rd: me.rd } };
 }
 
 // --- tournaments -------------------------------------------------------------

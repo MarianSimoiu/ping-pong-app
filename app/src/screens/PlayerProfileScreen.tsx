@@ -1,5 +1,5 @@
 import { type RouteProp, useRoute } from '@react-navigation/native';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   RefreshControl,
@@ -11,6 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { RatingChart } from '@/components/RatingChart';
+import { pickStreakLine, UPSET_DELTA_THRESHOLD } from '@/lib/commentary';
 import {
   fetchMatchHistory,
   fetchPlayerById,
@@ -22,6 +23,19 @@ import {
 } from '@/lib/leaderboard';
 import type { PlayerWithRating } from '@/lib/types';
 import { colors, radius, spacing } from '@/theme';
+
+// Count of leading same-result matches in a newest-first list — e.g. [W,W,W,L]
+// is a 3-match win streak.
+function currentStreak(matches: MatchHistoryItem[]): { count: number; kind: 'win' | 'loss' } | null {
+  if (matches.length === 0) return null;
+  const kind = matches[0].result;
+  let count = 0;
+  for (const m of matches) {
+    if (m.result !== kind) break;
+    count += 1;
+  }
+  return { count, kind };
+}
 
 // Shared param shape (the route exists in both the Leaderboard and Profile stacks).
 type ParamList = { PlayerProfile: { playerId: string; displayName: string } };
@@ -66,6 +80,11 @@ export function PlayerProfileScreen() {
 
   const rating = player?.rating;
   const isProvisional = (rating?.matches_played ?? 0) < 10;
+  // Picked once per fresh match list, not on every re-render.
+  const streakLine = useMemo(() => {
+    const streak = currentStreak(matches);
+    return streak ? pickStreakLine(streak.count, streak.kind) : null;
+  }, [matches]);
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -97,23 +116,34 @@ export function PlayerProfileScreen() {
             <RatingChart points={history} />
 
             <Text style={styles.section}>Recent matches</Text>
+            {streakLine && (
+              <View style={styles.streakBanner}>
+                <Text style={styles.streakText}>{streakLine}</Text>
+              </View>
+            )}
             {matches.length === 0 ? (
               <Text style={styles.empty}>No matches yet.</Text>
             ) : (
-              matches.map((m) => (
-                <View key={m.id} style={styles.matchRow}>
-                  <View style={[styles.badge, m.result === 'win' ? styles.badgeWin : styles.badgeLoss]}>
-                    <Text style={styles.badgeText}>{m.result === 'win' ? 'W' : 'L'}</Text>
+              matches.map((m) => {
+                const isUpset = Math.abs(m.delta) >= UPSET_DELTA_THRESHOLD;
+                return (
+                  <View key={m.id} style={styles.matchRow}>
+                    <View style={[styles.badge, m.result === 'win' ? styles.badgeWin : styles.badgeLoss]}>
+                      <Text style={styles.badgeText}>{m.result === 'win' ? 'W' : 'L'}</Text>
+                    </View>
+                    <Text style={styles.matchOpponent} numberOfLines={1}>
+                      vs {m.opponentName}
+                    </Text>
+                    {isUpset && (
+                      <Text style={styles.upsetTag}>{m.result === 'win' ? '🔥 UPSET' : '😱 UPSET'}</Text>
+                    )}
+                    <Text style={[styles.matchDelta, m.delta >= 0 ? styles.deltaUp : styles.deltaDown]}>
+                      {m.delta >= 0 ? '+' : ''}
+                      {Math.round(m.delta)}
+                    </Text>
                   </View>
-                  <Text style={styles.matchOpponent} numberOfLines={1}>
-                    vs {m.opponentName}
-                  </Text>
-                  <Text style={[styles.matchDelta, m.delta >= 0 ? styles.deltaUp : styles.deltaDown]}>
-                    {m.delta >= 0 ? '+' : ''}
-                    {Math.round(m.delta)}
-                  </Text>
-                </View>
-              ))
+                );
+              })
             )}
           </>
         )}
@@ -157,6 +187,21 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   empty: { color: colors.textMuted, fontSize: 14 },
+  streakBanner: {
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.accent,
+    padding: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  streakText: { color: colors.text, fontSize: 13, fontWeight: '600' },
+  upsetTag: {
+    color: colors.accent,
+    fontSize: 11,
+    fontWeight: '700',
+    marginRight: spacing.sm,
+  },
   matchRow: {
     flexDirection: 'row',
     alignItems: 'center',

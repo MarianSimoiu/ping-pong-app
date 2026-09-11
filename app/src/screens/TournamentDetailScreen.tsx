@@ -1,8 +1,9 @@
 import { useFocusEffect } from '@react-navigation/native';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { pickChampionLine } from '@/lib/commentary';
 import { fetchTournamentDetail, type TournamentDetail, type TournamentNode } from '@/lib/tournaments';
 import type { TournamentsStackScreenProps } from '@/navigation/types';
 import { colors, radius, spacing } from '@/theme';
@@ -41,6 +42,19 @@ export function TournamentDetailScreen({
     }, [load]),
   );
 
+  // Computed before the early returns below so the hook order stays stable;
+  // `detail` may still be null on the first render.
+  const champion =
+    detail?.tournament.status === 'completed'
+      ? detail.nodes.find((n) => n.round === detail.totalRounds)?.winnerId ?? null
+      : null;
+  const championName = champion ? detail?.nameById[champion] : null;
+  // Picked once per champion so it doesn't change on every re-render/refresh.
+  const championLine = useMemo(
+    () => (championName ? pickChampionLine(championName) : null),
+    [championName],
+  );
+
   if (loading && !detail) {
     return (
       <SafeAreaView style={styles.container}>
@@ -60,11 +74,6 @@ export function TournamentDetailScreen({
   const rounds = Array.from(new Set(nodes.map((n) => n.round))).sort((a, b) => a - b);
   const nameOf = (id: string | null, fallback: string) => (id ? nameById[id] ?? 'Unknown' : fallback);
 
-  const champion =
-    tournament.status === 'completed'
-      ? nodes.find((n) => n.round === totalRounds)?.winnerId ?? null
-      : null;
-
   function onNodePress(node: TournamentNode) {
     if (node.status !== 'ready' || !node.playerA || !node.playerB) return;
     navigation.navigate('RecordTournamentMatch', {
@@ -79,10 +88,10 @@ export function TournamentDetailScreen({
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <ScrollView contentContainerStyle={styles.content}>
-        {champion && (
+        {championLine && (
           <View style={styles.champion}>
             <Text style={styles.championEmoji}>🏆</Text>
-            <Text style={styles.championText}>{nameById[champion]} wins!</Text>
+            <Text style={styles.championText}>{championLine}</Text>
           </View>
         )}
 

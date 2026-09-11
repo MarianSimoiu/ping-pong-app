@@ -22,6 +22,10 @@ import { colors, radius, spacing } from '@/theme';
 
 type Tab = 'skill' | 'season';
 
+const MEDALS = ['🥇', '🥈', '🥉'] as const;
+// Top-3 get a medal in place of the plain rank number.
+const rankLabel = (rank: number): string => MEDALS[rank - 1] ?? String(rank);
+
 export function LeaderboardScreen({ navigation }: LeaderboardStackScreenProps<'Leaderboard'>) {
   const [tab, setTab] = useState<Tab>('skill');
   const [skill, setSkill] = useState<LeaderboardEntry[]>([]);
@@ -77,7 +81,7 @@ export function LeaderboardScreen({ navigation }: LeaderboardStackScreenProps<'L
             contentContainerStyle={styles.list}
             renderItem={({ item }) => (
               <Pressable style={styles.row} onPress={() => openProfile(item.playerId, item.displayName)}>
-                <Text style={styles.rank}>{item.rank}</Text>
+                <Text style={styles.rank}>{rankLabel(item.rank)}</Text>
                 <View style={styles.rowMain}>
                   <Text style={styles.rowName} numberOfLines={1}>
                     {item.displayName}
@@ -103,7 +107,7 @@ export function LeaderboardScreen({ navigation }: LeaderboardStackScreenProps<'L
           contentContainerStyle={styles.list}
           renderItem={({ item }) => (
             <Pressable style={styles.row} onPress={() => openProfile(item.playerId, item.displayName)}>
-              <Text style={styles.rank}>{item.rank}</Text>
+              <Text style={styles.rank}>{rankLabel(item.rank)}</Text>
               <View style={styles.rowMain}>
                 <Text style={styles.rowName} numberOfLines={1}>
                   {item.displayName}
