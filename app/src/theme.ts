@@ -1,19 +1,27 @@
-// Shared design tokens. "Court & Paddle" theme: warm paddle orange and net
-// teal on a deep charcoal-green ground.
+// Shared design tokens. "Bubblegum" theme: a light candy palette — bubblegum
+// pink and mint on a warm off-white ground — with rounder, bouncier shapes.
 
 export const colors = {
-  background: '#14171A',
-  surface: '#1C2124',
-  surfaceAlt: '#262B2E',
-  border: '#33393D',
-  text: '#F4F1EB',
-  textMuted: '#A9A79C',
-  primary: '#FF5A2E', // paddle orange — CTAs, active states, the rating chart
+  background: '#FFF7FA',
+  surface: '#FFFFFF',
+  surfaceAlt: '#FFEAF3',
+  border: '#F3D6E4',
+  text: '#2B1D26', // deep plum-black, warmer/softer than pure black
+  textMuted: '#8B7A85',
+  primary: '#FF5FA2', // bubblegum pink — CTAs, active states, the rating chart
   primaryText: '#FFFFFF',
-  accent: '#2EC4B6', // net teal — medals, streaks, hype tags (bonus flourishes only)
-  success: '#5CB85C',
-  danger: '#EF4444', // kept clearly apart in hue from the orange primary
+  accent: '#12A385', // deepened mint — medals, streaks, hype tags; kept dark
+  // enough to stay legible as small text on this light ground (a pale candy
+  // mint washes out here the way it wouldn't on a dark background)
+  success: '#1FA35A', // likewise deepened for light-background contrast
+  danger: '#E2483C', // warm coral-red, kept clearly apart in hue from the pink primary
 };
+
+// Status bar icon color for the OS chrome — not derived from `colors` above
+// because expo-status-bar takes a literal 'light'/'dark', not a hex value.
+// Every screen that renders <StatusBar> should reference this constant
+// instead of hardcoding a style, so a future theme swap can't miss it.
+export const statusBarStyle: 'light' | 'dark' = 'dark';
 
 export const spacing = {
   xs: 4,
@@ -24,7 +32,7 @@ export const spacing = {
 };
 
 export const radius = {
-  sm: 8,
-  md: 12,
-  lg: 20,
+  sm: 14,
+  md: 20,
+  lg: 28,
 };
