@@ -1,8 +1,11 @@
+import { demoMyProfile } from '@/lib/demo';
+import { DEMO } from '@/lib/env';
 import { supabase } from '@/lib/supabase';
 import type { PlayerWithRating } from '@/lib/types';
 
 // Fetch the signed-in user's player row joined with their current rating.
 export async function fetchMyProfile(userId: string): Promise<PlayerWithRating | null> {
+  if (DEMO) return demoMyProfile();
   const { data, error } = await supabase
     .from('players')
     .select('*, rating:player_ratings(*)')

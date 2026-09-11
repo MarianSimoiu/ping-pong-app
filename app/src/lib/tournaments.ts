@@ -1,3 +1,5 @@
+import * as demo from '@/lib/demo';
+import { DEMO } from '@/lib/env';
 import type { RawGameInput } from '@/lib/matches';
 import { supabase } from '@/lib/supabase';
 
@@ -48,6 +50,7 @@ function mapSummary(row: any): TournamentSummary {
 }
 
 export async function fetchTournaments(): Promise<TournamentSummary[]> {
+  if (DEMO) return demo.demoTournaments();
   const { data, error } = await supabase
     .from('tournaments')
     .select('id, name, status, size, best_of, tier, created_at')
@@ -58,6 +61,7 @@ export async function fetchTournaments(): Promise<TournamentSummary[]> {
 
 // Every player with a rating, best first — for participant selection & seeding.
 export async function fetchSeedablePlayers(): Promise<PlayerWithRatingRow[]> {
+  if (DEMO) return demo.demoSeedablePlayers();
   const { data, error } = await supabase
     .from('player_ratings')
     .select('rating, matches_played, player:players(id, display_name)')
@@ -70,6 +74,7 @@ export async function fetchSeedablePlayers(): Promise<PlayerWithRatingRow[]> {
 }
 
 export async function fetchTournamentDetail(id: string): Promise<TournamentDetail> {
+  if (DEMO) return demo.demoTournamentDetail(id);
   const [tRes, pRes, nRes] = await Promise.all([
     supabase.from('tournaments').select('id, name, status, size, best_of, tier, created_at').eq('id', id).single(),
     supabase
@@ -115,6 +120,7 @@ export async function createTournament(input: {
   bestOf: number;
   participantIds: string[];
 }): Promise<{ tournamentId: string }> {
+  if (DEMO) return demo.demoCreateTournament(input);
   const { data, error } = await supabase.functions.invoke<{ tournamentId: string }>('create-tournament', {
     body: input,
   });
@@ -130,6 +136,7 @@ export async function recordTournamentMatch(input: {
   tournamentMatchId: string;
   games: RawGameInput[];
 }): Promise<{ winnerId: string }> {
+  if (DEMO) return demo.demoRecordTournamentMatch(input);
   const { data, error } = await supabase.functions.invoke<{ winnerId: string }>('submit-tournament-match', {
     body: input,
   });

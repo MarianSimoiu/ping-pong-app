@@ -96,8 +96,10 @@ in `_shared/engine.ts`, shared by both `submit-match` and
 ## App structure (`/app/src`)
 
 ```
+lib/env.ts          SUPABASE_URL/ANON_KEY + the DEMO flag (true when either is unset)
 lib/supabase.ts     Configured Supabase client (session persisted via AsyncStorage)
-lib/                players, matches, leaderboard data-access helpers + constants
+lib/demo.ts         In-memory demo backend (sample players/matches/tournament)
+lib/                players, matches, leaderboard, tournaments data-access helpers
 context/AuthContext Session state + sign-in / sign-up / sign-out helpers
 navigation/         Root switch (auth vs app), bottom tabs, and per-tab stacks
 screens/            SignIn, Home, SubmitMatch, Leaderboard, PlayerProfile,
@@ -105,6 +107,17 @@ screens/            SignIn, Home, SubmitMatch, Leaderboard, PlayerProfile,
 components/          RatingChart (react-native-svg), Placeholder
 theme.ts            Shared colors / spacing
 ```
+
+### Demo mode
+
+Every data function in `lib/*.ts` starts with `if (DEMO) return demo.xyz(...)`.
+When `app/.env` has no Supabase URL/key, `DEMO` is `true`: `AuthContext` seeds a
+stand-in signed-in session and all reads/writes hit `lib/demo.ts`'s in-memory
+store instead of the network — so the whole app (auth, matches, confirmation,
+leaderboard, profiles, tournaments) is explorable and clickable with **zero
+backend setup**. Setting real Supabase env vars turns this off automatically;
+production behavior is unaffected since `DEMO` can only be true when
+configuration is missing.
 
 Navigation shows the sign-in screen when there is no session, and the tab
 navigator (Home · Leaderboard · Tournaments · Profile) once signed in. The Home,

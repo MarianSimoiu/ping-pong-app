@@ -1,3 +1,5 @@
+import * as demo from '@/lib/demo';
+import { DEMO } from '@/lib/env';
 import { supabase } from '@/lib/supabase';
 import type { OpponentOption, PendingMatch, SubmitMatchResult } from '@/lib/types';
 
@@ -5,6 +7,7 @@ export type RawGameInput = { score_a: number; score_b: number };
 
 // Everyone except the signed-in user, as opponent options.
 export async function fetchOpponents(myUserId: string): Promise<OpponentOption[]> {
+  if (DEMO) return demo.demoOpponents();
   const { data, error } = await supabase
     .from('players')
     .select('id, display_name')
@@ -21,6 +24,7 @@ export async function submitMatch(input: {
   bestOf: number;
   games: RawGameInput[];
 }): Promise<SubmitMatchResult> {
+  if (DEMO) return demo.demoSubmitMatch();
   const { data, error } = await supabase.functions.invoke<SubmitMatchResult>('submit-match', {
     body: input,
   });
@@ -35,6 +39,7 @@ export async function submitMatch(input: {
 
 // Pending casual matches the given player must confirm (logged by the opponent).
 export async function fetchPendingConfirmations(myPlayerId: string): Promise<PendingMatch[]> {
+  if (DEMO) return demo.demoPending();
   const { data, error } = await supabase
     .from('matches')
     .select(
@@ -74,6 +79,7 @@ export async function confirmMatch(
   matchId: string,
   action: 'confirm' | 'decline',
 ): Promise<{ status: string }> {
+  if (DEMO) return demo.demoConfirm(matchId, action);
   const { data, error } = await supabase.functions.invoke<{ status: string }>('confirm-match', {
     body: { matchId, action },
   });

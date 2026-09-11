@@ -1,4 +1,6 @@
 import { MIN_MATCHES_FOR_LEADERBOARD } from '@/lib/constants';
+import * as demo from '@/lib/demo';
+import { DEMO } from '@/lib/env';
 import { supabase } from '@/lib/supabase';
 import type { PlayerWithRating } from '@/lib/types';
 
@@ -13,6 +15,7 @@ export type LeaderboardEntry = {
 
 // Ranked skill leaderboard: players past the min-matches gate, best rating first.
 export async function fetchLeaderboard(): Promise<LeaderboardEntry[]> {
+  if (DEMO) return demo.demoLeaderboard();
   const { data, error } = await supabase
     .from('player_ratings')
     .select('rating, rd, matches_played, player:players(id, display_name)')
@@ -43,6 +46,7 @@ export type SeasonEntry = {
 
 // WTA-style season standings: best-N non-expired results summed per player.
 export async function fetchSeasonStandings(): Promise<SeasonEntry[]> {
+  if (DEMO) return demo.demoSeasonStandings();
   const { data, error } = await supabase.rpc('season_standings', { best_n: 8 });
   if (error) throw error;
   return (data ?? []).map((r: any, i: number) => ({
@@ -56,6 +60,7 @@ export async function fetchSeasonStandings(): Promise<SeasonEntry[]> {
 
 // A single player's current season points (sum of best-8 non-expired results).
 export async function fetchPlayerSeasonPoints(playerId: string): Promise<number> {
+  if (DEMO) return demo.demoPlayerSeasonPoints(playerId);
   const { data, error } = await supabase
     .from('season_points')
     .select('points, expires_at')
@@ -69,6 +74,7 @@ export async function fetchPlayerSeasonPoints(playerId: string): Promise<number>
 
 // A single player's profile card (player row + current rating).
 export async function fetchPlayerById(playerId: string): Promise<PlayerWithRating | null> {
+  if (DEMO) return demo.demoPlayerById(playerId);
   const { data, error } = await supabase
     .from('players')
     .select('*, rating:player_ratings(*)')
@@ -84,6 +90,7 @@ export type HistoryPoint = { at: string; rating: number };
 
 // Rating over time, oldest first — for the profile chart.
 export async function fetchRatingHistory(playerId: string): Promise<HistoryPoint[]> {
+  if (DEMO) return demo.demoRatingHistory(playerId);
   const { data, error } = await supabase
     .from('rating_events')
     .select('created_at, rating_after')
@@ -95,6 +102,7 @@ export async function fetchRatingHistory(playerId: string): Promise<HistoryPoint
 
 // Win/loss record from the rating audit log.
 export async function fetchRecord(playerId: string): Promise<{ wins: number; losses: number }> {
+  if (DEMO) return demo.demoRecord(playerId);
   const [wins, losses] = await Promise.all([
     supabase
       .from('rating_events')
@@ -123,6 +131,7 @@ export type MatchHistoryItem = {
 
 // Recent matches for a player, newest first, derived from the rating audit log.
 export async function fetchMatchHistory(playerId: string, limit = 25): Promise<MatchHistoryItem[]> {
+  if (DEMO) return demo.demoMatchHistory(playerId).slice(0, limit);
   const { data, error } = await supabase
     .from('rating_events')
     .select(

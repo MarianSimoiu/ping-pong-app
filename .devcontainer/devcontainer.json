@@ -1,0 +1,22 @@
+{
+  "name": "Ping Pong Tracker",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:20",
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+  "postCreateCommand": "cd app && npm install",
+  "forwardPorts": [8081, 19006],
+  "portsAttributes": {
+    "8081": {
+      "label": "Expo web (npm run web)",
+      "onAutoForward": "openBrowser"
+    },
+    "19006": {
+      "label": "Expo web (legacy port)",
+      "onAutoForward": "openBrowser"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": ["dbaeumer.vscode-eslint", "esbenp.prettier-vscode"]
+    }
+  }
+}
