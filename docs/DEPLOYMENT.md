@@ -22,7 +22,7 @@ From the repo root:
 
 ```bash
 supabase start        # boots local Postgres, Auth, Studio; prints API URL + anon key
-supabase db reset     # applies every migration in supabase/migrations (0001–0004)
+supabase db reset     # applies every migration in supabase/migrations (0001–0005)
 supabase functions serve   # serves the Edge Functions locally
 ```
 
@@ -35,8 +35,9 @@ supabase functions serve   # serves the Edge Functions locally
 
    ```bash
    supabase link --project-ref <your-project-ref>
-   supabase db push                       # applies migrations 0001–0004
+   supabase db push                       # applies migrations 0001–0005
    supabase functions deploy submit-match
+   supabase functions deploy confirm-match
    supabase functions deploy create-tournament
    supabase functions deploy submit-tournament-match
    ```
@@ -55,6 +56,7 @@ supabase functions serve   # serves the Edge Functions locally
 | `0002_matches.sql` | `matches`, `match_games`, `rating_events`, `apply_rated_match` |
 | `0003_tournaments.sql` | tournaments + bracket tables, `create_tournament`, `apply_tournament_result` |
 | `0004_season_points.sql` | `season_points`, `award_season_points`, `season_standings` |
+| `0005_match_confirmation.sql` | `matches.status`, `create_pending_match`, `confirm_match`, `reject_match` |
 
 ---
 
