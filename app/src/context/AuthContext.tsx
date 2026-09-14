@@ -11,11 +11,13 @@ import { DEMO } from '@/lib/env';
 import { DEMO_ME } from '@/lib/demo';
 import { supabase } from '@/lib/supabase';
 
+export type SignUpResult = { needsEmailConfirmation: boolean };
+
 type AuthContextValue = {
   session: Session | null;
   initializing: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, displayName: string) => Promise<void>;
+  signUp: (email: string, password: string, displayName: string) => Promise<SignUpResult>;
   signOut: () => Promise<void>;
 };
 
@@ -54,12 +56,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (error) throw error;
       },
       async signUp(email, password, displayName) {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: { data: { display_name: displayName } },
         });
         if (error) throw error;
+        // Supabase only returns an active session immediately when the
+        // project's "Confirm email" setting is off (or auto-confirmed the
+        // user some other way). No session yet means they must click the
+        // link in a confirmation email before they can sign in.
+        return { needsEmailConfirmation: !data.session };
       },
       async signOut() {
         const { error } = await supabase.auth.signOut();
