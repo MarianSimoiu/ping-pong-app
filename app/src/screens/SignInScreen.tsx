@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 
 import { useAuth } from '@/context/AuthContext';
+import { showAlert } from '@/lib/platformAlert';
 import { colors, radius, spacing, statusBarStyle } from '@/theme';
 
 export function SignInScreen() {
@@ -22,15 +23,40 @@ export function SignInScreen() {
   const [displayName, setDisplayName] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // A persistent (not just a one-time alert) success message — e.g. "check
+  // your email" — that stays visible after signing up so it isn't missed.
+  const [notice, setNotice] = useState<string | null>(null);
 
   const isSignUp = mode === 'signUp';
 
+  function switchMode(next: 'signIn' | 'signUp') {
+    setMode(next);
+    setError(null);
+    setNotice(null);
+  }
+
   async function submit() {
     setError(null);
+    setNotice(null);
     setBusy(true);
     try {
       if (isSignUp) {
-        await signUp(email.trim(), password, displayName.trim() || email.split('@')[0]);
+        const { needsEmailConfirmation } = await signUp(
+          email.trim(),
+          password,
+          displayName.trim() || email.split('@')[0],
+        );
+        if (needsEmailConfirmation) {
+          const message =
+            `We sent a confirmation link to ${email.trim()}. Click it, then come back ` +
+            'here and sign in.';
+          showAlert('Check your email', message);
+          setNotice(message);
+          setMode('signIn');
+          setPassword('');
+        }
+        // If a session came back immediately, no message needed — the app
+        // will switch to the signed-in view on its own.
       } else {
         await signIn(email.trim(), password);
       }
@@ -83,6 +109,14 @@ export function SignInScreen() {
           onChangeText={setPassword}
         />
 
+        {isSignUp && (
+          <Text style={styles.hint}>
+            Depending on how this app is set up, you may need to confirm your
+            email (check your inbox) before you can sign in.
+          </Text>
+        )}
+
+        {notice && <Text style={styles.notice}>{notice}</Text>}
         {error && <Text style={styles.error}>{error}</Text>}
 
         <Pressable
@@ -97,7 +131,7 @@ export function SignInScreen() {
           )}
         </Pressable>
 
-        <Pressable onPress={() => setMode(isSignUp ? 'signIn' : 'signUp')}>
+        <Pressable onPress={() => switchMode(isSignUp ? 'signIn' : 'signUp')}>
           <Text style={styles.switch}>
             {isSignUp
               ? 'Already have an account? Sign in'
@@ -156,6 +190,18 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: spacing.md,
     fontSize: 14,
+  },
+  hint: {
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 17,
+    marginBottom: spacing.sm,
+  },
+  notice: {
+    color: colors.success,
+    marginBottom: spacing.sm,
+    fontSize: 14,
+    lineHeight: 20,
   },
   error: { color: colors.danger, marginBottom: spacing.sm, fontSize: 14 },
 });
