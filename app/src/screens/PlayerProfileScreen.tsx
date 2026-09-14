@@ -212,7 +212,7 @@ const styles = StyleSheet.create({
   badge: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   badgeWin: { backgroundColor: colors.success },
   badgeLoss: { backgroundColor: colors.danger },
-  badgeText: { color: '#fff', fontWeight: '700', fontSize: 13 },
+  badgeText: { color: colors.primaryText, fontWeight: '700', fontSize: 13 },
   matchOpponent: { color: colors.text, fontSize: 15, marginLeft: spacing.md, flex: 1 },
   matchDelta: { fontSize: 15, fontWeight: '600' },
   deltaUp: { color: colors.success },

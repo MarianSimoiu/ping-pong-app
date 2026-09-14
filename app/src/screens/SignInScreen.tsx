@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 
 import { useAuth } from '@/context/AuthContext';
-import { colors, radius, spacing } from '@/theme';
+import { colors, radius, spacing, statusBarStyle } from '@/theme';
 
 export function SignInScreen() {
   const { signIn, signUp } = useAuth();
@@ -46,7 +46,7 @@ export function SignInScreen() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <StatusBar style="light" />
+      <StatusBar style={statusBarStyle} />
       <View style={styles.card}>
         <Text style={styles.title}>🏓 Ping Pong</Text>
         <Text style={styles.subtitle}>
