@@ -72,6 +72,35 @@ npx expo start            # scan the QR code with the Expo Go app
 
 The app talks to whichever Supabase you pointed `.env` at (local or hosted).
 
+### Option C — Web (free, reaches every device — no install)
+
+The app already runs on the web (`react-native-web`); this turns it into a
+shareable link instead of a dev-server QR code.
+
+```bash
+cd app
+npm run build:web     # optional local sanity check -> app/dist
+```
+
+To deploy it for real:
+
+1. Create a free account at https://vercel.com and connect your GitHub.
+2. "Add New… → Project" → import this repo. The repo's `vercel.json` already
+   pins the build command and output directory, so no manual build settings
+   are needed.
+3. In the Vercel project's **Environment Variables**, add
+   `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` (same values
+   as `app/.env`, pointed at your hosted Supabase project).
+4. Deploy. You get a free URL like `https://<your-project>.vercel.app` —
+   share that link with anyone, any device, no install. Every push to `main`
+   auto-redeploys it.
+5. In the Supabase dashboard: **Authentication → URL Configuration**, set
+   **Site URL** to that same Vercel URL, so email-confirmation links land back
+   on the live app.
+
+This is additive — the Android APK path below still works for anyone who
+wants an installed app icon.
+
 ---
 
 ## 3. Tests
