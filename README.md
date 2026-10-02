@@ -14,8 +14,10 @@ Every player has **two numbers**:
    tournament tier, on a rolling 52-week best-N window that decays over time.
    Answers *"what have you achieved lately?"*
 
-The full math and every anti-farming rule are documented in
-[`docs/RATING.md`](docs/RATING.md) so any number can be verified.
+For a short explanation with worked examples, see
+[`docs/LEADERBOARD.md`](docs/LEADERBOARD.md). The full math and every
+anti-farming rule are documented in [`docs/RATING.md`](docs/RATING.md) so any
+number can be verified.
 
 ## Stack
 
