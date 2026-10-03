@@ -16,10 +16,17 @@ import type { OpponentOption, PendingMatch, PlayerWithRating } from '@/lib/types
 const NOW = new Date().toISOString();
 export const DEMO_ME = 'demo-me';
 
-type P = { id: string; name: string; rating: number; rd: number; matches: number };
+type P = {
+  id: string;
+  name: string;
+  rating: number;
+  rd: number;
+  matches: number;
+  avatarUrl?: string | null;
+};
 
 const players: P[] = [
-  { id: DEMO_ME, name: 'You', rating: 1521, rd: 88, matches: 14 },
+  { id: DEMO_ME, name: 'You', rating: 1521, rd: 88, matches: 14, avatarUrl: null },
   { id: 'p2', name: 'Ana', rating: 1712, rd: 58, matches: 41 },
   { id: 'p3', name: 'Ben', rating: 1644, rd: 66, matches: 29 },
   { id: 'p4', name: 'Cris', rating: 1598, rd: 72, matches: 33 },
@@ -35,7 +42,7 @@ function toProfile(p: P): PlayerWithRating {
     id: p.id,
     user_id: `u-${p.id}`,
     display_name: p.name,
-    avatar_url: null,
+    avatar_url: p.avatarUrl ?? null,
     created_at: NOW,
     rating: {
       player_id: p.id,
@@ -66,6 +73,9 @@ const tournaments: TStore[] = [sampleTournament()];
 // --- profile / leaderboard ---------------------------------------------------
 
 export const demoMyProfile = (): PlayerWithRating => toProfile(byId(DEMO_ME)!);
+export function demoSetAvatar(uri: string): void {
+  byId(DEMO_ME)!.avatarUrl = uri;
+}
 export const demoPlayerById = (id: string): PlayerWithRating | null => {
   const p = byId(id);
   return p ? toProfile(p) : null;

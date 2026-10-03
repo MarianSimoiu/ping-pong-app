@@ -101,12 +101,14 @@ lib/supabase.ts     Configured Supabase client (session persisted via AsyncStora
 lib/demo.ts         In-memory demo backend (sample players/matches/tournament)
 lib/commentary.ts   Hype play-by-play line pools + pickers (match result, champion,
                     home tip, streaks) — pure, no I/O
+lib/avatar.ts       Uploads a picked photo to the `avatars` Storage bucket and
+                    writes its public URL to players.avatar_url
 lib/                players, matches, leaderboard, tournaments data-access helpers
 context/AuthContext Session state + sign-in / sign-up / sign-out helpers
 navigation/         Root switch (auth vs app), bottom tabs, and per-tab stacks
 screens/            SignIn, Home, SubmitMatch, Leaderboard, PlayerProfile,
                     Tournaments, Profile
-components/          RatingChart (react-native-svg), Placeholder
+components/          RatingChart (react-native-svg), Avatar, Placeholder
 theme.ts            Shared colors / spacing
 ```
 

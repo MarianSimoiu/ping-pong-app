@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Avatar } from '@/components/Avatar';
 import { RatingChart } from '@/components/RatingChart';
 import { pickStreakLine, UPSET_DELTA_THRESHOLD } from '@/lib/commentary';
 import {
@@ -98,7 +99,10 @@ export function PlayerProfileScreen() {
           <Text style={styles.error}>{error}</Text>
         ) : (
           <>
-            <Text style={styles.name}>{player?.display_name}</Text>
+            <View style={styles.header}>
+              <Avatar uri={player?.avatar_url} name={player?.display_name ?? '?'} size={64} />
+              <Text style={styles.name}>{player?.display_name}</Text>
+            </View>
 
             <View style={styles.statsRow}>
               <Stat label="Rating" value={String(Math.round(rating?.rating ?? 1500))} />
@@ -164,7 +168,8 @@ function Stat({ label, value }: { label: string; value: string }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   content: { padding: spacing.lg },
-  name: { fontSize: 26, fontWeight: '700', color: colors.text, marginBottom: spacing.md },
+  header: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.md },
+  name: { fontSize: 26, fontWeight: '700', color: colors.text },
   statsRow: { flexDirection: 'row', gap: spacing.sm },
   stat: {
     flex: 1,
