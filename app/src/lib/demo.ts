@@ -59,8 +59,33 @@ function toProfile(p: P): PlayerWithRating {
 // --- mutable state -----------------------------------------------------------
 
 let pending: PendingMatch[] = [
-  { matchId: 'pm1', submitterName: 'Ana', iWon: false, myGames: 1, opponentGames: 2 },
-  { matchId: 'pm2', submitterName: 'Emil', iWon: true, myGames: 2, opponentGames: 0 },
+  {
+    matchId: 'pm1',
+    submitterName: 'Ana',
+    submitterAvatarUrl: null,
+    iWon: false,
+    myGames: 1,
+    opponentGames: 2,
+    games: [
+      { myScore: 11, opponentScore: 7 },
+      { myScore: 7, opponentScore: 11 },
+      { myScore: 9, opponentScore: 11 },
+    ],
+    submittedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    matchId: 'pm2',
+    submitterName: 'Emil',
+    submitterAvatarUrl: null,
+    iWon: true,
+    myGames: 2,
+    opponentGames: 0,
+    games: [
+      { myScore: 11, opponentScore: 5 },
+      { myScore: 11, opponentScore: 9 },
+    ],
+    submittedAt: new Date(Date.now() - 20 * 60 * 1000).toISOString(),
+  },
 ];
 
 type TStore = {

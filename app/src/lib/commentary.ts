@@ -18,6 +18,20 @@ function fill(line: string, vars: Record<string, string | number>): string {
   return line.replace(/\{(\w+)\}/g, (_, key) => String(vars[key] ?? `{${key}}`));
 }
 
+// Shared margin read (blowout / close / normal) used by both the confirmed
+// result line and the pending-confirmation teaser.
+function marginCategory(
+  iWon: boolean,
+  myGames: number,
+  opponentGames: number,
+): 'blowout' | 'close' | 'normal' {
+  const winningGames = iWon ? myGames : opponentGames;
+  const losingGames = iWon ? opponentGames : myGames;
+  if (winningGames - losingGames === 1) return 'close';
+  if (losingGames === 0) return 'blowout';
+  return 'normal';
+}
+
 // --- match result --------------------------------------------------------
 
 const WIN_BLOWOUT = [
@@ -67,6 +81,44 @@ const LOSS_NORMAL = [
   'A loss against {opp}. Happens to everyone — shake it off.',
 ];
 
+// --- pending confirmation (before the viewer has ruled on it) --------------
+
+const PENDING_WIN_BLOWOUT = [
+  "STOP THE TAPE! {opp} says you SWEPT 'em — just need your word to make it OFFICIAL, champ.",
+  '{opp} is calling it a blowout in YOUR favor. Smash that Confirm button and seal the deal!',
+  "Word on the street from {opp}: you ran the table. One tap and the judges make it history.",
+];
+
+const PENDING_WIN_CLOSE = [
+  "{opp} says it went the distance — and YOU came out on top. Confirm it before they change their mind!",
+  "A nail-biter, per {opp}'s own scorecard, with YOUR name in the win column. Make it official!",
+  'Tight one! {opp} is conceding the W. Make the people — er, the ratings — believe it. Confirm up!',
+];
+
+const PENDING_WIN_NORMAL = [
+  "{opp} is on the record: you took this one. Tap Confirm and let the rating book do its thing.",
+  "Straightforward W, straight from {opp}'s mouth. One tap seals it, champ.",
+  '{opp} logged it, you won it. Make it OFFICIAL.',
+];
+
+const PENDING_LOSS_BLOWOUT = [
+  'Uh oh — {opp} is claiming a SWEEP over you. Confirm if that\'s the real story, or throw the flag and Decline!',
+  '{opp} says they ran you off the table. Your call, champ: Confirm or Decline.',
+  'Rough claim incoming from {opp}: total domination. You\'ve got final say here.',
+];
+
+const PENDING_LOSS_CLOSE = [
+  "{opp} says it was close but they edged you out. Confirm the heartbreaker, or Decline if you remember it differently!",
+  'A dogfight, per {opp} — and they\'re claiming the W. Your call: Confirm or Decline.',
+  'So close, says {opp} — and they got the nod. Make the call, champ.',
+];
+
+const PENDING_LOSS_NORMAL = [
+  "{opp} is calling this one a win for THEM. Confirm if that's fair, or Decline if it ain't!",
+  "{opp}'s version: they got you. You've got the final whistle — Confirm or Decline.",
+  '{opp} logged a W over you. The people\'s court (that\'s YOU) decides: Confirm or Decline.',
+];
+
 const DECLINE = [
   "Match waved off. The scorer's table says 'that never happened.'",
   'Declined! Sometimes the official record just needs a mulligan.',
@@ -108,22 +160,41 @@ export function pickMatchResultLine(opts: {
   delta: number;
 }): string {
   const { iWon, myGames, opponentGames, opponentName, delta } = opts;
-  const winningGames = iWon ? myGames : opponentGames;
-  const losingGames = iWon ? opponentGames : myGames;
-  const margin = winningGames - losingGames;
 
   let pool: readonly string[];
   if (Math.abs(delta) >= UPSET_DELTA_THRESHOLD) {
     pool = iWon ? WIN_UPSET : LOSS_UPSET;
-  } else if (margin === 1) {
-    pool = iWon ? WIN_CLOSE : LOSS_CLOSE;
-  } else if (losingGames === 0) {
-    pool = iWon ? WIN_BLOWOUT : LOSS_BLOWOUT;
   } else {
-    pool = iWon ? WIN_NORMAL : LOSS_NORMAL;
+    const cat = marginCategory(iWon, myGames, opponentGames);
+    pool =
+      cat === 'close'
+        ? iWon ? WIN_CLOSE : LOSS_CLOSE
+        : cat === 'blowout'
+          ? iWon ? WIN_BLOWOUT : LOSS_BLOWOUT
+          : iWon ? WIN_NORMAL : LOSS_NORMAL;
   }
 
   return fill(pick(pool), { opp: opponentName });
+}
+
+// The teaser shown on the pending card itself, before the viewer has
+// confirmed or declined — so no rating delta exists yet to call an upset.
+export function pickPendingLine(opts: {
+  submitterName: string;
+  iWon: boolean;
+  myGames: number;
+  opponentGames: number;
+}): string {
+  const { submitterName, iWon, myGames, opponentGames } = opts;
+  const cat = marginCategory(iWon, myGames, opponentGames);
+  const pool =
+    cat === 'close'
+      ? iWon ? PENDING_WIN_CLOSE : PENDING_LOSS_CLOSE
+      : cat === 'blowout'
+        ? iWon ? PENDING_WIN_BLOWOUT : PENDING_LOSS_BLOWOUT
+        : iWon ? PENDING_WIN_NORMAL : PENDING_LOSS_NORMAL;
+
+  return fill(pick(pool), { opp: submitterName });
 }
 
 export function pickDeclineLine(): string {

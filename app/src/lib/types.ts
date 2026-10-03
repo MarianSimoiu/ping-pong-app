@@ -72,7 +72,11 @@ export type SubmitMatchResult = { matchId: string; status: 'pending' };
 export type PendingMatch = {
   matchId: string;
   submitterName: string;
+  submitterAvatarUrl: string | null;
   iWon: boolean;
   myGames: number;
   opponentGames: number;
+  // Per-set scores, from the viewer's perspective, in play order.
+  games: { myScore: number; opponentScore: number }[];
+  submittedAt: string;
 };
