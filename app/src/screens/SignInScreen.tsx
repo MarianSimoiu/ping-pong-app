@@ -49,7 +49,9 @@ export function SignInScreen() {
         if (needsEmailConfirmation) {
           const message =
             `We sent a confirmation link to ${email.trim()}. Click it, then come back ` +
-            'here and sign in.';
+            "here and sign in. If the link shows a browser error afterward (like " +
+            '"can\'t reach this page"), that\'s OK — your email is still confirmed, ' +
+            'just come back here.';
           showAlert('Check your email', message);
           setNotice(message);
           setMode('signIn');
@@ -112,7 +114,9 @@ export function SignInScreen() {
         {isSignUp && (
           <Text style={styles.hint}>
             Depending on how this app is set up, you may need to confirm your
-            email (check your inbox) before you can sign in.
+            email (check your inbox) before you can sign in. The confirmation
+            link may land on a browser error page during setup — that's
+            expected, your email still gets confirmed.
           </Text>
         )}
 

@@ -48,6 +48,22 @@ supabase functions serve   # serves the Edge Functions locally
 4. Grab the project's **API URL** and **anon key** from Project Settings → API for
    the app's `.env`. Never put the **service role** key in the app.
 
+### Troubleshooting: confirmation link shows "can't reach this page" / "localhost refused to connect"
+
+This is a **Supabase dashboard setting**, not an app bug. Supabase sends
+users to **Authentication → URL Configuration → Site URL** after confirming
+their email — by default that's `http://localhost:3000`, which only works if
+you happen to be running something there yourself. The confirmation itself
+already succeeded (Supabase marks the email confirmed *before* that final
+redirect) — the browser error is just a dead-end redirect. **The fix: go back
+to the app and sign in normally**, it'll work.
+
+To stop this from happening to every new user, set **Site URL** to wherever
+the app is actually reachable:
+- Deployed to Vercel (see Option C below)? Use that `https://....vercel.app` URL.
+- Only testing in a Codespace dev server? There's no stable URL to set — the
+  error is harmless and expected; deploying to Vercel is the real fix.
+
 ### Migrations in this repo
 
 | File | Adds |
