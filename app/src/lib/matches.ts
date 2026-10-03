@@ -43,9 +43,9 @@ export async function fetchPendingConfirmations(myPlayerId: string): Promise<Pen
   const { data, error } = await supabase
     .from('matches')
     .select(
-      'id, player_a, player_b, winner_id, created_by, ' +
-        'creator:players!matches_created_by_fkey(display_name), ' +
-        'games:match_games(score_a, score_b)',
+      'id, player_a, player_b, winner_id, created_by, played_at, ' +
+        'creator:players!matches_created_by_fkey(display_name, avatar_url), ' +
+        'games:match_games(game_no, score_a, score_b)',
     )
     .eq('status', 'pending')
     .neq('created_by', myPlayerId)
@@ -56,20 +56,27 @@ export async function fetchPendingConfirmations(myPlayerId: string): Promise<Pen
   return (data ?? []).map((m: any) => {
     const creator = Array.isArray(m.creator) ? m.creator[0] : m.creator;
     const iAmA = m.player_a === myPlayerId;
+    const orderedGames = [...(m.games ?? [])].sort((a, b) => a.game_no - b.game_no);
+
     let myGames = 0;
     let opponentGames = 0;
-    for (const g of m.games ?? []) {
+    const games = orderedGames.map((g) => {
       const myScore = iAmA ? g.score_a : g.score_b;
-      const oppScore = iAmA ? g.score_b : g.score_a;
-      if (myScore > oppScore) myGames += 1;
+      const opponentScore = iAmA ? g.score_b : g.score_a;
+      if (myScore > opponentScore) myGames += 1;
       else opponentGames += 1;
-    }
+      return { myScore, opponentScore };
+    });
+
     return {
       matchId: m.id,
       submitterName: creator?.display_name ?? 'Someone',
+      submitterAvatarUrl: creator?.avatar_url ?? null,
       iWon: m.winner_id === myPlayerId,
       myGames,
       opponentGames,
+      games,
+      submittedAt: m.played_at,
     };
   });
 }

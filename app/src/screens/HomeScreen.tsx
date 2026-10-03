@@ -11,14 +11,24 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Avatar } from '@/components/Avatar';
 import { useAuth } from '@/context/AuthContext';
-import { pickDeclineLine, pickHomeTip, pickMatchResultLine } from '@/lib/commentary';
+import { pickDeclineLine, pickHomeTip, pickMatchResultLine, pickPendingLine } from '@/lib/commentary';
 import { confirmMatch, fetchPendingConfirmations } from '@/lib/matches';
 import { showAlert } from '@/lib/platformAlert';
 import { fetchMyProfile } from '@/lib/players';
 import type { PendingMatch, PlayerWithRating } from '@/lib/types';
 import type { HomeStackScreenProps } from '@/navigation/types';
 import { colors, radius, spacing } from '@/theme';
+
+function formatSubmittedAt(iso: string): string {
+  return new Date(iso).toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
 
 export function HomeScreen({ navigation }: HomeStackScreenProps<'Home'>) {
   const { session } = useAuth();
@@ -113,9 +123,23 @@ export function HomeScreen({ navigation }: HomeStackScreenProps<'Home'>) {
             <Text style={styles.pendingHeader}>Awaiting your confirmation</Text>
             {pending.map((m) => (
               <View key={m.matchId} style={styles.pendingCard}>
+                <View style={styles.pendingHeaderRow}>
+                  <Avatar uri={m.submitterAvatarUrl} name={m.submitterName} size={36} />
+                  <View style={styles.pendingHeaderText}>
+                    <Text style={styles.pendingName}>{m.submitterName}</Text>
+                    <Text style={styles.pendingTime}>{formatSubmittedAt(m.submittedAt)}</Text>
+                  </View>
+                </View>
                 <Text style={styles.pendingText}>
-                  {m.submitterName} logged a match: you {m.iWon ? 'won' : 'lost'} {m.myGames}–
-                  {m.opponentGames}
+                  {pickPendingLine({
+                    submitterName: m.submitterName,
+                    iWon: m.iWon,
+                    myGames: m.myGames,
+                    opponentGames: m.opponentGames,
+                  })}
+                </Text>
+                <Text style={styles.pendingSets}>
+                  Sets: {m.games.map((g) => `${g.myScore}–${g.opponentScore}`).join(', ')}
                 </Text>
                 <View style={styles.pendingActions}>
                   <Pressable
@@ -190,7 +214,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.primary,
   },
-  pendingText: { color: colors.text, fontSize: 14, marginBottom: spacing.sm },
+  pendingHeaderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm },
+  pendingHeaderText: { marginLeft: spacing.sm },
+  pendingName: { color: colors.text, fontSize: 14, fontWeight: '700' },
+  pendingTime: { color: colors.textMuted, fontSize: 11 },
+  pendingText: { color: colors.text, fontSize: 14, marginBottom: spacing.xs },
+  pendingSets: { color: colors.textMuted, fontSize: 12, marginBottom: spacing.sm },
   pendingActions: { flexDirection: 'row', gap: spacing.sm },
   confirmBtn: {
     backgroundColor: colors.primary,
