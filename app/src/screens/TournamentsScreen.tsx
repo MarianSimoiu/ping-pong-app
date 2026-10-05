@@ -61,26 +61,31 @@ export function TournamentsScreen({ navigation }: TournamentsStackScreenProps<'T
           data={tournaments}
           keyExtractor={(t) => t.id}
           contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.xl }}
-          renderItem={({ item }) => (
-            <Pressable
-              style={styles.row}
-              onPress={() =>
-                navigation.navigate('TournamentDetail', { tournamentId: item.id, name: item.name })
-              }
-            >
-              <View style={{ flex: 1 }}>
-                <Text style={styles.rowName} numberOfLines={1}>
-                  {item.name}
-                </Text>
-                <Text style={styles.rowMeta}>
-                  {item.size}-player · best of {item.bestOf}
-                </Text>
-              </View>
-              <View style={[styles.badge, statusStyle(item.status)]}>
-                <Text style={styles.badgeText}>{STATUS_LABEL[item.status]}</Text>
-              </View>
-            </Pressable>
-          )}
+          renderItem={({ item }) => {
+            const status = statusStyle(item.status);
+            return (
+              <Pressable
+                style={styles.row}
+                onPress={() =>
+                  navigation.navigate('TournamentDetail', { tournamentId: item.id, name: item.name })
+                }
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.rowName} numberOfLines={1}>
+                    {item.name}
+                  </Text>
+                  <Text style={styles.rowMeta}>
+                    {item.size}-player · best of {item.bestOf}
+                  </Text>
+                </View>
+                <View style={[styles.badge, { backgroundColor: status.backgroundColor }]}>
+                  <Text style={[styles.badgeText, { color: status.color }]}>
+                    {STATUS_LABEL[item.status]}
+                  </Text>
+                </View>
+              </Pressable>
+            );
+          }}
         />
       )}
     </SafeAreaView>
@@ -88,9 +93,11 @@ export function TournamentsScreen({ navigation }: TournamentsStackScreenProps<'T
 }
 
 function statusStyle(status: TournamentSummary['status']) {
-  if (status === 'completed') return { backgroundColor: colors.surfaceAlt };
-  if (status === 'active') return { backgroundColor: colors.primary };
-  return { backgroundColor: colors.border };
+  // "active" sits on the saturated primary color, so it needs light text;
+  // the other two sit on pale backgrounds, where the normal dark text holds.
+  if (status === 'completed') return { backgroundColor: colors.surfaceAlt, color: colors.text };
+  if (status === 'active') return { backgroundColor: colors.primary, color: colors.primaryText };
+  return { backgroundColor: colors.border, color: colors.text };
 }
 
 const styles = StyleSheet.create({
