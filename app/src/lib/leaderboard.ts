@@ -156,6 +156,8 @@ export type MatchHistoryItem = {
   delta: number;
   ratingAfter: number;
   at: string;
+  // Per-set scores, from this player's perspective, in play order.
+  games: { myScore: number; opponentScore: number }[];
 };
 
 // Recent matches for a player, newest first, derived from the rating audit log.
@@ -164,7 +166,9 @@ export async function fetchMatchHistory(playerId: string, limit = 25): Promise<M
   const { data, error } = await supabase
     .from('rating_events')
     .select(
-      'id, result, delta, rating_after, created_at, opponent:players!rating_events_opponent_id_fkey(display_name)',
+      'id, result, delta, rating_after, created_at, ' +
+        'opponent:players!rating_events_opponent_id_fkey(display_name), ' +
+        'match:matches(player_a, games:match_games(game_no, score_a, score_b))',
     )
     .eq('player_id', playerId)
     .order('created_at', { ascending: false })
@@ -173,12 +177,21 @@ export async function fetchMatchHistory(playerId: string, limit = 25): Promise<M
 
   return (data ?? []).map((r: any) => {
     const opponent = Array.isArray(r.opponent) ? r.opponent[0] : r.opponent;
+    const match = Array.isArray(r.match) ? r.match[0] : r.match;
+    const iAmA = match?.player_a === playerId;
+    const games = [...(match?.games ?? [])]
+      .sort((a: any, b: any) => a.game_no - b.game_no)
+      .map((g: any) => ({
+        myScore: iAmA ? g.score_a : g.score_b,
+        opponentScore: iAmA ? g.score_b : g.score_a,
+      }));
     return {
       id: r.id,
       opponentName: opponent?.display_name ?? 'Unknown',
       result: r.result,
       delta: r.delta,
       ratingAfter: r.rating_after,
+      games,
       at: r.created_at,
     };
   });

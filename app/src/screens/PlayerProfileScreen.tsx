@@ -2,6 +2,7 @@ import { type RouteProp, useRoute } from '@react-navigation/native';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -22,8 +23,21 @@ import {
   type HistoryPoint,
   type MatchHistoryItem,
 } from '@/lib/leaderboard';
+import { showAlert } from '@/lib/platformAlert';
 import type { PlayerWithRating } from '@/lib/types';
 import { colors, radius, spacing } from '@/theme';
+
+// A plain-language breakdown of why this player's RD is what it is — shown
+// on demand (tap the info icon) rather than cluttering the stats row.
+function describeRd(rd: number, matchesPlayed: number, provisional: boolean): string {
+  const base =
+    'Everyone starts at RD 350 — total uncertainty. Every confirmed match narrows it, since each game is new information about your real skill.';
+  const status = provisional
+    ? `Still provisional (under 10 matches), so this one is moving fast while the system learns where you belong — currently ±${Math.round(rd)} after ${matchesPlayed} match${matchesPlayed === 1 ? '' : 'es'}.`
+    : `Settled in after ${matchesPlayed} matches, so it's down to ±${Math.round(rd)} — the system is fairly confident now.`;
+  const tail = 'Stop playing for a while and it drifts back up, since the system gets less sure over time.';
+  return `${base}\n\n${status}\n\n${tail}`;
+}
 
 // Count of leading same-result matches in a newest-first list — e.g. [W,W,W,L]
 // is a 3-match win streak.
@@ -106,7 +120,16 @@ export function PlayerProfileScreen() {
 
             <View style={styles.statsRow}>
               <Stat label="Rating" value={String(Math.round(rating?.rating ?? 1500))} />
-              <Stat label="±RD" value={String(Math.round(rating?.rd ?? 350))} />
+              <Stat
+                label="±RD"
+                value={String(Math.round(rating?.rd ?? 350))}
+                onInfoPress={() =>
+                  showAlert(
+                    'Why this RD?',
+                    describeRd(rating?.rd ?? 350, rating?.matches_played ?? 0, isProvisional),
+                  )
+                }
+              />
               <Stat label="W–L" value={`${record.wins}–${record.losses}`} />
               <Stat label="Season" value={String(seasonPoints)} />
             </View>
@@ -135,9 +158,16 @@ export function PlayerProfileScreen() {
                     <View style={[styles.badge, m.result === 'win' ? styles.badgeWin : styles.badgeLoss]}>
                       <Text style={styles.badgeText}>{m.result === 'win' ? 'W' : 'L'}</Text>
                     </View>
-                    <Text style={styles.matchOpponent} numberOfLines={1}>
-                      vs {m.opponentName}
-                    </Text>
+                    <View style={styles.matchMain}>
+                      <Text style={styles.matchOpponent} numberOfLines={1}>
+                        vs {m.opponentName}
+                      </Text>
+                      {m.games.length > 0 && (
+                        <Text style={styles.matchScore} numberOfLines={1}>
+                          {m.games.map((g) => `${g.myScore}–${g.opponentScore}`).join(', ')}
+                        </Text>
+                      )}
+                    </View>
                     {isUpset && (
                       <Text style={styles.upsetTag}>{m.result === 'win' ? '🔥 UPSET' : '😱 UPSET'}</Text>
                     )}
@@ -156,11 +186,26 @@ export function PlayerProfileScreen() {
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({
+  label,
+  value,
+  onInfoPress,
+}: {
+  label: string;
+  value: string;
+  onInfoPress?: () => void;
+}) {
   return (
     <View style={styles.stat}>
       <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
+      <View style={styles.statLabelRow}>
+        <Text style={styles.statLabel}>{label}</Text>
+        {onInfoPress && (
+          <Pressable onPress={onInfoPress} hitSlop={8}>
+            <Text style={styles.infoIcon}>ⓘ</Text>
+          </Pressable>
+        )}
+      </View>
     </View>
   );
 }
@@ -181,7 +226,9 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   statValue: { color: colors.text, fontSize: 22, fontWeight: '700' },
-  statLabel: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
+  statLabelRow: { flexDirection: 'row', alignItems: 'center', marginTop: 2, gap: 3 },
+  statLabel: { color: colors.textMuted, fontSize: 12 },
+  infoIcon: { color: colors.textMuted, fontSize: 12 },
   provisional: { color: colors.textMuted, fontSize: 13, marginTop: spacing.sm },
   section: {
     color: colors.textMuted,
@@ -218,7 +265,9 @@ const styles = StyleSheet.create({
   badgeWin: { backgroundColor: colors.success },
   badgeLoss: { backgroundColor: colors.danger },
   badgeText: { color: colors.primaryText, fontWeight: '700', fontSize: 13 },
-  matchOpponent: { color: colors.text, fontSize: 15, marginLeft: spacing.md, flex: 1 },
+  matchMain: { flex: 1, marginLeft: spacing.md },
+  matchOpponent: { color: colors.text, fontSize: 15 },
+  matchScore: { color: colors.textMuted, fontSize: 12, marginTop: 1 },
   matchDelta: { fontSize: 15, fontWeight: '600' },
   deltaUp: { color: colors.success },
   deltaDown: { color: colors.danger },
