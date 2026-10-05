@@ -28,6 +28,18 @@
 import { readFileSync } from 'node:fs';
 import { createClient } from '@supabase/supabase-js';
 
+// Safety net: make sure nothing can fail silently. Without these, a promise
+// rejection that misses the main().catch() below (e.g. one that escapes via
+// a dangling network call) can exit the process with no output at all.
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled rejection:', reason);
+  process.exit(1);
+});
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught exception:', err);
+  process.exit(1);
+});
+
 function loadEnv(path) {
   const vars = {};
   for (const line of readFileSync(path, 'utf8').split('\n')) {
@@ -66,6 +78,7 @@ if (!supabaseUrl || !anonKey) {
 // (anon-key) client redeems it for a real session — the same session a
 // user gets by clicking a magic-link email, just skipping the email step.
 async function signInAsAdmin(email) {
+  console.log(`[${email}] requesting a sign-in link...`);
   const admin = createClient(supabaseUrl, serviceKey);
   const { data: linkData, error: linkErr } = await admin.auth.admin.generateLink({
     type: 'magiclink',
@@ -74,6 +87,7 @@ async function signInAsAdmin(email) {
   if (linkErr) throw new Error(`generateLink failed for ${email}: ${linkErr.message}`);
   const hashedToken = linkData.properties?.hashed_token;
   if (!hashedToken) throw new Error(`No token generated for ${email} — does that user exist?`);
+  console.log(`[${email}] got a link, redeeming it...`);
 
   const client = createClient(supabaseUrl, anonKey);
   const { data, error } = await client.auth.verifyOtp({
@@ -82,6 +96,7 @@ async function signInAsAdmin(email) {
     type: 'magiclink',
   });
   if (error) throw new Error(`verifyOtp failed for ${email}: ${error.message}`);
+  console.log(`[${email}] signed in, looking up their player profile...`);
 
   const { data: player, error: playerErr } = await client
     .from('players')
@@ -89,6 +104,7 @@ async function signInAsAdmin(email) {
     .eq('user_id', data.user.id)
     .single();
   if (playerErr || !player) throw new Error(`No player row for ${email}: ${playerErr?.message}`);
+  console.log(`[${email}] -> player "${player.display_name}" (${player.id})`);
   return { client, playerId: player.id, displayName: player.display_name };
 }
 
@@ -101,6 +117,7 @@ function gamesFor(aWins) {
 }
 
 async function main() {
+  console.log(`Starting: ${supabaseUrl}, count=${count}`);
   const a = await signInAsAdmin(emailA);
   const b = await signInAsAdmin(emailB);
   console.log(`Signed in as ${a.displayName} (${a.playerId}) and ${b.displayName} (${b.playerId})`);
