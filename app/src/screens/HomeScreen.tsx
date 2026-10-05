@@ -23,6 +23,21 @@ import type { PendingMatch, PlayerWithRating } from '@/lib/types';
 import type { HomeStackScreenProps } from '@/navigation/types';
 import { colors, radius, spacing } from '@/theme';
 
+const GLICKO2_EXPLANATION =
+  'Glicko-2 is the system behind your Skill rating — think of it as an upgraded ' +
+  'version of the Elo rating used in chess.\n\n' +
+  'Everyone starts at 1500. After every match, your rating moves based on how ' +
+  'surprising the result was. Beat someone much weaker than you? It barely moves — ' +
+  "you were supposed to win. Lose to someone much weaker? That costs a lot, since it " +
+  'means your real skill might be lower than thought. This is what keeps it fair: ' +
+  'farming easy opponents just does not work.\n\n' +
+  '±RD is how sure the system is about your number. It starts wide (350) and narrows ' +
+  'as you play — that is why new players move fast for their first 10 matches, then ' +
+  'settle down. Stop playing for a while and it creeps back up, since the system gets ' +
+  'less sure about you over time.\n\n' +
+  'Bottom line: play real matches, win or lose, and your rating finds its true level ' +
+  'on its own.';
+
 function formatSubmittedAt(iso: string): string {
   return new Date(iso).toLocaleString(undefined, {
     month: 'short',
@@ -119,7 +134,15 @@ export function HomeScreen({ navigation }: HomeStackScreenProps<'Home'>) {
           <Text style={styles.error}>{error}</Text>
         ) : (
           <View style={styles.ratingCard}>
-            <Text style={styles.ratingLabel}>Skill rating (Glicko-2)</Text>
+            <View style={styles.ratingLabelRow}>
+              <Text style={styles.ratingLabel}>Skill rating</Text>
+              <Pressable
+                onPress={() => showAlert('What is Glicko-2?', GLICKO2_EXPLANATION)}
+                hitSlop={8}
+              >
+                <Text style={styles.infoIcon}>ⓘ</Text>
+              </Pressable>
+            </View>
             <Text style={styles.ratingValue}>{Math.round(rating?.rating ?? 1500)}</Text>
             <Text style={styles.ratingMeta}>
               ± {Math.round(rating?.rd ?? 350)} · {rating?.matches_played ?? 0} matches
@@ -213,7 +236,9 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     alignItems: 'center',
   },
+  ratingLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   ratingLabel: { color: colors.textMuted, fontSize: 14 },
+  infoIcon: { color: colors.textMuted, fontSize: 13 },
   ratingValue: { color: colors.primary, fontSize: 56, fontWeight: '800', marginVertical: spacing.xs },
   ratingMeta: { color: colors.textMuted, fontSize: 13 },
   ratingRank: { color: colors.primary, fontSize: 13, fontWeight: '600', marginTop: spacing.xs },
