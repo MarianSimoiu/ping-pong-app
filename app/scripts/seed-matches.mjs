@@ -5,11 +5,17 @@
 // would in the app. Useful for quickly testing the leaderboard gate
 // (MIN_MATCHES_FOR_LEADERBOARD) and the provisional cutoff (10 matches).
 //
-// Usage (run from the app/ directory):
-//   node scripts/seed-matches.mjs <playerA email> <playerA password> <playerB email> <playerB password> [count]
+// Admin mode: no passwords needed. Each account is signed in via an
+// admin-generated one-time link (the same mechanism behind magic-link
+// email sign-in), using the project's service-role key.
 //
-// Credentials are read from your own command line and never leave your
-// machine. count defaults to 10.
+// Usage (run from the app/ directory):
+//   SUPABASE_SERVICE_ROLE_KEY=<your service role key> node scripts/seed-matches.mjs <playerA email> <playerB email> [count]
+//
+// Get the service role key from the Supabase dashboard -> Project Settings
+// -> API -> service_role (secret). It bypasses all RLS, so only ever pass it
+// as an env var for this one command — never commit it or paste it anywhere
+// else. count defaults to 10.
 //
 // Note: all seeded matches happen within minutes of each other, so the
 // repeat-opponent guard (repeatFactor in glicko2.ts) will damp the rating
@@ -31,10 +37,17 @@ function loadEnv(path) {
   return vars;
 }
 
-const [, , emailA, passwordA, emailB, passwordB, countArg] = process.argv;
-if (!emailA || !passwordA || !emailB || !passwordB) {
+const [, , emailA, emailB, countArg] = process.argv;
+if (!emailA || !emailB) {
   console.error(
-    'Usage: node scripts/seed-matches.mjs <playerA email> <playerA password> <playerB email> <playerB password> [count]',
+    'Usage: SUPABASE_SERVICE_ROLE_KEY=<key> node scripts/seed-matches.mjs <playerA email> <playerB email> [count]',
+  );
+  process.exit(1);
+}
+const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+if (!serviceKey) {
+  console.error(
+    'Set SUPABASE_SERVICE_ROLE_KEY (Supabase dashboard -> Project Settings -> API) as an env var for this command.',
   );
   process.exit(1);
 }
@@ -48,10 +61,28 @@ if (!supabaseUrl || !anonKey) {
   process.exit(1);
 }
 
-async function signIn(email, password) {
+// Signs in as an existing user with no password: the service-role key
+// generates a one-time magic-link token for their email, and a normal
+// (anon-key) client redeems it for a real session — the same session a
+// user gets by clicking a magic-link email, just skipping the email step.
+async function signInAsAdmin(email) {
+  const admin = createClient(supabaseUrl, serviceKey);
+  const { data: linkData, error: linkErr } = await admin.auth.admin.generateLink({
+    type: 'magiclink',
+    email,
+  });
+  if (linkErr) throw new Error(`generateLink failed for ${email}: ${linkErr.message}`);
+  const hashedToken = linkData.properties?.hashed_token;
+  if (!hashedToken) throw new Error(`No token generated for ${email} — does that user exist?`);
+
   const client = createClient(supabaseUrl, anonKey);
-  const { data, error } = await client.auth.signInWithPassword({ email, password });
-  if (error) throw new Error(`Sign-in failed for ${email}: ${error.message}`);
+  const { data, error } = await client.auth.verifyOtp({
+    email,
+    token_hash: hashedToken,
+    type: 'magiclink',
+  });
+  if (error) throw new Error(`verifyOtp failed for ${email}: ${error.message}`);
+
   const { data: player, error: playerErr } = await client
     .from('players')
     .select('id, display_name')
@@ -70,8 +101,8 @@ function gamesFor(aWins) {
 }
 
 async function main() {
-  const a = await signIn(emailA, passwordA);
-  const b = await signIn(emailB, passwordB);
+  const a = await signInAsAdmin(emailA);
+  const b = await signInAsAdmin(emailB);
   console.log(`Signed in as ${a.displayName} (${a.playerId}) and ${b.displayName} (${b.playerId})`);
 
   for (let i = 0; i < count; i++) {
