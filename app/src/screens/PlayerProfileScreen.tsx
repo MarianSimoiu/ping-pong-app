@@ -169,7 +169,7 @@ export function PlayerProfileScreen() {
                       )}
                     </View>
                     {isUpset && (
-                      <Text style={styles.upsetTag}>{m.result === 'win' ? '🔥 UPSET' : '😱 UPSET'}</Text>
+                      <Text style={styles.upsetTag}>{m.result === 'win' ? '🔥 SHOCKER' : '😱 SHOCKER'}</Text>
                     )}
                     <Text style={[styles.matchDelta, m.delta >= 0 ? styles.deltaUp : styles.deltaDown]}>
                       {m.delta >= 0 ? '+' : ''}
