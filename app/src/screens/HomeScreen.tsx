@@ -23,6 +23,13 @@ import type { PendingMatch, PlayerWithRating } from '@/lib/types';
 import type { HomeStackScreenProps } from '@/navigation/types';
 import { colors, radius, spacing } from '@/theme';
 
+const BETA_MESSAGE =
+  'This app is still early and actively evolving — expect rough edges, missing ' +
+  'features, and things that might change or break between updates. That is ' +
+  'expected at this stage, not a sign something is wrong.\n\n' +
+  'Found a bug, have an idea, or something just feels off? Tell whoever gave you ' +
+  'access. Feedback from real games is exactly what shapes what gets built next.';
+
 const GLICKO2_EXPLANATION =
   'Glicko-2 is the system behind your Skill rating — think of it as an upgraded ' +
   'version of the Elo rating used in chess.\n\n' +
@@ -124,9 +131,17 @@ export function HomeScreen({ navigation }: HomeStackScreenProps<'Home'>) {
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={load} tintColor={colors.text} />}
       >
-        <Text style={styles.greeting}>
-          Hi, {profile?.display_name ?? '…'} 👋
-        </Text>
+        <View style={styles.greetingRow}>
+          <Text style={styles.greeting}>
+            Hi, {profile?.display_name ?? '…'} 👋
+          </Text>
+          <Pressable
+            style={styles.betaBadge}
+            onPress={() => showAlert('This app is in beta', BETA_MESSAGE)}
+          >
+            <Text style={styles.betaBadgeText}>BETA</Text>
+          </Pressable>
+        </View>
 
         {loading && !profile ? (
           <ActivityIndicator color={colors.text} style={{ marginTop: spacing.xl }} />
@@ -227,7 +242,20 @@ export function HomeScreen({ navigation }: HomeStackScreenProps<'Home'>) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   content: { padding: spacing.lg },
-  greeting: { fontSize: 24, fontWeight: '700', color: colors.text, marginBottom: spacing.lg },
+  greetingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.lg,
+  },
+  greeting: { fontSize: 24, fontWeight: '700', color: colors.text },
+  betaBadge: {
+    backgroundColor: colors.accent,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+  },
+  betaBadgeText: { color: colors.text, fontSize: 11, fontWeight: '700', letterSpacing: 0.5 },
   ratingCard: {
     backgroundColor: colors.surface,
     borderRadius: radius.lg,
