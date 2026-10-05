@@ -117,6 +117,7 @@ export function demoLeaderboard(): LeaderboardEntry[] {
       rating: p.rating,
       rd: p.rd,
       matchesPlayed: p.matches,
+      ...demoRecord(p.id),
     }));
 }
 
