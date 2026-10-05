@@ -14,6 +14,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Avatar } from '@/components/Avatar';
 import { useAuth } from '@/context/AuthContext';
 import { pickDeclineLine, pickHomeTip, pickMatchResultLine, pickPendingLine } from '@/lib/commentary';
+import { MIN_MATCHES_FOR_LEADERBOARD } from '@/lib/constants';
+import { fetchLeaderboard } from '@/lib/leaderboard';
 import { confirmMatch, fetchPendingConfirmations } from '@/lib/matches';
 import { showAlert } from '@/lib/platformAlert';
 import { fetchMyProfile } from '@/lib/players';
@@ -33,6 +35,7 @@ function formatSubmittedAt(iso: string): string {
 export function HomeScreen({ navigation }: HomeStackScreenProps<'Home'>) {
   const { session } = useAuth();
   const [profile, setProfile] = useState<PlayerWithRating | null>(null);
+  const [rank, setRank] = useState<number | null>(null);
   const [pending, setPending] = useState<PendingMatch[]>([]);
   const [actingId, setActingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -46,7 +49,14 @@ export function HomeScreen({ navigation }: HomeStackScreenProps<'Home'>) {
       setError(null);
       const p = await fetchMyProfile(session.user.id);
       setProfile(p);
-      setPending(p ? await fetchPendingConfirmations(p.id) : []);
+      if (p) {
+        const leaderboard = await fetchLeaderboard();
+        setRank(leaderboard.find((entry) => entry.playerId === p.id)?.rank ?? null);
+        setPending(await fetchPendingConfirmations(p.id));
+      } else {
+        setRank(null);
+        setPending([]);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load profile');
     } finally {
@@ -115,6 +125,22 @@ export function HomeScreen({ navigation }: HomeStackScreenProps<'Home'>) {
               ± {Math.round(rating?.rd ?? 350)} · {rating?.matches_played ?? 0} matches
               {isProvisional ? ' · provisional' : ''}
             </Text>
+            <Text style={styles.ratingRank}>
+              {rank
+                ? `Rank #${rank} on the leaderboard`
+                : `Not ranked yet — needs ${MIN_MATCHES_FOR_LEADERBOARD} matches`}
+            </Text>
+
+            <View style={styles.legendCard}>
+              <Text style={styles.legendText}>
+                <Text style={styles.legendBold}>Rating</Text> is your skill score — everyone
+                starts at 1500, and it moves after every match.{' '}
+                <Text style={styles.legendBold}>±RD</Text> shows how sure we are of that number;
+                lower means more settled. <Text style={styles.legendBold}>Rank</Text> is your
+                position among players with at least {MIN_MATCHES_FOR_LEADERBOARD} matches, on
+                the Leaderboard tab.
+              </Text>
+            </View>
           </View>
         )}
 
@@ -190,6 +216,18 @@ const styles = StyleSheet.create({
   ratingLabel: { color: colors.textMuted, fontSize: 14 },
   ratingValue: { color: colors.primary, fontSize: 56, fontWeight: '800', marginVertical: spacing.xs },
   ratingMeta: { color: colors.textMuted, fontSize: 13 },
+  ratingRank: { color: colors.primary, fontSize: 13, fontWeight: '600', marginTop: spacing.xs },
+  legendCard: {
+    alignSelf: 'stretch',
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginTop: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  legendText: { color: colors.textMuted, fontSize: 12, lineHeight: 18 },
+  legendBold: { color: colors.text, fontWeight: '700' },
   cta: {
     backgroundColor: colors.primary,
     borderRadius: radius.md,
