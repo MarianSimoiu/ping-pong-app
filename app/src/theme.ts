@@ -1,20 +1,21 @@
-// Shared design tokens. "Bubblegum" theme: a light candy palette — bubblegum
-// pink and mint on a warm off-white ground — with rounder, bouncier shapes.
+// Shared design tokens. "Paddle Red" theme: the classic table-tennis red,
+// on a clean white-and-near-black ground, with a gold accent for flourishes.
 
 export const colors = {
-  background: '#FFF7FA',
+  background: '#FAFAFA',
   surface: '#FFFFFF',
-  surfaceAlt: '#FFEAF3',
-  border: '#F3D6E4',
-  text: '#2B1D26', // deep plum-black, warmer/softer than pure black
-  textMuted: '#8B7A85',
-  primary: '#FF5FA2', // bubblegum pink — CTAs, active states, the rating chart
+  surfaceAlt: '#FDEDEE', // soft red-tinted alt surface
+  border: '#F0D5D7',
+  text: '#211A1B', // warm near-black, not pure black
+  textMuted: '#8A7678',
+  primary: '#E8192C', // paddle red — CTAs, active states, the rating chart
   primaryText: '#FFFFFF',
-  accent: '#12A385', // deepened mint — medals, streaks, hype tags; kept dark
-  // enough to stay legible as small text on this light ground (a pale candy
-  // mint washes out here the way it wouldn't on a dark background)
-  success: '#1FA35A', // likewise deepened for light-background contrast
-  danger: '#E2483C', // warm coral-red, kept clearly apart in hue from the pink primary
+  accent: '#B8860B', // medal gold — deepened (not a pale/washed gold) so it
+  // stays legible as small text on this light ground
+  success: '#1F8A3B',
+  danger: '#7C1D1D', // deep brick/maroon — still reads "loss," but clearly
+  // darker and less saturated than the vivid primary red so a Loss badge
+  // and a primary CTA never get confused for each other
 };
 
 // Status bar icon color for the OS chrome — not derived from `colors` above
