@@ -27,6 +27,13 @@
 
 import { readFileSync } from 'node:fs';
 import { createClient } from '@supabase/supabase-js';
+import WebSocket from 'ws';
+
+// On Node < 22 there's no built-in WebSocket, and supabase-js's realtime
+// client can otherwise stall waiting on one even though this script never
+// uses realtime features. Providing one explicitly (its own suggested fix)
+// avoids that stall.
+const supabaseClientOptions = { realtime: { transport: WebSocket } };
 
 // Safety net: make sure nothing can fail silently. Without these, a promise
 // rejection that misses the main().catch() below (e.g. one that escapes via
@@ -39,6 +46,19 @@ process.on('uncaughtException', (err) => {
   console.error('Uncaught exception:', err);
   process.exit(1);
 });
+
+// Turns a silent hang into a clear, actionable error after `ms` instead of
+// leaving the process stuck with no output.
+function withTimeout(promise, label, ms = 20000) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(
+      () => reject(new Error(`Timed out after ${ms / 1000}s waiting on: ${label}`)),
+      ms,
+    );
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
 
 function loadEnv(path) {
   const vars = {};
@@ -79,30 +99,28 @@ if (!supabaseUrl || !anonKey) {
 // user gets by clicking a magic-link email, just skipping the email step.
 async function signInAsAdmin(email) {
   console.log(`[${email}] requesting a sign-in link...`);
-  const admin = createClient(supabaseUrl, serviceKey);
-  const { data: linkData, error: linkErr } = await admin.auth.admin.generateLink({
-    type: 'magiclink',
-    email,
-  });
+  const admin = createClient(supabaseUrl, serviceKey, supabaseClientOptions);
+  const { data: linkData, error: linkErr } = await withTimeout(
+    admin.auth.admin.generateLink({ type: 'magiclink', email }),
+    `generateLink for ${email}`,
+  );
   if (linkErr) throw new Error(`generateLink failed for ${email}: ${linkErr.message}`);
   const hashedToken = linkData.properties?.hashed_token;
   if (!hashedToken) throw new Error(`No token generated for ${email} — does that user exist?`);
   console.log(`[${email}] got a link, redeeming it...`);
 
-  const client = createClient(supabaseUrl, anonKey);
-  const { data, error } = await client.auth.verifyOtp({
-    email,
-    token_hash: hashedToken,
-    type: 'magiclink',
-  });
+  const client = createClient(supabaseUrl, anonKey, supabaseClientOptions);
+  const { data, error } = await withTimeout(
+    client.auth.verifyOtp({ email, token_hash: hashedToken, type: 'magiclink' }),
+    `verifyOtp for ${email}`,
+  );
   if (error) throw new Error(`verifyOtp failed for ${email}: ${error.message}`);
   console.log(`[${email}] signed in, looking up their player profile...`);
 
-  const { data: player, error: playerErr } = await client
-    .from('players')
-    .select('id, display_name')
-    .eq('user_id', data.user.id)
-    .single();
+  const { data: player, error: playerErr } = await withTimeout(
+    client.from('players').select('id, display_name').eq('user_id', data.user.id).single(),
+    `player lookup for ${email}`,
+  );
   if (playerErr || !player) throw new Error(`No player row for ${email}: ${playerErr?.message}`);
   console.log(`[${email}] -> player "${player.display_name}" (${player.id})`);
   return { client, playerId: player.id, displayName: player.display_name };
@@ -135,26 +153,32 @@ async function main() {
       score_b: y,
     }));
 
-    const { data: submitData, error: submitErr } = await submitter.client.functions.invoke(
-      'submit-match',
-      { body: { opponentId: confirmer.playerId, bestOf: 3, games } },
+    const { data: submitData, error: submitErr } = await withTimeout(
+      submitter.client.functions.invoke('submit-match', {
+        body: { opponentId: confirmer.playerId, bestOf: 3, games },
+      }),
+      `submit-match for game ${i + 1}`,
     );
     if (submitErr) throw new Error(`submit-match failed on game ${i + 1}: ${submitErr.message}`);
     const matchId = submitData.matchId;
 
-    const { error: confirmErr } = await confirmer.client.functions.invoke('confirm-match', {
-      body: { matchId, action: 'confirm' },
-    });
+    const { error: confirmErr } = await withTimeout(
+      confirmer.client.functions.invoke('confirm-match', { body: { matchId, action: 'confirm' } }),
+      `confirm-match for game ${i + 1}`,
+    );
     if (confirmErr) throw new Error(`confirm-match failed on game ${i + 1}: ${confirmErr.message}`);
 
     const winnerName = submitterWins ? submitter.displayName : confirmer.displayName;
     console.log(`Game ${i + 1}/${count}: ${submitter.displayName} submitted, ${winnerName} won, confirmed by ${confirmer.displayName}`);
   }
 
-  const { data: ratings } = await a.client
-    .from('player_ratings')
-    .select('player_id, rating, matches_played')
-    .in('player_id', [a.playerId, b.playerId]);
+  const { data: ratings } = await withTimeout(
+    a.client
+      .from('player_ratings')
+      .select('player_id, rating, matches_played')
+      .in('player_id', [a.playerId, b.playerId]),
+    'final ratings read',
+  );
   console.log('\nFinal state:');
   for (const r of ratings ?? []) {
     const name = r.player_id === a.playerId ? a.displayName : b.displayName;
