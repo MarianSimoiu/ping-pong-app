@@ -163,6 +163,10 @@ export function demoMatchHistory(id: string): MatchHistoryItem[] {
     delta,
     ratingAfter: (byId(id)?.rating ?? 1500) - i * 6,
     at: new Date(Date.now() - i * 864e5).toISOString(),
+    games:
+      result === 'win'
+        ? [{ myScore: 11, opponentScore: 7 }, { myScore: 11, opponentScore: 9 }]
+        : [{ myScore: 7, opponentScore: 11 }, { myScore: 9, opponentScore: 11 }],
   }));
 }
 
