@@ -110,8 +110,10 @@ async function signInAsAdmin(email) {
   console.log(`[${email}] got a link, redeeming it...`);
 
   const client = createClient(supabaseUrl, anonKey, supabaseClientOptions);
+  // token_hash alone identifies the user; the API rejects passing email
+  // alongside it ("Only the token_hash and type should be provided").
   const { data, error } = await withTimeout(
-    client.auth.verifyOtp({ email, token_hash: hashedToken, type: 'magiclink' }),
+    client.auth.verifyOtp({ token_hash: hashedToken, type: 'magiclink' }),
     `verifyOtp for ${email}`,
   );
   if (error) throw new Error(`verifyOtp failed for ${email}: ${error.message}`);
