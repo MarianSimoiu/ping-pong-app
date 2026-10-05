@@ -87,7 +87,7 @@ export function LeaderboardScreen({ navigation }: LeaderboardStackScreenProps<'L
                     {item.displayName}
                   </Text>
                   <Text style={styles.rowMeta}>
-                    ± {Math.round(item.rd)} · {item.matchesPlayed} matches
+                    ± {Math.round(item.rd)} · {item.matchesPlayed} matches · {item.wins}-{item.losses}
                   </Text>
                 </View>
                 <Text style={styles.rowValue}>{Math.round(item.rating)}</Text>

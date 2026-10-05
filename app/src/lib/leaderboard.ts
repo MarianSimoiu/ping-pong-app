@@ -11,6 +11,8 @@ export type LeaderboardEntry = {
   rating: number;
   rd: number;
   matchesPlayed: number;
+  wins: number;
+  losses: number;
 };
 
 // Ranked skill leaderboard: players past the min-matches gate, best rating first.
@@ -23,7 +25,7 @@ export async function fetchLeaderboard(): Promise<LeaderboardEntry[]> {
     .order('rating', { ascending: false });
   if (error) throw error;
 
-  return (data ?? []).map((row: any, i) => {
+  const entries = (data ?? []).map((row: any, i) => {
     const player = Array.isArray(row.player) ? row.player[0] : row.player;
     return {
       rank: i + 1,
@@ -32,8 +34,35 @@ export async function fetchLeaderboard(): Promise<LeaderboardEntry[]> {
       rating: row.rating,
       rd: row.rd,
       matchesPlayed: row.matches_played,
+      wins: 0,
+      losses: 0,
     };
   });
+  if (entries.length === 0) return entries;
+
+  // One extra query for everyone's win/loss record, instead of one per row.
+  const { data: events, error: eventsError } = await supabase
+    .from('rating_events')
+    .select('player_id, result')
+    .in('player_id', entries.map((e) => e.playerId));
+  if (eventsError) throw eventsError;
+
+  const records = new Map<string, { wins: number; losses: number }>();
+  for (const event of events ?? []) {
+    const record = records.get(event.player_id) ?? { wins: 0, losses: 0 };
+    if (event.result === 'win') record.wins += 1;
+    else record.losses += 1;
+    records.set(event.player_id, record);
+  }
+  for (const entry of entries) {
+    const record = records.get(entry.playerId);
+    if (record) {
+      entry.wins = record.wins;
+      entry.losses = record.losses;
+    }
+  }
+
+  return entries;
 }
 
 export type SeasonEntry = {
