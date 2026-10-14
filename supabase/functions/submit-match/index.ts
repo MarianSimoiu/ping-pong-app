@@ -8,9 +8,9 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
 import { corsHeaders, jsonResponse } from '../_shared/cors.ts';
-import { resolveMatch, type RawGame } from '../_shared/match.ts';
+import { resolveFreeformMatch, type RawGame } from '../_shared/match.ts';
 
-type Body = { opponentId?: string; bestOf?: number; games?: RawGame[] };
+type Body = { opponentId?: string; games?: RawGame[] };
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -29,7 +29,7 @@ Deno.serve(async (req) => {
     if (userErr || !userData.user) return jsonResponse({ error: 'Not authenticated' }, 401);
 
     const body = (await req.json()) as Body;
-    const { opponentId, bestOf = 3, games = [] } = body;
+    const { opponentId, games = [] } = body;
     if (!opponentId) return jsonResponse({ error: 'opponentId is required' }, 400);
 
     const admin = createClient(supabaseUrl, serviceKey);
@@ -51,7 +51,7 @@ Deno.serve(async (req) => {
 
     let outcome;
     try {
-      outcome = resolveMatch(bestOf, games);
+      outcome = resolveFreeformMatch(games);
     } catch (e) {
       return jsonResponse({ error: e instanceof Error ? e.message : 'Invalid match' }, 400);
     }
@@ -62,7 +62,7 @@ Deno.serve(async (req) => {
         player_a: me.id,
         player_b: opponent.id,
         winner_id: winnerId,
-        best_of: bestOf,
+        best_of: outcome.games.length,
         played_at: new Date().toISOString(),
         created_by: me.id,
       },

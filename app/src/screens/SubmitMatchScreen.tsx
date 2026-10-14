@@ -17,7 +17,10 @@ import type { OpponentOption } from '@/lib/types';
 import type { HomeStackScreenProps } from '@/navigation/types';
 import { colors, radius, spacing } from '@/theme';
 
-const BEST_OF_OPTIONS = [3, 5] as const;
+// Matches the MAX_GAMES_PER_MATCH sanity cap enforced server-side in
+// supabase/functions/_shared/match.ts — there's no preset format to pick
+// from, just a ceiling so a runaway series can't grow forever.
+const MAX_GAMES = 21;
 
 type GameRow = { a: string; b: string };
 
@@ -26,7 +29,6 @@ export function SubmitMatchScreen({ navigation }: HomeStackScreenProps<'SubmitMa
   const [opponents, setOpponents] = useState<OpponentOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [opponentId, setOpponentId] = useState<string | null>(null);
-  const [bestOf, setBestOf] = useState<number>(3);
   const [rows, setRows] = useState<GameRow[]>([{ a: '', b: '' }]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -51,7 +53,7 @@ export function SubmitMatchScreen({ navigation }: HomeStackScreenProps<'SubmitMa
   }
 
   function addGame() {
-    if (rows.length < bestOf) setRows((prev) => [...prev, { a: '', b: '' }]);
+    if (rows.length < MAX_GAMES) setRows((prev) => [...prev, { a: '', b: '' }]);
   }
 
   async function onSubmit() {
@@ -78,7 +80,7 @@ export function SubmitMatchScreen({ navigation }: HomeStackScreenProps<'SubmitMa
 
     setSubmitting(true);
     try {
-      await submitMatch({ opponentId, bestOf, games });
+      await submitMatch({ opponentId, games });
       showAlert(
         'Match submitted',
         'Your opponent needs to confirm it before ratings update. They’ll see it under “Awaiting your confirmation”.',
@@ -123,22 +125,10 @@ export function SubmitMatchScreen({ navigation }: HomeStackScreenProps<'SubmitMa
           </View>
         )}
 
-        <Text style={styles.label}>Format</Text>
-        <View style={styles.chips}>
-          {BEST_OF_OPTIONS.map((n) => (
-            <Pressable
-              key={n}
-              style={[styles.chip, bestOf === n && styles.chipActive]}
-              onPress={() => setBestOf(n)}
-            >
-              <Text style={[styles.chipText, bestOf === n && styles.chipTextActive]}>
-                Best of {n}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-
         <Text style={styles.label}>Game scores (you · opponent)</Text>
+        <Text style={styles.hint}>
+          Add every game you played — win by more games than your opponent to win the match.
+        </Text>
         {rows.map((r, i) => (
           <View key={i} style={styles.gameRow}>
             <Text style={styles.gameNo}>{i + 1}</Text>
@@ -162,7 +152,7 @@ export function SubmitMatchScreen({ navigation }: HomeStackScreenProps<'SubmitMa
           </View>
         ))}
 
-        {rows.length < bestOf && (
+        {rows.length < MAX_GAMES && (
           <Pressable onPress={addGame}>
             <Text style={styles.addGame}>+ Add game</Text>
           </Pressable>
@@ -198,6 +188,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   empty: { color: colors.textMuted, fontSize: 14, lineHeight: 20 },
+  hint: { color: colors.textMuted, fontSize: 13, marginBottom: spacing.sm },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   chip: {
     backgroundColor: colors.surface,
