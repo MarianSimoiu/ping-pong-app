@@ -157,7 +157,7 @@ async function main() {
 
     const { data: submitData, error: submitErr } = await withTimeout(
       submitter.client.functions.invoke('submit-match', {
-        body: { opponentId: confirmer.playerId, bestOf: 3, games },
+        body: { opponentId: confirmer.playerId, games },
       }),
       `submit-match for game ${i + 1}`,
     );

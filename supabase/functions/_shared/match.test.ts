@@ -2,7 +2,7 @@
 
 import { assertEquals, assertThrows } from 'jsr:@std/assert@1';
 
-import { isValidGame, resolveMatch } from './match.ts';
+import { isValidGame, resolveFreeformMatch, resolveMatch } from './match.ts';
 
 Deno.test('isValidGame enforces 11-point win-by-2', () => {
   assertEquals(isValidGame({ score_a: 11, score_b: 7 }), true);
@@ -47,4 +47,50 @@ Deno.test('resolveMatch rejects invalid games and overlong series', () => {
     Error,
     'best_of',
   );
+});
+
+Deno.test('resolveFreeformMatch decides a short 2-0 match', () => {
+  const out = resolveFreeformMatch([
+    { score_a: 11, score_b: 8 },
+    { score_a: 11, score_b: 9 },
+  ]);
+  assertEquals(out.winner, 'a');
+  assertEquals(out.aWins, 2);
+  assertEquals(out.bWins, 0);
+});
+
+Deno.test('resolveFreeformMatch decides a longer 4-3 marathon', () => {
+  const out = resolveFreeformMatch([
+    { score_a: 11, score_b: 8 },
+    { score_a: 9, score_b: 11 },
+    { score_a: 11, score_b: 7 },
+    { score_a: 8, score_b: 11 },
+    { score_a: 11, score_b: 6 },
+    { score_a: 7, score_b: 11 },
+    { score_a: 11, score_b: 9 },
+  ]);
+  assertEquals(out.winner, 'a');
+  assertEquals(out.aWins, 4);
+  assertEquals(out.bWins, 3);
+});
+
+Deno.test('resolveFreeformMatch rejects a tied match', () => {
+  assertThrows(
+    () =>
+      resolveFreeformMatch([
+        { score_a: 11, score_b: 8 },
+        { score_a: 9, score_b: 11 },
+      ]),
+    Error,
+    'tied',
+  );
+});
+
+Deno.test('resolveFreeformMatch rejects invalid games, empty input, and over-cap series', () => {
+  assertThrows(() => resolveFreeformMatch([{ score_a: 11, score_b: 10 }]), Error);
+  assertThrows(() => resolveFreeformMatch([]), Error, 'At least one game');
+  const tooMany = Array.from({ length: 22 }, (_, i) =>
+    i % 2 === 0 ? { score_a: 11, score_b: 0 } : { score_a: 0, score_b: 11 },
+  );
+  assertThrows(() => resolveFreeformMatch(tooMany), Error, 'at most');
 });

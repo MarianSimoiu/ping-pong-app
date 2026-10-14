@@ -21,7 +21,6 @@ export async function fetchOpponents(myUserId: string): Promise<OpponentOption[]
 // writes ratings). Scores are from the caller's perspective: a = you, b = them.
 export async function submitMatch(input: {
   opponentId: string;
-  bestOf: number;
   games: RawGameInput[];
 }): Promise<SubmitMatchResult> {
   if (DEMO) return demo.demoSubmitMatch();

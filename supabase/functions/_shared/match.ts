@@ -47,3 +47,37 @@ export function resolveMatch(bestOf: number, raw: RawGame[]): MatchOutcome {
   }
   return { games, winner: aWins >= needed ? 'a' : 'b', aWins, bWins };
 }
+
+/** Upper bound on games in a single casual match — sanity cap, not a format. */
+export const MAX_GAMES_PER_MATCH = 21;
+
+/**
+ * Validate the games and resolve the winner of a CASUAL match with no preset
+ * series length: play however many games you want, the side that won more of
+ * them wins. Unlike `resolveMatch`, there is no best-of target to reach —
+ * only a tie (equal wins) is rejected, since the rating engine needs a
+ * definite winner and loser.
+ */
+export function resolveFreeformMatch(raw: RawGame[]): MatchOutcome {
+  if (!Array.isArray(raw) || raw.length === 0) throw new Error('At least one game is required');
+  if (raw.length > MAX_GAMES_PER_MATCH) {
+    throw new Error(`A match can have at most ${MAX_GAMES_PER_MATCH} games`);
+  }
+
+  let aWins = 0;
+  let bWins = 0;
+  const games: ValidatedGame[] = raw.map((g, i) => {
+    if (!isValidGame(g)) {
+      throw new Error(`Game ${i + 1} is not a valid 11-point game (win by 2)`);
+    }
+    const winner: 'a' | 'b' = g.score_a > g.score_b ? 'a' : 'b';
+    if (winner === 'a') aWins += 1;
+    else bWins += 1;
+    return { ...g, game_no: i + 1, winner };
+  });
+
+  if (aWins === bWins) {
+    throw new Error('The match is tied — play one more game to decide a winner');
+  }
+  return { games, winner: aWins > bWins ? 'a' : 'b', aWins, bWins };
+}
