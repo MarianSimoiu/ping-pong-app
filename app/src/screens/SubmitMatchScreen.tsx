@@ -24,12 +24,22 @@ const MAX_GAMES = 21;
 
 type GameRow = { a: string; b: string };
 
+// A plausible (winner, loser) score for one valid 11-point, win-by-2 game —
+// mostly a clean 11-something finish, sometimes a deuce battle.
+function randomGameScore(): [number, number] {
+  if (Math.random() < 0.75) return [11, Math.floor(Math.random() * 10)]; // 11–0 .. 11–9
+  const loser = 10 + Math.floor(Math.random() * 4); // deuce: 10–13, win by 2
+  return [loser + 2, loser];
+}
+
 export function SubmitMatchScreen({ navigation }: HomeStackScreenProps<'SubmitMatch'>) {
   const { session } = useAuth();
   const [opponents, setOpponents] = useState<OpponentOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [opponentId, setOpponentId] = useState<string | null>(null);
   const [rows, setRows] = useState<GameRow[]>([{ a: '', b: '' }]);
+  const [mySets, setMySets] = useState('');
+  const [oppSets, setOppSets] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -54,6 +64,46 @@ export function SubmitMatchScreen({ navigation }: HomeStackScreenProps<'SubmitMa
 
   function addGame() {
     if (rows.length < MAX_GAMES) setRows((prev) => [...prev, { a: '', b: '' }]);
+  }
+
+  // Fills the game rows from just a set score (e.g. "2 – 1"), for when you
+  // remember who won how many games but not the exact points. Re-pressing
+  // rerolls new scores for the same set score, without changing who won
+  // which games overall.
+  function randomizeFromSetScore() {
+    setError(null);
+    const mine = Number(mySets);
+    const theirs = Number(oppSets);
+    if (!Number.isInteger(mine) || !Number.isInteger(theirs) || mine < 0 || theirs < 0) {
+      setError('Enter whole numbers for the set score');
+      return;
+    }
+    const total = mine + theirs;
+    if (total === 0) {
+      setError('Enter a set score first, e.g. 2 – 1');
+      return;
+    }
+    if (mine === theirs) {
+      setError('The set score can’t be tied — someone has to win the match');
+      return;
+    }
+    if (total > MAX_GAMES) {
+      setError(`That’s ${total} games — the most a match can have is ${MAX_GAMES}`);
+      return;
+    }
+
+    const outcomes: ('me' | 'opp')[] = [...Array(mine).fill('me'), ...Array(theirs).fill('opp')];
+    for (let i = outcomes.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [outcomes[i], outcomes[j]] = [outcomes[j], outcomes[i]];
+    }
+
+    setRows(
+      outcomes.map((who) => {
+        const [winner, loser] = randomGameScore();
+        return who === 'me' ? { a: String(winner), b: String(loser) } : { a: String(loser), b: String(winner) };
+      }),
+    );
   }
 
   async function onSubmit() {
@@ -124,6 +174,30 @@ export function SubmitMatchScreen({ navigation }: HomeStackScreenProps<'SubmitMa
             ))}
           </View>
         )}
+
+        <Text style={styles.label}>Know the set score, not the exact points?</Text>
+        <View style={styles.setScoreRow}>
+          <TextInput
+            style={styles.scoreInput}
+            keyboardType="number-pad"
+            placeholder="2"
+            placeholderTextColor={colors.textMuted}
+            value={mySets}
+            onChangeText={setMySets}
+          />
+          <Text style={styles.dash}>–</Text>
+          <TextInput
+            style={styles.scoreInput}
+            keyboardType="number-pad"
+            placeholder="1"
+            placeholderTextColor={colors.textMuted}
+            value={oppSets}
+            onChangeText={setOppSets}
+          />
+          <Pressable style={styles.randomizeButton} onPress={randomizeFromSetScore}>
+            <Text style={styles.randomizeButtonText}>🎲 Randomize scores</Text>
+          </Pressable>
+        </View>
 
         <Text style={styles.label}>Game scores (you · opponent)</Text>
         <Text style={styles.hint}>
@@ -217,6 +291,22 @@ const styles = StyleSheet.create({
   },
   dash: { color: colors.textMuted, marginHorizontal: spacing.md, fontSize: 18 },
   addGame: { color: colors.primary, fontSize: 14, marginTop: spacing.xs },
+  setScoreRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
+  },
+  randomizeButton: {
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  randomizeButtonText: { color: colors.text, fontSize: 14, fontWeight: '600' },
   button: {
     backgroundColor: colors.primary,
     borderRadius: radius.md,
