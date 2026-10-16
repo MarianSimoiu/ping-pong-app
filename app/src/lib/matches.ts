@@ -1,6 +1,6 @@
 import * as demo from '@/lib/demo';
 import { DEMO } from '@/lib/env';
-import { supabase } from '@/lib/supabase';
+import { functionErrorMessage, supabase } from '@/lib/supabase';
 import type { OpponentOption, PendingMatch, SubmitMatchResult } from '@/lib/types';
 
 export type RawGameInput = { score_a: number; score_b: number };
@@ -27,11 +27,7 @@ export async function submitMatch(input: {
   const { data, error } = await supabase.functions.invoke<SubmitMatchResult>('submit-match', {
     body: input,
   });
-  if (error) {
-    // Surface the function's JSON error message when present.
-    const message = (data as { error?: string } | null)?.error ?? error.message;
-    throw new Error(message);
-  }
+  if (error) throw new Error(await functionErrorMessage(error));
   if (!data) throw new Error('No response from submit-match');
   return data;
 }
@@ -94,10 +90,7 @@ export async function confirmMatch(
   const { data, error } = await supabase.functions.invoke<ConfirmMatchResult>('confirm-match', {
     body: { matchId, action },
   });
-  if (error) {
-    const message = (data as { error?: string } | null)?.error ?? error.message;
-    throw new Error(message);
-  }
+  if (error) throw new Error(await functionErrorMessage(error));
   if (!data) throw new Error('No response from confirm-match');
   return data;
 }

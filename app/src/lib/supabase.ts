@@ -1,7 +1,7 @@
 import 'react-native-url-polyfill/auto';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, FunctionsHttpError } from '@supabase/supabase-js';
 
 import { DEMO, SUPABASE_ANON_KEY, SUPABASE_URL } from '@/lib/env';
 
@@ -20,3 +20,20 @@ export const supabase = createClient(
     },
   },
 );
+
+// On a non-2xx Edge Function response, supabase-js throws before reading the
+// body, so `data` is always null and the function's actual `{ error }` JSON
+// (every function in this app returns one) only lives on the unread Response
+// at `error.context`. This pulls the real reason out instead of leaving
+// callers stuck with the SDK's generic "non-2xx status code" message.
+export async function functionErrorMessage(error: unknown): Promise<string> {
+  if (error instanceof FunctionsHttpError) {
+    try {
+      const body = await error.context.json();
+      if (body?.error) return body.error as string;
+    } catch {
+      // Body wasn't JSON or already read — fall through to the generic message.
+    }
+  }
+  return error instanceof Error ? error.message : 'Something went wrong';
+}
