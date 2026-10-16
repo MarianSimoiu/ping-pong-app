@@ -24,10 +24,13 @@ const MAX_GAMES = 21;
 
 type GameRow = { a: string; b: string };
 
-// A plausible (winner, loser) score for one valid 11-point, win-by-2 game —
-// mostly a clean 11-something finish, sometimes a deuce battle.
-function randomGameScore(): [number, number] {
-  if (Math.random() < 0.75) return [11, Math.floor(Math.random() * 10)]; // 11–0 .. 11–9
+// A close, believable (winner, loser) score for one valid 11-point, win-by-2
+// game — deliberately never a blowout (e.g. 11–2). The rating engine only
+// ever sees the match's overall win/loss, never per-game margins, so this
+// bias doesn't change anyone's rating — it's so a guessed-at score doesn't
+// *look* like a one-sided result that didn't really happen.
+function randomCloseGameScore(): [number, number] {
+  if (Math.random() < 0.6) return [11, 7 + Math.floor(Math.random() * 3)]; // 11–7, 11–8, 11–9
   const loser = 10 + Math.floor(Math.random() * 4); // deuce: 10–13, win by 2
   return [loser + 2, loser];
 }
@@ -100,7 +103,7 @@ export function SubmitMatchScreen({ navigation }: HomeStackScreenProps<'SubmitMa
 
     setRows(
       outcomes.map((who) => {
-        const [winner, loser] = randomGameScore();
+        const [winner, loser] = randomCloseGameScore();
         return who === 'me' ? { a: String(winner), b: String(loser) } : { a: String(loser), b: String(winner) };
       }),
     );
@@ -195,9 +198,14 @@ export function SubmitMatchScreen({ navigation }: HomeStackScreenProps<'SubmitMa
             onChangeText={setOppSets}
           />
           <Pressable style={styles.randomizeButton} onPress={randomizeFromSetScore}>
-            <Text style={styles.randomizeButtonText}>🎲 Randomize scores</Text>
+            <Text style={styles.randomizeButtonText}>🎲 Close-game randomizer</Text>
           </Pressable>
         </View>
+        <Text style={styles.hint}>
+          Fills in close, believable points (like 11–9) for each game — never a blowout like
+          11–2 — so it still won the set the way you remember it, without claiming a margin
+          that didn’t happen.
+        </Text>
 
         <Text style={styles.label}>Game scores (you · opponent)</Text>
         <Text style={styles.hint}>
@@ -296,7 +304,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexWrap: 'wrap',
     gap: spacing.sm,
-    marginBottom: spacing.lg,
+    marginBottom: spacing.sm,
   },
   randomizeButton: {
     backgroundColor: colors.surfaceAlt,
