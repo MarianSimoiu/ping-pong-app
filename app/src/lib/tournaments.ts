@@ -1,7 +1,7 @@
 import * as demo from '@/lib/demo';
 import { DEMO } from '@/lib/env';
 import type { RawGameInput } from '@/lib/matches';
-import { supabase } from '@/lib/supabase';
+import { functionErrorMessage, supabase } from '@/lib/supabase';
 
 export type TournamentStatus = 'draft' | 'active' | 'completed';
 
@@ -124,10 +124,7 @@ export async function createTournament(input: {
   const { data, error } = await supabase.functions.invoke<{ tournamentId: string }>('create-tournament', {
     body: input,
   });
-  if (error) {
-    const message = (data as { error?: string } | null)?.error ?? error.message;
-    throw new Error(message);
-  }
+  if (error) throw new Error(await functionErrorMessage(error));
   if (!data) throw new Error('No response from create-tournament');
   return data;
 }
@@ -140,10 +137,7 @@ export async function recordTournamentMatch(input: {
   const { data, error } = await supabase.functions.invoke<{ winnerId: string }>('submit-tournament-match', {
     body: input,
   });
-  if (error) {
-    const message = (data as { error?: string } | null)?.error ?? error.message;
-    throw new Error(message);
-  }
+  if (error) throw new Error(await functionErrorMessage(error));
   if (!data) throw new Error('No response from submit-tournament-match');
   return data;
 }
