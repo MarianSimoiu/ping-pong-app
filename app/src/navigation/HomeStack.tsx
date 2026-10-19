@@ -3,13 +3,14 @@ import React from 'react';
 
 import { HomeScreen } from '@/screens/HomeScreen';
 import { SubmitMatchScreen } from '@/screens/SubmitMatchScreen';
-import { colors } from '@/theme';
+import { useTheme } from '@/theme';
 
 import type { HomeStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<HomeStackParamList>();
 
 export function HomeStack() {
+  const { colors } = useTheme();
   return (
     <Stack.Navigator
       screenOptions={{

@@ -5,13 +5,14 @@ import { CreateTournamentScreen } from '@/screens/CreateTournamentScreen';
 import { RecordTournamentMatchScreen } from '@/screens/RecordTournamentMatchScreen';
 import { TournamentDetailScreen } from '@/screens/TournamentDetailScreen';
 import { TournamentsScreen } from '@/screens/TournamentsScreen';
-import { colors } from '@/theme';
+import { useTheme } from '@/theme';
 
 import type { TournamentsStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<TournamentsStackParamList>();
 
 export function TournamentsStack() {
+  const { colors } = useTheme();
   return (
     <Stack.Navigator
       screenOptions={{

@@ -25,7 +25,7 @@ import {
 } from '@/lib/leaderboard';
 import { showAlert } from '@/lib/platformAlert';
 import type { PlayerWithRating } from '@/lib/types';
-import { colors, radius, spacing } from '@/theme';
+import { radius, spacing, useTheme, type Colors } from '@/theme';
 
 // A plain-language breakdown of why this player's RD is what it is — shown
 // on demand (tap the info icon) rather than cluttering the stats row.
@@ -56,6 +56,8 @@ function currentStreak(matches: MatchHistoryItem[]): { count: number; kind: 'win
 type ParamList = { PlayerProfile: { playerId: string; displayName: string } };
 
 export function PlayerProfileScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const route = useRoute<RouteProp<ParamList, 'PlayerProfile'>>();
   const { playerId } = route.params;
 
@@ -195,6 +197,8 @@ function Stat({
   value: string;
   onInfoPress?: () => void;
 }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.stat}>
       <Text style={styles.statValue}>{value}</Text>
@@ -210,66 +214,68 @@ function Stat({
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  content: { padding: spacing.lg },
-  header: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.md },
-  name: { fontSize: 26, fontWeight: '700', color: colors.text },
-  statsRow: { flexDirection: 'row', gap: spacing.sm },
-  stat: {
-    flex: 1,
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  statValue: { color: colors.text, fontSize: 22, fontWeight: '700' },
-  statLabelRow: { flexDirection: 'row', alignItems: 'center', marginTop: 2, gap: 3 },
-  statLabel: { color: colors.textMuted, fontSize: 12 },
-  infoIcon: { color: colors.textMuted, fontSize: 12 },
-  provisional: { color: colors.textMuted, fontSize: 13, marginTop: spacing.sm },
-  section: {
-    color: colors.textMuted,
-    fontSize: 13,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginTop: spacing.xl,
-    marginBottom: spacing.sm,
-  },
-  empty: { color: colors.textMuted, fontSize: 14 },
-  streakBanner: {
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.accent,
-    padding: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  streakText: { color: colors.text, fontSize: 13, fontWeight: '600' },
-  upsetTag: {
-    color: colors.accent,
-    fontSize: 11,
-    fontWeight: '700',
-    marginRight: spacing.sm,
-  },
-  matchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  badge: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
-  badgeWin: { backgroundColor: colors.success },
-  badgeLoss: { backgroundColor: colors.danger },
-  badgeText: { color: colors.primaryText, fontWeight: '700', fontSize: 13 },
-  matchMain: { flex: 1, marginLeft: spacing.md },
-  matchOpponent: { color: colors.text, fontSize: 15 },
-  matchScore: { color: colors.textMuted, fontSize: 12, marginTop: 1 },
-  matchDelta: { fontSize: 15, fontWeight: '600' },
-  deltaUp: { color: colors.success },
-  deltaDown: { color: colors.danger },
-  error: { color: colors.danger, marginTop: spacing.lg },
-});
+function createStyles(colors: Colors) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    content: { padding: spacing.lg },
+    header: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.md },
+    name: { fontSize: 26, fontWeight: '700', color: colors.text },
+    statsRow: { flexDirection: 'row', gap: spacing.sm },
+    stat: {
+      flex: 1,
+      backgroundColor: colors.surface,
+      borderRadius: radius.md,
+      paddingVertical: spacing.md,
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    statValue: { color: colors.text, fontSize: 22, fontWeight: '700' },
+    statLabelRow: { flexDirection: 'row', alignItems: 'center', marginTop: 2, gap: 3 },
+    statLabel: { color: colors.textMuted, fontSize: 12 },
+    infoIcon: { color: colors.textMuted, fontSize: 12 },
+    provisional: { color: colors.textMuted, fontSize: 13, marginTop: spacing.sm },
+    section: {
+      color: colors.textMuted,
+      fontSize: 13,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      marginTop: spacing.xl,
+      marginBottom: spacing.sm,
+    },
+    empty: { color: colors.textMuted, fontSize: 14 },
+    streakBanner: {
+      backgroundColor: colors.surfaceAlt,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: colors.accent,
+      padding: spacing.sm,
+      marginBottom: spacing.sm,
+    },
+    streakText: { color: colors.text, fontSize: 13, fontWeight: '600' },
+    upsetTag: {
+      color: colors.accent,
+      fontSize: 11,
+      fontWeight: '700',
+      marginRight: spacing.sm,
+    },
+    matchRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: spacing.sm,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    badge: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+    badgeWin: { backgroundColor: colors.success },
+    badgeLoss: { backgroundColor: colors.danger },
+    badgeText: { color: colors.primaryText, fontWeight: '700', fontSize: 13 },
+    matchMain: { flex: 1, marginLeft: spacing.md },
+    matchOpponent: { color: colors.text, fontSize: 15 },
+    matchScore: { color: colors.textMuted, fontSize: 12, marginTop: 1 },
+    matchDelta: { fontSize: 15, fontWeight: '600' },
+    deltaUp: { color: colors.success },
+    deltaDown: { color: colors.danger },
+    error: { color: colors.danger, marginTop: spacing.lg },
+  });
+}

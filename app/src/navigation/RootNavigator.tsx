@@ -1,27 +1,34 @@
 import { DarkTheme, NavigationContainer } from '@react-navigation/native';
-import React from 'react';
+import React, { useMemo } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 
 import { useAuth } from '@/context/AuthContext';
 import { SignInScreen } from '@/screens/SignInScreen';
-import { colors } from '@/theme';
+import { useTheme } from '@/theme';
 
 import { TabNavigator } from './TabNavigator';
 
-const navTheme = {
-  ...DarkTheme,
-  colors: {
-    ...DarkTheme.colors,
-    background: colors.background,
-    card: colors.surface,
-    border: colors.border,
-    text: colors.text,
-    primary: colors.primary,
-  },
-};
-
 export function RootNavigator() {
   const { session, initializing } = useAuth();
+  const { colors } = useTheme();
+
+  // `DarkTheme` here is just React Navigation's base theme shape (it always
+  // has light text/dark chrome) — our own colors below are what actually
+  // make this light or dark.
+  const navTheme = useMemo(
+    () => ({
+      ...DarkTheme,
+      colors: {
+        ...DarkTheme.colors,
+        background: colors.background,
+        card: colors.surface,
+        border: colors.border,
+        text: colors.text,
+        primary: colors.primary,
+      },
+    }),
+    [colors],
+  );
 
   if (initializing) {
     return (
