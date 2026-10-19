@@ -35,6 +35,20 @@ function randomCloseGameScore(): [number, number] {
   return [loser + 2, loser];
 }
 
+// null = not answered yet (no error to show); a string = answered but invalid.
+function describeSetScoreError(mySetsStr: string, oppSetsStr: string): string | null {
+  if (mySetsStr === '' || oppSetsStr === '') return null;
+  const mine = Number(mySetsStr);
+  const theirs = Number(oppSetsStr);
+  if (!Number.isInteger(mine) || !Number.isInteger(theirs) || mine < 0 || theirs < 0) {
+    return 'Enter whole numbers for the score';
+  }
+  if (mine === theirs) return 'The score can’t be tied — someone has to win the match';
+  const total = mine + theirs;
+  if (total > MAX_GAMES) return `That’s ${total} games — the most a match can have is ${MAX_GAMES}`;
+  return null;
+}
+
 export function SubmitMatchScreen({ navigation }: HomeStackScreenProps<'SubmitMatch'>) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -42,9 +56,9 @@ export function SubmitMatchScreen({ navigation }: HomeStackScreenProps<'SubmitMa
   const [opponents, setOpponents] = useState<OpponentOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [opponentId, setOpponentId] = useState<string | null>(null);
-  const [rows, setRows] = useState<GameRow[]>([{ a: '', b: '' }]);
   const [mySets, setMySets] = useState('');
   const [oppSets, setOppSets] = useState('');
+  const [rows, setRows] = useState<GameRow[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -63,46 +77,31 @@ export function SubmitMatchScreen({ navigation }: HomeStackScreenProps<'SubmitMa
     load();
   }, [load]);
 
+  const setScoreError = describeSetScoreError(mySets, oppSets);
+  const mine = Number(mySets);
+  const theirs = Number(oppSets);
+  const setScoreReady = mySets !== '' && oppSets !== '' && setScoreError === null;
+
+  // The overall score is step 2 — it decides how many games step 3 asks for.
+  // Changing it (to a different, still-valid total) starts step 3 over.
+  useEffect(() => {
+    setRows(setScoreReady ? Array.from({ length: mine + theirs }, () => ({ a: '', b: '' })) : []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [setScoreReady, mine, theirs]);
+
   function setRow(i: number, key: 'a' | 'b', value: string) {
     setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, [key]: value } : r)));
   }
 
-  function addGame() {
-    if (rows.length < MAX_GAMES) setRows((prev) => [...prev, { a: '', b: '' }]);
-  }
-
-  // Fills the game rows from just a set score (e.g. "2 – 1"), for when you
-  // remember who won how many games but not the exact points. Re-pressing
-  // rerolls new scores for the same set score, without changing who won
-  // which games overall.
-  function randomizeFromSetScore() {
-    setError(null);
-    const mine = Number(mySets);
-    const theirs = Number(oppSets);
-    if (!Number.isInteger(mine) || !Number.isInteger(theirs) || mine < 0 || theirs < 0) {
-      setError('Enter whole numbers for the set score');
-      return;
-    }
-    const total = mine + theirs;
-    if (total === 0) {
-      setError('Enter a set score first, e.g. 2 – 1');
-      return;
-    }
-    if (mine === theirs) {
-      setError('The set score can’t be tied — someone has to win the match');
-      return;
-    }
-    if (total > MAX_GAMES) {
-      setError(`That’s ${total} games — the most a match can have is ${MAX_GAMES}`);
-      return;
-    }
-
+  // Fills every game row to match the step-2 score, in a close, believable
+  // way (never a blowout). Re-pressing rerolls new numbers without changing
+  // the overall score.
+  function randomizeGames() {
     const outcomes: ('me' | 'opp')[] = [...Array(mine).fill('me'), ...Array(theirs).fill('opp')];
     for (let i = outcomes.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [outcomes[i], outcomes[j]] = [outcomes[j], outcomes[i]];
     }
-
     setRows(
       outcomes.map((who) => {
         const [winner, loser] = randomCloseGameScore();
@@ -117,19 +116,28 @@ export function SubmitMatchScreen({ navigation }: HomeStackScreenProps<'SubmitMa
       setError('Pick an opponent first');
       return;
     }
+    if (!setScoreReady) {
+      setError('Enter the overall score first');
+      return;
+    }
     const games: RawGameInput[] = [];
+    let aWins = 0;
+    let bWins = 0;
     for (const r of rows) {
-      if (r.a === '' && r.b === '') continue; // skip empty rows
       const a = Number(r.a);
       const b = Number(r.b);
-      if (!Number.isInteger(a) || !Number.isInteger(b)) {
-        setError('Scores must be whole numbers');
+      if (r.a === '' || r.b === '' || !Number.isInteger(a) || !Number.isInteger(b)) {
+        setError('Fill in every game’s score, or tap Randomize');
         return;
       }
+      if (a > b) aWins += 1;
+      else bWins += 1;
       games.push({ score_a: a, score_b: b });
     }
-    if (games.length === 0) {
-      setError('Enter at least one game');
+    if (aWins !== mine || bWins !== theirs) {
+      setError(
+        `Those game scores add up to ${aWins}–${bWins}, not the ${mine}–${theirs} you entered above.`,
+      );
       return;
     }
 
@@ -159,7 +167,7 @@ export function SubmitMatchScreen({ navigation }: HomeStackScreenProps<'SubmitMa
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.label}>Opponent</Text>
+        <Text style={styles.label}>1. Opponent</Text>
         {opponents.length === 0 ? (
           <Text style={styles.empty}>
             No other players yet. Ask a friend to sign up, then record your match.
@@ -180,81 +188,84 @@ export function SubmitMatchScreen({ navigation }: HomeStackScreenProps<'SubmitMa
           </View>
         )}
 
-        <Text style={styles.label}>Know the set score, not the exact points?</Text>
-        <View style={styles.setScoreRow}>
-          <TextInput
-            style={styles.scoreInput}
-            keyboardType="number-pad"
-            placeholder="2"
-            placeholderTextColor={colors.textMuted}
-            value={mySets}
-            onChangeText={setMySets}
-          />
-          <Text style={styles.dash}>–</Text>
-          <TextInput
-            style={styles.scoreInput}
-            keyboardType="number-pad"
-            placeholder="1"
-            placeholderTextColor={colors.textMuted}
-            value={oppSets}
-            onChangeText={setOppSets}
-          />
-          <Pressable style={styles.randomizeButton} onPress={randomizeFromSetScore}>
-            <Text style={styles.randomizeButtonText}>🎲 Close-game randomizer</Text>
-          </Pressable>
-        </View>
-        <Text style={styles.hint}>
-          Fills in close, believable points (like 11–9) for each game — never a blowout like
-          11–2 — so it still won the set the way you remember it, without claiming a margin
-          that didn’t happen.
-        </Text>
+        {opponentId && (
+          <>
+            <Text style={styles.label}>2. Overall score</Text>
+            <Text style={styles.hint}>
+              How many games did each of you win? Any score works — 1–0, 2–1, 3–2, whatever happened.
+            </Text>
+            <View style={styles.setScoreRow}>
+              <TextInput
+                style={styles.scoreInput}
+                keyboardType="number-pad"
+                placeholder="2"
+                placeholderTextColor={colors.textMuted}
+                value={mySets}
+                onChangeText={setMySets}
+              />
+              <Text style={styles.dash}>–</Text>
+              <TextInput
+                style={styles.scoreInput}
+                keyboardType="number-pad"
+                placeholder="1"
+                placeholderTextColor={colors.textMuted}
+                value={oppSets}
+                onChangeText={setOppSets}
+              />
+            </View>
+            {setScoreError && <Text style={styles.error}>{setScoreError}</Text>}
+          </>
+        )}
 
-        <Text style={styles.label}>Game scores (you · opponent)</Text>
-        <Text style={styles.hint}>
-          Add every game you played — win by more games than your opponent to win the match.
-        </Text>
-        {rows.map((r, i) => (
-          <View key={i} style={styles.gameRow}>
-            <Text style={styles.gameNo}>{i + 1}</Text>
-            <TextInput
-              style={styles.scoreInput}
-              keyboardType="number-pad"
-              placeholder="11"
-              placeholderTextColor={colors.textMuted}
-              value={r.a}
-              onChangeText={(v) => setRow(i, 'a', v)}
-            />
-            <Text style={styles.dash}>–</Text>
-            <TextInput
-              style={styles.scoreInput}
-              keyboardType="number-pad"
-              placeholder="7"
-              placeholderTextColor={colors.textMuted}
-              value={r.b}
-              onChangeText={(v) => setRow(i, 'b', v)}
-            />
-          </View>
-        ))}
-
-        {rows.length < MAX_GAMES && (
-          <Pressable onPress={addGame}>
-            <Text style={styles.addGame}>+ Add game</Text>
-          </Pressable>
+        {setScoreReady && (
+          <>
+            <Text style={styles.label}>3. Game scores (you · opponent)</Text>
+            <View style={styles.gameScoresHeader}>
+              <Text style={styles.hint}>Enter the exact points for each game.</Text>
+              <Pressable style={styles.randomizeButton} onPress={randomizeGames}>
+                <Text style={styles.randomizeButtonText}>🎲 Randomize</Text>
+              </Pressable>
+            </View>
+            {rows.map((r, i) => (
+              <View key={i} style={styles.gameRow}>
+                <Text style={styles.gameNo}>{i + 1}</Text>
+                <TextInput
+                  style={styles.scoreInput}
+                  keyboardType="number-pad"
+                  placeholder="11"
+                  placeholderTextColor={colors.textMuted}
+                  value={r.a}
+                  onChangeText={(v) => setRow(i, 'a', v)}
+                />
+                <Text style={styles.dash}>–</Text>
+                <TextInput
+                  style={styles.scoreInput}
+                  keyboardType="number-pad"
+                  placeholder="7"
+                  placeholderTextColor={colors.textMuted}
+                  value={r.b}
+                  onChangeText={(v) => setRow(i, 'b', v)}
+                />
+              </View>
+            ))}
+          </>
         )}
 
         {error && <Text style={styles.error}>{error}</Text>}
 
-        <Pressable
-          style={[styles.button, submitting && { opacity: 0.6 }]}
-          onPress={onSubmit}
-          disabled={submitting}
-        >
-          {submitting ? (
-            <ActivityIndicator color={colors.primaryText} />
-          ) : (
-            <Text style={styles.buttonText}>Submit match</Text>
-          )}
-        </Pressable>
+        {setScoreReady && (
+          <Pressable
+            style={[styles.button, submitting && { opacity: 0.6 }]}
+            onPress={onSubmit}
+            disabled={submitting}
+          >
+            {submitting ? (
+              <ActivityIndicator color={colors.primaryText} />
+            ) : (
+              <Text style={styles.buttonText}>Submit match</Text>
+            )}
+          </Pressable>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -301,13 +312,16 @@ function createStyles(colors: Colors) {
       borderColor: colors.border,
     },
     dash: { color: colors.textMuted, marginHorizontal: spacing.md, fontSize: 18 },
-    addGame: { color: colors.primary, fontSize: 14, marginTop: spacing.xs },
     setScoreRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      flexWrap: 'wrap',
-      gap: spacing.sm,
       marginBottom: spacing.sm,
+    },
+    gameScoresHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: spacing.sm,
     },
     randomizeButton: {
       backgroundColor: colors.surfaceAlt,
