@@ -55,7 +55,7 @@ function formatSubmittedAt(iso: string): string {
 }
 
 export function HomeScreen({ navigation }: HomeStackScreenProps<'Home'>) {
-  const { colors } = useTheme();
+  const { colors, scheme, setDarkMode } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { session } = useAuth();
   const [profile, setProfile] = useState<PlayerWithRating | null>(null);
@@ -137,12 +137,21 @@ export function HomeScreen({ navigation }: HomeStackScreenProps<'Home'>) {
           <Text style={styles.greeting}>
             Hi, {profile?.display_name ?? '…'} 👋
           </Text>
-          <Pressable
-            style={styles.betaBadge}
-            onPress={() => showAlert('This app is in beta', BETA_MESSAGE)}
-          >
-            <Text style={styles.betaBadgeText}>BETA</Text>
-          </Pressable>
+          <View style={styles.greetingActions}>
+            <Pressable
+              style={styles.themeToggle}
+              onPress={() => setDarkMode(scheme !== 'dark')}
+              hitSlop={8}
+            >
+              <Text style={styles.themeToggleIcon}>{scheme === 'dark' ? '🌙' : '☀️'}</Text>
+            </Pressable>
+            <Pressable
+              style={styles.betaBadge}
+              onPress={() => showAlert('This app is in beta', BETA_MESSAGE)}
+            >
+              <Text style={styles.betaBadgeText}>BETA</Text>
+            </Pressable>
+          </View>
         </View>
 
         {loading && !profile ? (
@@ -252,6 +261,18 @@ function createStyles(colors: Colors) {
       marginBottom: spacing.lg,
     },
     greeting: { fontSize: 24, fontWeight: '700', color: colors.text },
+    greetingActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+    themeToggle: {
+      width: 32,
+      height: 32,
+      borderRadius: radius.sm,
+      backgroundColor: colors.surfaceAlt,
+      borderWidth: 1,
+      borderColor: colors.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    themeToggleIcon: { fontSize: 15 },
     betaBadge: {
       backgroundColor: colors.accent,
       borderRadius: radius.sm,
