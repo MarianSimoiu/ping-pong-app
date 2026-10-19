@@ -1,6 +1,6 @@
 import * as ImagePicker from 'expo-image-picker';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/Avatar';
@@ -14,7 +14,7 @@ import { radius, spacing, useTheme, type Colors } from '@/theme';
 type Me = { id: string; displayName: string; avatarUrl: string | null };
 
 export function ProfileScreen({ navigation }: ProfileStackScreenProps<'Account'>) {
-  const { colors } = useTheme();
+  const { colors, scheme, setDarkMode } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { session, signOut } = useAuth();
   const [busy, setBusy] = useState(false);
@@ -96,6 +96,16 @@ export function ProfileScreen({ navigation }: ProfileStackScreenProps<'Account'>
           <Text style={styles.value}>{session?.user.email}</Text>
         </View>
 
+        <View style={[styles.card, styles.darkModeRow]}>
+          <Text style={styles.value}>Dark mode</Text>
+          <Switch
+            value={scheme === 'dark'}
+            onValueChange={setDarkMode}
+            trackColor={{ false: colors.border, true: colors.primary }}
+            thumbColor={colors.surface}
+          />
+        </View>
+
         {me && (
           <Pressable
             style={styles.statsLink}
@@ -136,6 +146,12 @@ function createStyles(colors: Colors) {
     },
     label: { color: colors.textMuted, fontSize: 13 },
     value: { color: colors.text, fontSize: 16, marginTop: spacing.xs },
+    darkModeRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginTop: spacing.md,
+    },
     statsLink: {
       backgroundColor: colors.surface,
       borderRadius: radius.md,

@@ -5,8 +5,20 @@
 // borders/UI boundaries) — recheck with the same method before changing any
 // value here.
 
-import { createContext, createElement, useContext, useMemo, type ReactNode } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  createContext,
+  createElement,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
 import { useColorScheme } from 'react-native';
+
+import { useAuth } from '@/context/AuthContext';
 
 export type Colors = {
   background: string;
@@ -73,25 +85,66 @@ type Theme = {
   // Status bar icon color for the OS chrome — not derived from `colors`
   // because expo-status-bar takes a literal 'light'/'dark', not a hex value.
   statusBarStyle: 'light' | 'dark';
+  // True until no explicit choice has ever been saved for this user/device —
+  // i.e. `scheme` is still just following the OS setting.
+  isSystemDefault: boolean;
+  // Explicitly override the theme for this user on this device, overriding
+  // the OS setting from now on. Persisted locally (AsyncStorage), scoped to
+  // the signed-in user, so a shared device keeps each account's own choice
+  // and a different device starts back at following the system.
+  setDarkMode: (dark: boolean) => void;
 };
 
 const ThemeContext = createContext<Theme>({
   colors: lightColors,
   scheme: 'light',
   statusBarStyle: 'dark',
+  isSystemDefault: true,
+  setDarkMode: () => {},
 });
 
-// Follows the OS light/dark setting automatically — no in-app toggle (yet).
+const storageKey = (userId: string) => `theme-override:${userId}`;
+
 export function ThemeProvider({ children }: { children: ReactNode }) {
+  const { session } = useAuth();
+  const userId = session?.user.id ?? 'anon';
   const systemScheme = useColorScheme();
-  const scheme: 'light' | 'dark' = systemScheme === 'dark' ? 'dark' : 'light';
+  const [override, setOverride] = useState<'light' | 'dark' | null>(null);
+
+  // (Re)load this user's saved choice whenever who's signed in changes —
+  // e.g. signing out and into a different account on the same device.
+  useEffect(() => {
+    let cancelled = false;
+    AsyncStorage.getItem(storageKey(userId)).then((stored) => {
+      if (cancelled) return;
+      setOverride(stored === 'light' || stored === 'dark' ? stored : null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+
+  const setDarkMode = useCallback(
+    (dark: boolean) => {
+      const next = dark ? 'dark' : 'light';
+      setOverride(next);
+      AsyncStorage.setItem(storageKey(userId), next).catch(() => {
+        // Non-fatal: the choice still applies for the rest of this session.
+      });
+    },
+    [userId],
+  );
+
+  const scheme: 'light' | 'dark' = override ?? (systemScheme === 'dark' ? 'dark' : 'light');
   const value = useMemo<Theme>(
     () => ({
       colors: scheme === 'dark' ? darkColors : lightColors,
       scheme,
       statusBarStyle: scheme === 'dark' ? 'light' : 'dark',
+      isSystemDefault: override === null,
+      setDarkMode,
     }),
-    [scheme],
+    [scheme, override, setDarkMode],
   );
   return createElement(ThemeContext.Provider, { value }, children);
 }
