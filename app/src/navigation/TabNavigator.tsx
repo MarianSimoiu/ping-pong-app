@@ -7,7 +7,7 @@ import { LeaderboardStack } from '@/navigation/LeaderboardStack';
 import { ProfileStack } from '@/navigation/ProfileStack';
 import { TournamentsStack } from '@/navigation/TournamentsStack';
 import { DoublesScreen } from '@/screens/DoublesScreen';
-import { colors } from '@/theme';
+import { useTheme } from '@/theme';
 
 const Tab = createBottomTabNavigator();
 
@@ -21,6 +21,7 @@ const icons: Record<string, string> = {
 };
 
 export function TabNavigator() {
+  const { colors } = useTheme();
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({

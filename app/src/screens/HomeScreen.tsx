@@ -1,5 +1,5 @@
 import { useFocusEffect } from '@react-navigation/native';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -21,7 +21,7 @@ import { showAlert } from '@/lib/platformAlert';
 import { fetchMyProfile } from '@/lib/players';
 import type { PendingMatch, PlayerWithRating } from '@/lib/types';
 import type { HomeStackScreenProps } from '@/navigation/types';
-import { colors, radius, spacing } from '@/theme';
+import { radius, spacing, useTheme, type Colors } from '@/theme';
 
 const BETA_MESSAGE =
   'This app is still early and actively evolving — expect rough edges, missing ' +
@@ -55,6 +55,8 @@ function formatSubmittedAt(iso: string): string {
 }
 
 export function HomeScreen({ navigation }: HomeStackScreenProps<'Home'>) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { session } = useAuth();
   const [profile, setProfile] = useState<PlayerWithRating | null>(null);
   const [rank, setRank] = useState<number | null>(null);
@@ -239,104 +241,108 @@ export function HomeScreen({ navigation }: HomeStackScreenProps<'Home'>) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  content: { padding: spacing.lg },
-  greetingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.lg,
-  },
-  greeting: { fontSize: 24, fontWeight: '700', color: colors.text },
-  betaBadge: {
-    backgroundColor: colors.accent,
-    borderRadius: radius.sm,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-  },
-  betaBadgeText: { color: colors.text, fontSize: 11, fontWeight: '700', letterSpacing: 0.5 },
-  ratingCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    padding: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-  },
-  ratingLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  ratingLabel: { color: colors.textMuted, fontSize: 14 },
-  infoIcon: { color: colors.textMuted, fontSize: 13 },
-  ratingValue: { color: colors.primary, fontSize: 56, fontWeight: '800', marginVertical: spacing.xs },
-  ratingMeta: { color: colors.textMuted, fontSize: 13 },
-  ratingRank: { color: colors.primary, fontSize: 13, fontWeight: '600', marginTop: spacing.xs },
-  legendCard: {
-    alignSelf: 'stretch',
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    marginTop: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  legendText: { color: colors.textMuted, fontSize: 12, lineHeight: 18 },
-  legendBold: { color: colors.text, fontWeight: '700' },
-  cta: {
-    backgroundColor: colors.primary,
-    borderRadius: radius.md,
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-    marginTop: spacing.lg,
-  },
-  ctaText: { color: colors.primaryText, fontSize: 16, fontWeight: '600' },
-  pendingSection: { marginTop: spacing.lg },
-  pendingHeader: {
-    color: colors.textMuted,
-    fontSize: 13,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: spacing.sm,
-  },
-  pendingCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.primary,
-  },
-  pendingHeaderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm },
-  pendingHeaderText: { marginLeft: spacing.sm },
-  pendingName: { color: colors.text, fontSize: 14, fontWeight: '700' },
-  pendingTime: { color: colors.textMuted, fontSize: 11 },
-  pendingText: { color: colors.text, fontSize: 14, marginBottom: spacing.xs },
-  pendingSets: { color: colors.textMuted, fontSize: 12, marginBottom: spacing.sm },
-  pendingActions: { flexDirection: 'row', gap: spacing.sm },
-  confirmBtn: {
-    backgroundColor: colors.primary,
-    borderRadius: radius.sm,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-  },
-  confirmText: { color: colors.primaryText, fontWeight: '600' },
-  declineBtn: {
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: radius.sm,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  declineText: { color: colors.danger, fontWeight: '600' },
-  hintCard: {
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    marginTop: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  hintTitle: { color: colors.text, fontWeight: '600', marginBottom: spacing.xs },
-  hintText: { color: colors.textMuted, fontSize: 14, lineHeight: 20 },
-  error: { color: colors.danger, marginTop: spacing.lg },
-});
+function createStyles(colors: Colors) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    content: { padding: spacing.lg },
+    greetingRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: spacing.lg,
+    },
+    greeting: { fontSize: 24, fontWeight: '700', color: colors.text },
+    betaBadge: {
+      backgroundColor: colors.accent,
+      borderRadius: radius.sm,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 4,
+    },
+    // accentText, not text: this sits on the gold accent background, and the
+    // two need different contrast handling (see theme.ts).
+    betaBadgeText: { color: colors.accentText, fontSize: 11, fontWeight: '700', letterSpacing: 0.5 },
+    ratingCard: {
+      backgroundColor: colors.surface,
+      borderRadius: radius.lg,
+      padding: spacing.lg,
+      borderWidth: 1,
+      borderColor: colors.border,
+      alignItems: 'center',
+    },
+    ratingLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+    ratingLabel: { color: colors.textMuted, fontSize: 14 },
+    infoIcon: { color: colors.textMuted, fontSize: 13 },
+    ratingValue: { color: colors.primary, fontSize: 56, fontWeight: '800', marginVertical: spacing.xs },
+    ratingMeta: { color: colors.textMuted, fontSize: 13 },
+    ratingRank: { color: colors.primary, fontSize: 13, fontWeight: '600', marginTop: spacing.xs },
+    legendCard: {
+      alignSelf: 'stretch',
+      backgroundColor: colors.surfaceAlt,
+      borderRadius: radius.md,
+      padding: spacing.md,
+      marginTop: spacing.md,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    legendText: { color: colors.textMuted, fontSize: 12, lineHeight: 18 },
+    legendBold: { color: colors.text, fontWeight: '700' },
+    cta: {
+      backgroundColor: colors.primary,
+      borderRadius: radius.md,
+      paddingVertical: spacing.md,
+      alignItems: 'center',
+      marginTop: spacing.lg,
+    },
+    ctaText: { color: colors.primaryText, fontSize: 16, fontWeight: '600' },
+    pendingSection: { marginTop: spacing.lg },
+    pendingHeader: {
+      color: colors.textMuted,
+      fontSize: 13,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      marginBottom: spacing.sm,
+    },
+    pendingCard: {
+      backgroundColor: colors.surface,
+      borderRadius: radius.md,
+      padding: spacing.md,
+      marginBottom: spacing.sm,
+      borderWidth: 1,
+      borderColor: colors.primary,
+    },
+    pendingHeaderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm },
+    pendingHeaderText: { marginLeft: spacing.sm },
+    pendingName: { color: colors.text, fontSize: 14, fontWeight: '700' },
+    pendingTime: { color: colors.textMuted, fontSize: 11 },
+    pendingText: { color: colors.text, fontSize: 14, marginBottom: spacing.xs },
+    pendingSets: { color: colors.textMuted, fontSize: 12, marginBottom: spacing.sm },
+    pendingActions: { flexDirection: 'row', gap: spacing.sm },
+    confirmBtn: {
+      backgroundColor: colors.primary,
+      borderRadius: radius.sm,
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.md,
+    },
+    confirmText: { color: colors.primaryText, fontWeight: '600' },
+    declineBtn: {
+      backgroundColor: colors.surfaceAlt,
+      borderRadius: radius.sm,
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.md,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    declineText: { color: colors.danger, fontWeight: '600' },
+    hintCard: {
+      backgroundColor: colors.surfaceAlt,
+      borderRadius: radius.md,
+      padding: spacing.md,
+      marginTop: spacing.lg,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    hintTitle: { color: colors.text, fontWeight: '600', marginBottom: spacing.xs },
+    hintText: { color: colors.textMuted, fontSize: 14, lineHeight: 20 },
+    error: { color: colors.danger, marginTop: spacing.lg },
+  });
+}

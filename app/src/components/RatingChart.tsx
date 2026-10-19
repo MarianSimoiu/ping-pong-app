@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import Svg, { Circle, Line, Polyline } from 'react-native-svg';
 
 import type { HistoryPoint } from '@/lib/leaderboard';
-import { colors, spacing } from '@/theme';
+import { spacing, useTheme, type Colors } from '@/theme';
 
 const HEIGHT = 160;
 const PAD = 12;
@@ -11,6 +11,8 @@ const PAD = 12;
 // A minimal rating-over-time line chart. Single series, clear baseline, no
 // chart junk — just enough to see the trajectory.
 export function RatingChart({ points }: { points: HistoryPoint[] }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { width: screenWidth } = useWindowDimensions();
   const width = screenWidth - spacing.lg * 2; // account for screen padding
 
@@ -61,9 +63,11 @@ export function RatingChart({ points }: { points: HistoryPoint[] }) {
   );
 }
 
-const styles = StyleSheet.create({
-  empty: { alignItems: 'center', justifyContent: 'center' },
-  emptyText: { color: colors.textMuted, fontSize: 14 },
-  axis: { flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.xs },
-  axisText: { color: colors.textMuted, fontSize: 12 },
-});
+function createStyles(colors: Colors) {
+  return StyleSheet.create({
+    empty: { alignItems: 'center', justifyContent: 'center' },
+    emptyText: { color: colors.textMuted, fontSize: 14 },
+    axis: { flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.xs },
+    axisText: { color: colors.textMuted, fontSize: 12 },
+  });
+}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -13,7 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import type { RawGameInput } from '@/lib/matches';
 import { recordTournamentMatch } from '@/lib/tournaments';
 import type { TournamentsStackScreenProps } from '@/navigation/types';
-import { colors, radius, spacing } from '@/theme';
+import { radius, spacing, useTheme, type Colors } from '@/theme';
 
 type GameRow = { a: string; b: string };
 
@@ -21,6 +21,8 @@ export function RecordTournamentMatchScreen({
   route,
   navigation,
 }: TournamentsStackScreenProps<'RecordTournamentMatch'>) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { tournamentMatchId, playerAName, playerBName, bestOf } = route.params;
   const [rows, setRows] = useState<GameRow[]>([{ a: '', b: '' }]);
   const [submitting, setSubmitting] = useState(false);
@@ -123,36 +125,44 @@ export function RecordTournamentMatchScreen({
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  content: { padding: spacing.lg },
-  matchup: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: spacing.md },
-  side: { color: colors.text, fontSize: 18, fontWeight: '700', flex: 1, textAlign: 'center' },
-  vs: { color: colors.textMuted, marginHorizontal: spacing.sm },
-  hint: { color: colors.textMuted, fontSize: 13, textAlign: 'center', marginTop: spacing.sm, marginBottom: spacing.lg },
-  gameRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: spacing.sm },
-  gameNo: { color: colors.textMuted, width: 24, fontSize: 14 },
-  scoreInput: {
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: radius.sm,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    color: colors.text,
-    fontSize: 18,
-    textAlign: 'center',
-    width: 72,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  dash: { color: colors.textMuted, marginHorizontal: spacing.md, fontSize: 18 },
-  addGame: { color: colors.primary, fontSize: 14, marginTop: spacing.xs, textAlign: 'center' },
-  button: {
-    backgroundColor: colors.primary,
-    borderRadius: radius.md,
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-    marginTop: spacing.xl,
-  },
-  buttonText: { color: colors.primaryText, fontSize: 16, fontWeight: '600' },
-  error: { color: colors.danger, marginTop: spacing.md, fontSize: 14, textAlign: 'center' },
-});
+function createStyles(colors: Colors) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    content: { padding: spacing.lg },
+    matchup: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: spacing.md },
+    side: { color: colors.text, fontSize: 18, fontWeight: '700', flex: 1, textAlign: 'center' },
+    vs: { color: colors.textMuted, marginHorizontal: spacing.sm },
+    hint: {
+      color: colors.textMuted,
+      fontSize: 13,
+      textAlign: 'center',
+      marginTop: spacing.sm,
+      marginBottom: spacing.lg,
+    },
+    gameRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: spacing.sm },
+    gameNo: { color: colors.textMuted, width: 24, fontSize: 14 },
+    scoreInput: {
+      backgroundColor: colors.surfaceAlt,
+      borderRadius: radius.sm,
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.md,
+      color: colors.text,
+      fontSize: 18,
+      textAlign: 'center',
+      width: 72,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    dash: { color: colors.textMuted, marginHorizontal: spacing.md, fontSize: 18 },
+    addGame: { color: colors.primary, fontSize: 14, marginTop: spacing.xs, textAlign: 'center' },
+    button: {
+      backgroundColor: colors.primary,
+      borderRadius: radius.md,
+      paddingVertical: spacing.md,
+      alignItems: 'center',
+      marginTop: spacing.xl,
+    },
+    buttonText: { color: colors.primaryText, fontSize: 16, fontWeight: '600' },
+    error: { color: colors.danger, marginTop: spacing.md, fontSize: 14, textAlign: 'center' },
+  });
+}

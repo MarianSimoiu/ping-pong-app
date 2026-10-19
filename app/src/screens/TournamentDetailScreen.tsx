@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { pickChampionLine } from '@/lib/commentary';
 import { fetchTournamentDetail, type TournamentDetail, type TournamentNode } from '@/lib/tournaments';
 import type { TournamentsStackScreenProps } from '@/navigation/types';
-import { colors, radius, spacing } from '@/theme';
+import { radius, spacing, useTheme, type Colors } from '@/theme';
 
 function roundLabel(round: number, totalRounds: number): string {
   const fromEnd = totalRounds - round;
@@ -20,6 +20,8 @@ export function TournamentDetailScreen({
   route,
   navigation,
 }: TournamentsStackScreenProps<'TournamentDetail'>) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { tournamentId } = route.params;
   const [detail, setDetail] = useState<TournamentDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -129,6 +131,8 @@ export function TournamentDetailScreen({
 }
 
 function PlayerLine({ name, isWinner }: { name: string; isWinner: boolean }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <Text style={[styles.player, isWinner && styles.winner]} numberOfLines={1}>
       {name}
@@ -136,43 +140,45 @@ function PlayerLine({ name, isWinner }: { name: string; isWinner: boolean }) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  content: { padding: spacing.lg },
-  champion: {
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: radius.lg,
-    padding: spacing.lg,
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.primary,
-  },
-  championEmoji: { fontSize: 36 },
-  championText: { color: colors.text, fontSize: 18, fontWeight: '700', marginTop: spacing.xs },
-  roundLabel: {
-    color: colors.textMuted,
-    fontSize: 13,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginTop: spacing.lg,
-    marginBottom: spacing.sm,
-  },
-  match: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  matchReady: { borderColor: colors.primary },
-  player: { color: colors.text, fontSize: 15 },
-  winner: { color: colors.success, fontWeight: '700' },
-  divider: { height: 1, backgroundColor: colors.border, marginVertical: spacing.sm },
-  record: { color: colors.primary, fontWeight: '600', marginLeft: spacing.md },
-  done: { color: colors.success, fontSize: 18, marginLeft: spacing.md },
-  error: { color: colors.danger, padding: spacing.lg },
-});
+function createStyles(colors: Colors) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    content: { padding: spacing.lg },
+    champion: {
+      backgroundColor: colors.surfaceAlt,
+      borderRadius: radius.lg,
+      padding: spacing.lg,
+      alignItems: 'center',
+      marginBottom: spacing.lg,
+      borderWidth: 1,
+      borderColor: colors.primary,
+    },
+    championEmoji: { fontSize: 36 },
+    championText: { color: colors.text, fontSize: 18, fontWeight: '700', marginTop: spacing.xs },
+    roundLabel: {
+      color: colors.textMuted,
+      fontSize: 13,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      marginTop: spacing.lg,
+      marginBottom: spacing.sm,
+    },
+    match: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      borderRadius: radius.md,
+      padding: spacing.md,
+      marginBottom: spacing.sm,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    matchReady: { borderColor: colors.primary },
+    player: { color: colors.text, fontSize: 15 },
+    winner: { color: colors.success, fontWeight: '700' },
+    divider: { height: 1, backgroundColor: colors.border, marginVertical: spacing.sm },
+    record: { color: colors.primary, fontWeight: '600', marginLeft: spacing.md },
+    done: { color: colors.success, fontSize: 18, marginLeft: spacing.md },
+    error: { color: colors.danger, padding: spacing.lg },
+  });
+}

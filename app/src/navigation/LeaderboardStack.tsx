@@ -3,13 +3,14 @@ import React from 'react';
 
 import { LeaderboardScreen } from '@/screens/LeaderboardScreen';
 import { PlayerProfileScreen } from '@/screens/PlayerProfileScreen';
-import { colors } from '@/theme';
+import { useTheme } from '@/theme';
 
 import type { LeaderboardStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<LeaderboardStackParamList>();
 
 export function LeaderboardStack() {
+  const { colors } = useTheme();
   return (
     <Stack.Navigator
       screenOptions={{

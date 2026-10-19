@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -15,7 +15,7 @@ import { fetchOpponents, submitMatch, type RawGameInput } from '@/lib/matches';
 import { showAlert } from '@/lib/platformAlert';
 import type { OpponentOption } from '@/lib/types';
 import type { HomeStackScreenProps } from '@/navigation/types';
-import { colors, radius, spacing } from '@/theme';
+import { radius, spacing, useTheme, type Colors } from '@/theme';
 
 // Matches the MAX_GAMES_PER_MATCH sanity cap enforced server-side in
 // supabase/functions/_shared/match.ts — there's no preset format to pick
@@ -36,6 +36,8 @@ function randomCloseGameScore(): [number, number] {
 }
 
 export function SubmitMatchScreen({ navigation }: HomeStackScreenProps<'SubmitMatch'>) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { session } = useAuth();
   const [opponents, setOpponents] = useState<OpponentOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -258,70 +260,72 @@ export function SubmitMatchScreen({ navigation }: HomeStackScreenProps<'SubmitMa
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  content: { padding: spacing.lg },
-  label: {
-    color: colors.textMuted,
-    fontSize: 13,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginTop: spacing.lg,
-    marginBottom: spacing.sm,
-  },
-  empty: { color: colors.textMuted, fontSize: 14, lineHeight: 20 },
-  hint: { color: colors.textMuted, fontSize: 13, marginBottom: spacing.sm },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  chip: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  chipText: { color: colors.text, fontSize: 14 },
-  chipTextActive: { color: colors.primaryText, fontWeight: '600' },
-  gameRow: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm },
-  gameNo: { color: colors.textMuted, width: 24, fontSize: 14 },
-  scoreInput: {
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: radius.sm,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    color: colors.text,
-    fontSize: 18,
-    textAlign: 'center',
-    width: 72,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  dash: { color: colors.textMuted, marginHorizontal: spacing.md, fontSize: 18 },
-  addGame: { color: colors.primary, fontSize: 14, marginTop: spacing.xs },
-  setScoreRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  randomizeButton: {
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  randomizeButtonText: { color: colors.text, fontSize: 14, fontWeight: '600' },
-  button: {
-    backgroundColor: colors.primary,
-    borderRadius: radius.md,
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-    marginTop: spacing.xl,
-  },
-  buttonText: { color: colors.primaryText, fontSize: 16, fontWeight: '600' },
-  error: { color: colors.danger, marginTop: spacing.md, fontSize: 14 },
-});
+function createStyles(colors: Colors) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    content: { padding: spacing.lg },
+    label: {
+      color: colors.textMuted,
+      fontSize: 13,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      marginTop: spacing.lg,
+      marginBottom: spacing.sm,
+    },
+    empty: { color: colors.textMuted, fontSize: 14, lineHeight: 20 },
+    hint: { color: colors.textMuted, fontSize: 13, marginBottom: spacing.sm },
+    chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+    chip: {
+      backgroundColor: colors.surface,
+      borderRadius: radius.md,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+    chipText: { color: colors.text, fontSize: 14 },
+    chipTextActive: { color: colors.primaryText, fontWeight: '600' },
+    gameRow: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm },
+    gameNo: { color: colors.textMuted, width: 24, fontSize: 14 },
+    scoreInput: {
+      backgroundColor: colors.surfaceAlt,
+      borderRadius: radius.sm,
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.md,
+      color: colors.text,
+      fontSize: 18,
+      textAlign: 'center',
+      width: 72,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    dash: { color: colors.textMuted, marginHorizontal: spacing.md, fontSize: 18 },
+    addGame: { color: colors.primary, fontSize: 14, marginTop: spacing.xs },
+    setScoreRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flexWrap: 'wrap',
+      gap: spacing.sm,
+      marginBottom: spacing.sm,
+    },
+    randomizeButton: {
+      backgroundColor: colors.surfaceAlt,
+      borderRadius: radius.md,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    randomizeButtonText: { color: colors.text, fontSize: 14, fontWeight: '600' },
+    button: {
+      backgroundColor: colors.primary,
+      borderRadius: radius.md,
+      paddingVertical: spacing.md,
+      alignItems: 'center',
+      marginTop: spacing.xl,
+    },
+    buttonText: { color: colors.primaryText, fontSize: 16, fontWeight: '600' },
+    error: { color: colors.danger, marginTop: spacing.md, fontSize: 14 },
+  });
+}

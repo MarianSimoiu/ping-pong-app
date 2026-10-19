@@ -1,5 +1,5 @@
 import { useFocusEffect } from '@react-navigation/native';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -18,7 +18,7 @@ import {
   type SeasonEntry,
 } from '@/lib/leaderboard';
 import type { LeaderboardStackScreenProps } from '@/navigation/types';
-import { colors, radius, spacing } from '@/theme';
+import { radius, spacing, useTheme, type Colors } from '@/theme';
 
 type Tab = 'skill' | 'season';
 
@@ -27,6 +27,8 @@ const MEDALS = ['🥇', '🥈', '🥉'] as const;
 const rankLabel = (rank: number): string => MEDALS[rank - 1] ?? String(rank);
 
 export function LeaderboardScreen({ navigation }: LeaderboardStackScreenProps<'Leaderboard'>) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [tab, setTab] = useState<Tab>('skill');
   const [skill, setSkill] = useState<LeaderboardEntry[]>([]);
   const [season, setSeason] = useState<SeasonEntry[]>([]);
@@ -126,6 +128,8 @@ export function LeaderboardScreen({ navigation }: LeaderboardStackScreenProps<'L
 }
 
 function TabButton({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <Pressable style={[styles.tab, active && styles.tabActive]} onPress={onPress}>
       <Text style={[styles.tabText, active && styles.tabTextActive]}>{label}</Text>
@@ -134,6 +138,8 @@ function TabButton({ label, active, onPress }: { label: string; active: boolean;
 }
 
 function Empty({ emoji, text }: { emoji: string; text: string }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.center}>
       <Text style={styles.emoji}>{emoji}</Text>
@@ -142,46 +148,48 @@ function Empty({ emoji, text }: { emoji: string; text: string }) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.text,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
-  },
-  tabs: { flexDirection: 'row', gap: spacing.sm, padding: spacing.lg, paddingBottom: spacing.md },
-  tab: {
-    flex: 1,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.md,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  tabActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  tabText: { color: colors.textMuted, fontSize: 14, fontWeight: '600' },
-  tabTextActive: { color: colors.primaryText },
-  list: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xl },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  rank: { color: colors.textMuted, fontSize: 16, fontWeight: '700', width: 28 },
-  rowMain: { flex: 1, marginLeft: spacing.sm },
-  rowName: { color: colors.text, fontSize: 16, fontWeight: '600' },
-  rowMeta: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
-  rowValue: { color: colors.primary, fontSize: 20, fontWeight: '800' },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
-  emoji: { fontSize: 44, marginBottom: spacing.md },
-  placeholder: { color: colors.textMuted, fontSize: 14, textAlign: 'center', lineHeight: 20 },
-  error: { color: colors.danger, padding: spacing.lg },
-});
+function createStyles(colors: Colors) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    title: {
+      fontSize: 24,
+      fontWeight: '700',
+      color: colors.text,
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.sm,
+    },
+    tabs: { flexDirection: 'row', gap: spacing.sm, padding: spacing.lg, paddingBottom: spacing.md },
+    tab: {
+      flex: 1,
+      paddingVertical: spacing.sm,
+      borderRadius: radius.md,
+      backgroundColor: colors.surface,
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    tabActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+    tabText: { color: colors.textMuted, fontSize: 14, fontWeight: '600' },
+    tabTextActive: { color: colors.primaryText },
+    list: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xl },
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      borderRadius: radius.md,
+      padding: spacing.md,
+      marginBottom: spacing.sm,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    rank: { color: colors.textMuted, fontSize: 16, fontWeight: '700', width: 28 },
+    rowMain: { flex: 1, marginLeft: spacing.sm },
+    rowName: { color: colors.text, fontSize: 16, fontWeight: '600' },
+    rowMeta: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
+    rowValue: { color: colors.primary, fontSize: 20, fontWeight: '800' },
+    center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
+    emoji: { fontSize: 44, marginBottom: spacing.md },
+    placeholder: { color: colors.textMuted, fontSize: 14, textAlign: 'center', lineHeight: 20 },
+    error: { color: colors.danger, padding: spacing.lg },
+  });
+}

@@ -1,5 +1,5 @@
 import * as ImagePicker from 'expo-image-picker';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -9,11 +9,13 @@ import { uploadAvatar } from '@/lib/avatar';
 import { fetchMyProfile } from '@/lib/players';
 import { showAlert } from '@/lib/platformAlert';
 import type { ProfileStackScreenProps } from '@/navigation/types';
-import { colors, radius, spacing } from '@/theme';
+import { radius, spacing, useTheme, type Colors } from '@/theme';
 
 type Me = { id: string; displayName: string; avatarUrl: string | null };
 
 export function ProfileScreen({ navigation }: ProfileStackScreenProps<'Account'>) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { session, signOut } = useAuth();
   const [busy, setBusy] = useState(false);
   const [me, setMe] = useState<Me | null>(null);
@@ -117,39 +119,41 @@ export function ProfileScreen({ navigation }: ProfileStackScreenProps<'Account'>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  content: { flex: 1, padding: spacing.lg },
-  title: { fontSize: 24, fontWeight: '700', color: colors.text, marginBottom: spacing.lg },
-  avatarSection: { alignItems: 'center', marginBottom: spacing.lg },
-  photoButton: { marginTop: spacing.sm },
-  photoButtonText: { color: colors.primary, fontSize: 14, fontWeight: '600' },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  label: { color: colors.textMuted, fontSize: 13 },
-  value: { color: colors.text, fontSize: 16, marginTop: spacing.xs },
-  statsLink: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    marginTop: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  statsLinkText: { color: colors.primary, fontSize: 15, fontWeight: '600' },
-  signOut: {
-    marginTop: 'auto',
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: radius.md,
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  signOutText: { color: colors.danger, fontSize: 16, fontWeight: '600' },
-});
+function createStyles(colors: Colors) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    content: { flex: 1, padding: spacing.lg },
+    title: { fontSize: 24, fontWeight: '700', color: colors.text, marginBottom: spacing.lg },
+    avatarSection: { alignItems: 'center', marginBottom: spacing.lg },
+    photoButton: { marginTop: spacing.sm },
+    photoButtonText: { color: colors.primary, fontSize: 14, fontWeight: '600' },
+    card: {
+      backgroundColor: colors.surface,
+      borderRadius: radius.md,
+      padding: spacing.md,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    label: { color: colors.textMuted, fontSize: 13 },
+    value: { color: colors.text, fontSize: 16, marginTop: spacing.xs },
+    statsLink: {
+      backgroundColor: colors.surface,
+      borderRadius: radius.md,
+      padding: spacing.md,
+      marginTop: spacing.md,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    statsLinkText: { color: colors.primary, fontSize: 15, fontWeight: '600' },
+    signOut: {
+      marginTop: 'auto',
+      backgroundColor: colors.surfaceAlt,
+      borderRadius: radius.md,
+      paddingVertical: spacing.md,
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    signOutText: { color: colors.danger, fontSize: 16, fontWeight: '600' },
+  });
+}

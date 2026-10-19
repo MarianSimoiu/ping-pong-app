@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 
-import { colors } from '@/theme';
+import { useTheme, type Colors } from '@/theme';
 
 export function Avatar({
   uri,
@@ -12,6 +12,8 @@ export function Avatar({
   name: string;
   size: number;
 }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const style = { width: size, height: size, borderRadius: size / 2 };
 
   if (uri) {
@@ -26,14 +28,16 @@ export function Avatar({
   );
 }
 
-const styles = StyleSheet.create({
-  image: { backgroundColor: colors.surfaceAlt },
-  fallback: {
-    backgroundColor: colors.surfaceAlt,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  initial: { color: colors.textMuted, fontWeight: '700' },
-});
+function createStyles(colors: Colors) {
+  return StyleSheet.create({
+    image: { backgroundColor: colors.surfaceAlt },
+    fallback: {
+      backgroundColor: colors.surfaceAlt,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    initial: { color: colors.textMuted, fontWeight: '700' },
+  });
+}

@@ -12,11 +12,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { createTournament, fetchSeedablePlayers, type PlayerWithRatingRow } from '@/lib/tournaments';
 import type { TournamentsStackScreenProps } from '@/navigation/types';
-import { colors, radius, spacing } from '@/theme';
+import { radius, spacing, useTheme, type Colors } from '@/theme';
 
 const BEST_OF_OPTIONS = [3, 5] as const;
 
 export function CreateTournamentScreen({ navigation }: TournamentsStackScreenProps<'CreateTournament'>) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [players, setPlayers] = useState<PlayerWithRatingRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [name, setName] = useState('');
@@ -161,69 +163,71 @@ export function CreateTournamentScreen({ navigation }: TournamentsStackScreenPro
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  content: { padding: spacing.lg },
-  label: {
-    color: colors.textMuted,
-    fontSize: 13,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginTop: spacing.lg,
-    marginBottom: spacing.sm,
-  },
-  input: {
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    color: colors.text,
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  chips: { flexDirection: 'row', gap: spacing.sm },
-  chip: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  chipText: { color: colors.text, fontSize: 14 },
-  chipTextActive: { color: colors.primaryText, fontWeight: '600' },
-  empty: { color: colors.textMuted, fontSize: 14 },
-  playerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkboxOn: { backgroundColor: colors.primary, borderColor: colors.primary },
-  check: { color: colors.primaryText, fontWeight: '700', fontSize: 14 },
-  playerName: { color: colors.text, fontSize: 15, marginLeft: spacing.md, flex: 1 },
-  playerRating: { color: colors.textMuted, fontSize: 14, marginRight: spacing.sm },
-  seed: { color: colors.primary, fontSize: 13, fontWeight: '700', width: 32, textAlign: 'right' },
-  note: { color: colors.textMuted, fontSize: 13, marginTop: spacing.lg, lineHeight: 19 },
-  button: {
-    backgroundColor: colors.primary,
-    borderRadius: radius.md,
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-    marginTop: spacing.lg,
-  },
-  buttonText: { color: colors.primaryText, fontSize: 16, fontWeight: '600' },
-  error: { color: colors.danger, marginTop: spacing.md, fontSize: 14 },
-});
+function createStyles(colors: Colors) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    content: { padding: spacing.lg },
+    label: {
+      color: colors.textMuted,
+      fontSize: 13,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      marginTop: spacing.lg,
+      marginBottom: spacing.sm,
+    },
+    input: {
+      backgroundColor: colors.surfaceAlt,
+      borderRadius: radius.md,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.md,
+      color: colors.text,
+      fontSize: 16,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    chips: { flexDirection: 'row', gap: spacing.sm },
+    chip: {
+      backgroundColor: colors.surface,
+      borderRadius: radius.md,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+    chipText: { color: colors.text, fontSize: 14 },
+    chipTextActive: { color: colors.primaryText, fontWeight: '600' },
+    empty: { color: colors.textMuted, fontSize: 14 },
+    playerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: spacing.sm,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    checkbox: {
+      width: 24,
+      height: 24,
+      borderRadius: 6,
+      borderWidth: 1,
+      borderColor: colors.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    checkboxOn: { backgroundColor: colors.primary, borderColor: colors.primary },
+    check: { color: colors.primaryText, fontWeight: '700', fontSize: 14 },
+    playerName: { color: colors.text, fontSize: 15, marginLeft: spacing.md, flex: 1 },
+    playerRating: { color: colors.textMuted, fontSize: 14, marginRight: spacing.sm },
+    seed: { color: colors.primary, fontSize: 13, fontWeight: '700', width: 32, textAlign: 'right' },
+    note: { color: colors.textMuted, fontSize: 13, marginTop: spacing.lg, lineHeight: 19 },
+    button: {
+      backgroundColor: colors.primary,
+      borderRadius: radius.md,
+      paddingVertical: spacing.md,
+      alignItems: 'center',
+      marginTop: spacing.lg,
+    },
+    buttonText: { color: colors.primaryText, fontSize: 16, fontWeight: '600' },
+    error: { color: colors.danger, marginTop: spacing.md, fontSize: 14 },
+  });
+}

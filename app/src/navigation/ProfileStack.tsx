@@ -3,13 +3,14 @@ import React from 'react';
 
 import { PlayerProfileScreen } from '@/screens/PlayerProfileScreen';
 import { ProfileScreen } from '@/screens/ProfileScreen';
-import { colors } from '@/theme';
+import { useTheme } from '@/theme';
 
 import type { ProfileStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<ProfileStackParamList>();
 
 export function ProfileStack() {
+  const { colors } = useTheme();
   return (
     <Stack.Navigator
       screenOptions={{
