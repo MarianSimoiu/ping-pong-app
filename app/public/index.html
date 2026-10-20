@@ -26,6 +26,21 @@
       body {
         height: 100%;
       }
+      /* Matches the app's `background` token for each theme, so the system
+         safe-area (e.g. below the tab bar, behind on-screen gesture nav)
+         isn't the browser's default white before/around the app content.
+         ThemeProvider overrides this live once a user picks dark/light
+         explicitly, overriding the OS default. */
+      html,
+      body {
+        background-color: #FAFAFA;
+      }
+      @media (prefers-color-scheme: dark) {
+        html,
+        body {
+          background-color: #181314;
+        }
+      }
       /* These styles disable body scrolling if you are using <ScrollView> */
       body {
         overflow: hidden;
