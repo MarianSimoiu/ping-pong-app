@@ -15,7 +15,7 @@ import { Avatar } from '@/components/Avatar';
 import { useAuth } from '@/context/AuthContext';
 import { pickDeclineLine, pickHomeTip, pickMatchResultLine, pickPendingLine } from '@/lib/commentary';
 import { MIN_MATCHES_FOR_LEADERBOARD } from '@/lib/constants';
-import { formatSubmittedAt } from '@/lib/format';
+import { formatTimestamp } from '@/lib/format';
 import { fetchLeaderboard } from '@/lib/leaderboard';
 import { confirmMatch, fetchPendingConfirmations } from '@/lib/matches';
 import { showAlert } from '@/lib/platformAlert';
@@ -194,7 +194,7 @@ export function HomeScreen({ navigation }: HomeStackScreenProps<'Home'>) {
                   <Avatar uri={m.submitterAvatarUrl} name={m.submitterName} size={36} />
                   <View style={styles.pendingHeaderText}>
                     <Text style={styles.pendingName}>{m.submitterName}</Text>
-                    <Text style={styles.pendingTime}>{formatSubmittedAt(m.submittedAt)}</Text>
+                    <Text style={styles.pendingTime}>{formatTimestamp(m.submittedAt)}</Text>
                   </View>
                 </View>
                 <Text style={styles.pendingText}>

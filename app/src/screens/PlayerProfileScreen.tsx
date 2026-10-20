@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Avatar } from '@/components/Avatar';
 import { RatingChart } from '@/components/RatingChart';
 import { pickStreakLine, UPSET_DELTA_THRESHOLD } from '@/lib/commentary';
+import { formatTimestamp } from '@/lib/format';
 import {
   fetchMatchHistory,
   fetchPlayerById,
@@ -169,6 +170,7 @@ export function PlayerProfileScreen() {
                           {m.games.map((g) => `${g.myScore}–${g.opponentScore}`).join(', ')}
                         </Text>
                       )}
+                      <Text style={styles.matchTime}>{formatTimestamp(m.at)}</Text>
                     </View>
                     {isUpset && (
                       <Text style={styles.upsetTag}>{m.result === 'win' ? '🔥 SHOCKER' : '😱 SHOCKER'}</Text>
@@ -273,6 +275,7 @@ function createStyles(colors: Colors) {
     matchMain: { flex: 1, marginLeft: spacing.md },
     matchOpponent: { color: colors.text, fontSize: 15 },
     matchScore: { color: colors.textMuted, fontSize: 12, marginTop: 1 },
+    matchTime: { color: colors.textMuted, fontSize: 11, marginTop: 1 },
     matchDelta: { fontSize: 15, fontWeight: '600' },
     deltaUp: { color: colors.success },
     deltaDown: { color: colors.danger },

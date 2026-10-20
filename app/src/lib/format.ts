@@ -1,4 +1,4 @@
-export function formatSubmittedAt(iso: string): string {
+export function formatTimestamp(iso: string): string {
   return new Date(iso).toLocaleString(undefined, {
     month: 'short',
     day: 'numeric',
