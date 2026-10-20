@@ -80,3 +80,16 @@ export type PendingMatch = {
   games: { myScore: number; opponentScore: number }[];
   submittedAt: string;
 };
+
+// A casual match the current user submitted, awaiting the opponent's
+// confirmation — the mirror image of PendingMatch.
+export type SubmittedPendingMatch = {
+  matchId: string;
+  opponentName: string;
+  opponentAvatarUrl: string | null;
+  iWon: boolean;
+  myGames: number;
+  opponentGames: number;
+  games: { myScore: number; opponentScore: number }[];
+  submittedAt: string;
+};

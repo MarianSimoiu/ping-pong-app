@@ -1,7 +1,7 @@
 import * as demo from '@/lib/demo';
 import { DEMO } from '@/lib/env';
 import { functionErrorMessage, supabase } from '@/lib/supabase';
-import type { OpponentOption, PendingMatch, SubmitMatchResult } from '@/lib/types';
+import type { OpponentOption, PendingMatch, SubmitMatchResult, SubmittedPendingMatch } from '@/lib/types';
 
 export type RawGameInput = { score_a: number; score_b: number };
 
@@ -67,6 +67,52 @@ export async function fetchPendingConfirmations(myPlayerId: string): Promise<Pen
       matchId: m.id,
       submitterName: creator?.display_name ?? 'Someone',
       submitterAvatarUrl: creator?.avatar_url ?? null,
+      iWon: m.winner_id === myPlayerId,
+      myGames,
+      opponentGames,
+      games,
+      submittedAt: m.played_at,
+    };
+  });
+}
+
+// Casual matches the given player submitted that are still awaiting their
+// opponent's confirmation. The submitter is always player_a (submit-match
+// requires the caller to record their own match as player_a), so the
+// opponent is always player_b here — unlike fetchPendingConfirmations,
+// there's no "which side am I" branching needed.
+export async function fetchSubmittedPending(myPlayerId: string): Promise<SubmittedPendingMatch[]> {
+  if (DEMO) return demo.demoSubmittedPending();
+  const { data, error } = await supabase
+    .from('matches')
+    .select(
+      'id, winner_id, played_at, ' +
+        'opponent:players!matches_player_b_fkey(display_name, avatar_url), ' +
+        'games:match_games(game_no, score_a, score_b)',
+    )
+    .eq('status', 'pending')
+    .eq('created_by', myPlayerId)
+    .order('played_at', { ascending: false });
+  if (error) throw error;
+
+  return (data ?? []).map((m: any) => {
+    const opponent = Array.isArray(m.opponent) ? m.opponent[0] : m.opponent;
+    const orderedGames = [...(m.games ?? [])].sort((a, b) => a.game_no - b.game_no);
+
+    let myGames = 0;
+    let opponentGames = 0;
+    const games = orderedGames.map((g) => {
+      const myScore = g.score_a;
+      const opponentScore = g.score_b;
+      if (myScore > opponentScore) myGames += 1;
+      else opponentGames += 1;
+      return { myScore, opponentScore };
+    });
+
+    return {
+      matchId: m.id,
+      opponentName: opponent?.display_name ?? 'Someone',
+      opponentAvatarUrl: opponent?.avatar_url ?? null,
       iWon: m.winner_id === myPlayerId,
       myGames,
       opponentGames,

@@ -11,7 +11,7 @@ import type {
   TournamentParticipant,
   TournamentSummary,
 } from '@/lib/tournaments';
-import type { OpponentOption, PendingMatch, PlayerWithRating } from '@/lib/types';
+import type { OpponentOption, PendingMatch, PlayerWithRating, SubmittedPendingMatch } from '@/lib/types';
 
 const NOW = new Date().toISOString();
 export const DEMO_ME = 'demo-me';
@@ -85,6 +85,26 @@ let pending: PendingMatch[] = [
       { myScore: 11, opponentScore: 9 },
     ],
     submittedAt: new Date(Date.now() - 20 * 60 * 1000).toISOString(),
+  },
+];
+
+// Matches "you" submitted, still awaiting the opponent's confirmation — the
+// mirror image of `pending` above. Static seed data, same as `pending`:
+// demoSubmitMatch() doesn't append here either (see its comment).
+let submittedPending: SubmittedPendingMatch[] = [
+  {
+    matchId: 'spm1',
+    opponentName: 'Cris',
+    opponentAvatarUrl: null,
+    iWon: true,
+    myGames: 2,
+    opponentGames: 1,
+    games: [
+      { myScore: 11, opponentScore: 8 },
+      { myScore: 9, opponentScore: 11 },
+      { myScore: 11, opponentScore: 7 },
+    ],
+    submittedAt: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
   },
 ];
 
@@ -188,6 +208,8 @@ export function demoSubmitMatch(): { matchId: string; status: 'pending' } {
 }
 
 export const demoPending = (): PendingMatch[] => [...pending];
+
+export const demoSubmittedPending = (): SubmittedPendingMatch[] => [...submittedPending];
 
 export function demoConfirm(
   matchId: string,

@@ -1,13 +1,17 @@
+import { useFocusEffect } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Platform, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import React, { useCallback, useMemo, useState } from 'react';
+import { Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/Avatar';
 import { useAuth } from '@/context/AuthContext';
 import { uploadAvatar } from '@/lib/avatar';
+import { formatSubmittedAt } from '@/lib/format';
+import { fetchSubmittedPending } from '@/lib/matches';
 import { fetchMyProfile } from '@/lib/players';
 import { showAlert } from '@/lib/platformAlert';
+import type { SubmittedPendingMatch } from '@/lib/types';
 import type { ProfileStackScreenProps } from '@/navigation/types';
 import { radius, spacing, useTheme, type Colors } from '@/theme';
 
@@ -19,20 +23,28 @@ export function ProfileScreen({ navigation }: ProfileStackScreenProps<'Account'>
   const { session, signOut } = useAuth();
   const [busy, setBusy] = useState(false);
   const [me, setMe] = useState<Me | null>(null);
+  const [submittedPending, setSubmittedPending] = useState<SubmittedPendingMatch[]>([]);
 
   const loadMe = useCallback(async () => {
     if (!session) return;
     try {
       const p = await fetchMyProfile(session.user.id);
-      if (p) setMe({ id: p.id, displayName: p.display_name, avatarUrl: p.avatar_url });
+      if (p) {
+        setMe({ id: p.id, displayName: p.display_name, avatarUrl: p.avatar_url });
+        setSubmittedPending(await fetchSubmittedPending(p.id));
+      }
     } catch {
-      // Non-fatal: the stats shortcut just won't be available.
+      // Non-fatal: the stats shortcut / pending list just won't be available.
     }
   }, [session]);
 
-  useEffect(() => {
-    loadMe();
-  }, [loadMe]);
+  // Refresh whenever the screen regains focus (e.g. after submitting a
+  // match), so a just-recorded one shows up here without a manual reload.
+  useFocusEffect(
+    useCallback(() => {
+      loadMe();
+    }, [loadMe]),
+  );
 
   async function handleChangePhoto() {
     if (!session || !me) return;
@@ -79,7 +91,7 @@ export function ProfileScreen({ navigation }: ProfileStackScreenProps<'Account'>
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.content}>
+      <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.title}>Profile</Text>
 
         <View style={styles.avatarSection}>
@@ -95,6 +107,30 @@ export function ProfileScreen({ navigation }: ProfileStackScreenProps<'Account'>
           <Text style={styles.label}>Signed in as</Text>
           <Text style={styles.value}>{session?.user.email}</Text>
         </View>
+
+        {submittedPending.length > 0 && (
+          <View style={styles.pendingSection}>
+            <Text style={styles.sectionLabel}>Awaiting opponent’s confirmation</Text>
+            {submittedPending.map((m) => (
+              <View key={m.matchId} style={styles.pendingCard}>
+                <View style={styles.pendingHeaderRow}>
+                  <Avatar uri={m.opponentAvatarUrl} name={m.opponentName} size={36} />
+                  <View style={styles.pendingHeaderText}>
+                    <Text style={styles.pendingName}>vs {m.opponentName}</Text>
+                    <Text style={styles.pendingTime}>{formatSubmittedAt(m.submittedAt)}</Text>
+                  </View>
+                  <Text style={[styles.pendingResult, m.iWon ? styles.resultWin : styles.resultLoss]}>
+                    {m.iWon ? 'Won' : 'Lost'} {m.myGames}–{m.opponentGames}
+                  </Text>
+                </View>
+                <Text style={styles.pendingSets}>
+                  Sets: {m.games.map((g) => `${g.myScore}–${g.opponentScore}`).join(', ')}
+                </Text>
+                <Text style={styles.waitingNote}>Waiting for {m.opponentName} to confirm</Text>
+              </View>
+            ))}
+          </View>
+        )}
 
         <View style={[styles.card, styles.darkModeRow]}>
           <Text style={styles.value}>Dark mode</Text>
@@ -124,7 +160,7 @@ export function ProfileScreen({ navigation }: ProfileStackScreenProps<'Account'>
         >
           <Text style={styles.signOutText}>Sign out</Text>
         </Pressable>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -146,6 +182,31 @@ function createStyles(colors: Colors) {
     },
     label: { color: colors.textMuted, fontSize: 13 },
     value: { color: colors.text, fontSize: 16, marginTop: spacing.xs },
+    pendingSection: { marginTop: spacing.md },
+    sectionLabel: {
+      color: colors.textMuted,
+      fontSize: 13,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      marginBottom: spacing.sm,
+    },
+    pendingCard: {
+      backgroundColor: colors.surface,
+      borderRadius: radius.md,
+      padding: spacing.md,
+      marginBottom: spacing.sm,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    pendingHeaderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm },
+    pendingHeaderText: { flex: 1, marginLeft: spacing.sm },
+    pendingName: { color: colors.text, fontSize: 14, fontWeight: '700' },
+    pendingTime: { color: colors.textMuted, fontSize: 11 },
+    pendingResult: { fontSize: 13, fontWeight: '700' },
+    resultWin: { color: colors.success },
+    resultLoss: { color: colors.danger },
+    pendingSets: { color: colors.textMuted, fontSize: 12, marginBottom: spacing.xs },
+    waitingNote: { color: colors.textMuted, fontSize: 12, fontStyle: 'italic' },
     darkModeRow: {
       flexDirection: 'row',
       alignItems: 'center',
