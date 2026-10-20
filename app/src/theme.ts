@@ -147,6 +147,17 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     if (Platform.OS !== 'web' || typeof document === 'undefined') return;
     document.documentElement.style.backgroundColor = background;
     document.body.style.backgroundColor = background;
+
+    // Also keep both <meta name="theme-color"> tags' content live — on
+    // Chrome/Android this is what (on supporting versions) tints an
+    // installed PWA's system chrome, including the gesture-nav bar below
+    // the tab bar. The two tags in index.html are picked by the OS's own
+    // light/dark setting; updating both to the same resolved color means
+    // whichever one the browser is using stays correct even once a manual
+    // override makes the app's theme differ from the OS default.
+    document.querySelectorAll('meta[name="theme-color"]').forEach((meta) => {
+      meta.setAttribute('content', background);
+    });
   }, [background]);
 
   const value = useMemo<Theme>(
