@@ -6,10 +6,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover" />
     <title>%WEB_TITLE%</title>
 
-    <!-- Lets the browser tint its own UI (and, on Android, the Add-to-Home-Screen
-         splash background) to match whichever theme the app is actually in. -->
-    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#E8192C" />
-    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#FF4B5C" />
+    <!-- Lets the browser tint its own system UI (status bar, and on some
+         Android/Chrome versions the installed PWA's gesture-nav bar) to
+         match the app's own background, so that chrome blends in rather
+         than showing as a mismatched band. These OS-preference-based values
+         are the first-paint fallback before the app's JS has run;
+         ThemeProvider (theme.ts) overrides both tags live from then on, to
+         track the actually resolved theme (including a manual override that
+         differs from the OS setting), not just the OS default. -->
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#FAFAFA" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#181314" />
 
     <!-- Add to Home Screen (PWA) -->
     <link rel="manifest" href="/manifest.json" />
