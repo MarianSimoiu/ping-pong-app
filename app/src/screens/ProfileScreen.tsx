@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Avatar } from '@/components/Avatar';
 import { useAuth } from '@/context/AuthContext';
 import { uploadAvatar } from '@/lib/avatar';
-import { formatSubmittedAt } from '@/lib/format';
+import { formatTimestamp } from '@/lib/format';
 import { fetchSubmittedPending } from '@/lib/matches';
 import { fetchMyProfile } from '@/lib/players';
 import { showAlert } from '@/lib/platformAlert';
@@ -117,7 +117,7 @@ export function ProfileScreen({ navigation }: ProfileStackScreenProps<'Account'>
                   <Avatar uri={m.opponentAvatarUrl} name={m.opponentName} size={36} />
                   <View style={styles.pendingHeaderText}>
                     <Text style={styles.pendingName}>vs {m.opponentName}</Text>
-                    <Text style={styles.pendingTime}>{formatSubmittedAt(m.submittedAt)}</Text>
+                    <Text style={styles.pendingTime}>{formatTimestamp(m.submittedAt)}</Text>
                   </View>
                   <Text style={[styles.pendingResult, m.iWon ? styles.resultWin : styles.resultLoss]}>
                     {m.iWon ? 'Won' : 'Lost'} {m.myGames}–{m.opponentGames}
