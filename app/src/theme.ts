@@ -16,7 +16,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { useColorScheme } from 'react-native';
+import { Platform, useColorScheme } from 'react-native';
 
 import { useAuth } from '@/context/AuthContext';
 
@@ -136,6 +136,19 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   );
 
   const scheme: 'light' | 'dark' = override ?? (systemScheme === 'dark' ? 'dark' : 'light');
+  const background = scheme === 'dark' ? darkColors.background : lightColors.background;
+
+  // Web only: keep the HTML page's own background in sync with the live
+  // theme (not just the OS default baked into index.html's CSS), so the
+  // safe-area outside the app's own view (e.g. below the tab bar, behind
+  // on-screen gesture nav) never shows the browser's white default —
+  // including once a user picks a theme that differs from their OS setting.
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+    document.documentElement.style.backgroundColor = background;
+    document.body.style.backgroundColor = background;
+  }, [background]);
+
   const value = useMemo<Theme>(
     () => ({
       colors: scheme === 'dark' ? darkColors : lightColors,
