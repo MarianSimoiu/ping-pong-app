@@ -45,6 +45,23 @@
       body {
         overflow: hidden;
       }
+      /* Prevent iOS Safari's text-selection magnifier/callout from popping
+         up on a press-and-hold of a button, tab, or chip — form fields are
+         excluded so typing/editing still works normally. */
+      body {
+        -webkit-user-select: none;
+        user-select: none;
+      }
+      input,
+      textarea {
+        -webkit-user-select: text;
+        user-select: text;
+      }
+      /* Crisper text rendering on WebKit. */
+      body {
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
       /* These styles make the root element full-height */
       #root {
         display: flex;
