@@ -15,6 +15,7 @@ import { Avatar } from '@/components/Avatar';
 import { useAuth } from '@/context/AuthContext';
 import { pickDeclineLine, pickHomeTip, pickMatchResultLine, pickPendingLine } from '@/lib/commentary';
 import { MIN_MATCHES_FOR_LEADERBOARD } from '@/lib/constants';
+import { formatSubmittedAt } from '@/lib/format';
 import { fetchLeaderboard } from '@/lib/leaderboard';
 import { confirmMatch, fetchPendingConfirmations } from '@/lib/matches';
 import { showAlert } from '@/lib/platformAlert';
@@ -44,15 +45,6 @@ const GLICKO2_EXPLANATION =
   'less sure about you over time.\n\n' +
   'Bottom line: play real matches, win or lose, and your rating finds its true level ' +
   'on its own.';
-
-function formatSubmittedAt(iso: string): string {
-  return new Date(iso).toLocaleString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  });
-}
 
 export function HomeScreen({ navigation }: HomeStackScreenProps<'Home'>) {
   const { colors, scheme, setDarkMode } = useTheme();
