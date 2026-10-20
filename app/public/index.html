@@ -6,11 +6,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover" />
     <title>%WEB_TITLE%</title>
 
-    <!-- Lets the browser tint its own system UI (status bar, and on some
-         Android/Chrome versions the installed PWA's gesture-nav bar) to
-         match the app's own background, so that chrome blends in rather
-         than showing as a mismatched band. These OS-preference-based values
-         are the first-paint fallback before the app's JS has run;
+    <!-- Tints the status bar to match the app's own background so it blends
+         in. (It does not reach the Android navigation bar of an installed
+         PWA — that comes from manifest.json, baked in at install time.)
+         These OS-preference-based values are the first-paint fallback;
          ThemeProvider (theme.ts) overrides both tags live from then on, to
          track the actually resolved theme (including a manual override that
          differs from the OS setting), not just the OS default. -->

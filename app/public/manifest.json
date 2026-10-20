@@ -4,7 +4,7 @@
   "description": "Track 1v1 matches, tournaments, and Glicko-2 ratings.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#FAFAFA",
+  "background_color": "#181314",
   "theme_color": "#181314",
   "orientation": "portrait",
   "icons": [
