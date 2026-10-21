@@ -22,7 +22,7 @@ From the repo root:
 
 ```bash
 supabase start        # boots local Postgres, Auth, Studio; prints API URL + anon key
-supabase db reset     # applies every migration in supabase/migrations (0001–0005)
+supabase db reset     # applies every migration in supabase/migrations
 supabase functions serve   # serves the Edge Functions locally
 ```
 
@@ -35,12 +35,22 @@ supabase functions serve   # serves the Edge Functions locally
 
    ```bash
    supabase link --project-ref <your-project-ref>
-   supabase db push                       # applies migrations 0001–0005
+   supabase db push                       # applies any migrations not yet applied
    supabase functions deploy submit-match
    supabase functions deploy confirm-match
    supabase functions deploy create-tournament
    supabase functions deploy submit-tournament-match
    ```
+
+   Or skip the local CLI entirely: the **Deploy Supabase** GitHub workflow
+   (`.github/workflows/supabase-deploy.yml`) runs the same `db push` and
+   `functions deploy` on every merge that touches `supabase/`, and can be run
+   by hand from the Actions tab. It needs two repository secrets
+   (Settings → Secrets and variables → Actions):
+   - `SUPABASE_ACCESS_TOKEN`: Supabase dashboard → Account → Access Tokens
+   - `SUPABASE_DB_PASSWORD`: the project's database password (Project
+     Settings → Database; resetting it there doesn't affect the app, which
+     uses API keys)
 
 3. **No function secrets to set.** The functions read `SUPABASE_URL`,
    `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY`, which Supabase injects
