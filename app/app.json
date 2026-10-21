@@ -20,13 +20,13 @@
     "android": {
       "package": "com.pingpong.app",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/icon.png",
+        "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#E8192C"
       }
     },
     "web": {
       "bundler": "metro",
-      "favicon": "./assets/icon.png",
+      "favicon": "./assets/favicon.png",
       "description": "Track 1v1 matches, tournaments, and Glicko-2 ratings."
     },
     "plugins": [
