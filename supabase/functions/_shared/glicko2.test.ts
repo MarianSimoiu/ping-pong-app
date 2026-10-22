@@ -87,8 +87,8 @@ Deno.test('applyInactivity grows RD but never past the default', () => {
   assertEquals(idle.rating, 1600); // rating unchanged by inactivity
 });
 
-Deno.test('isProvisional flips at 10 matches', () => {
+Deno.test('isProvisional flips at 3 matches (the leaderboard threshold)', () => {
   assertEquals(isProvisional(0), true);
-  assertEquals(isProvisional(9), true);
-  assertEquals(isProvisional(10), false);
+  assertEquals(isProvisional(2), true);
+  assertEquals(isProvisional(3), false);
 });

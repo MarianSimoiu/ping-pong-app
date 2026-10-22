@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Avatar } from '@/components/Avatar';
 import { RatingChart } from '@/components/RatingChart';
 import { pickStreakLine, UPSET_DELTA_THRESHOLD } from '@/lib/commentary';
+import { MIN_MATCHES_FOR_LEADERBOARD } from '@/lib/constants';
 import { formatTimestamp } from '@/lib/format';
 import {
   fetchMatchHistory,
@@ -30,13 +31,11 @@ import { radius, spacing, useTheme, type Colors } from '@/theme';
 
 // A plain-language breakdown of why this player's RD is what it is — shown
 // on demand (tap the info icon) rather than cluttering the stats row.
-function describeRd(rd: number, matchesPlayed: number, provisional: boolean): string {
+function describeRd(rd: number, matchesPlayed: number): string {
   const base =
-    'Everyone starts at RD 350 — total uncertainty. Every confirmed match narrows it, since each game is new information about your real skill.';
-  const status = provisional
-    ? `Still provisional (under 10 matches), so this one is moving fast while the system learns where you belong — currently ±${Math.round(rd)} after ${matchesPlayed} match${matchesPlayed === 1 ? '' : 'es'}.`
-    : `Settled in after ${matchesPlayed} matches, so it's down to ±${Math.round(rd)} — the system is fairly confident now.`;
-  const tail = 'Stop playing for a while and it drifts back up, since the system gets less sure over time.';
+    'Everyone starts at RD 350 — total uncertainty. Every confirmed match narrows it, since each match is new information about your real skill.';
+  const status = `Currently ±${Math.round(rd)} after ${matchesPlayed} match${matchesPlayed === 1 ? '' : 'es'}. Your first ${MIN_MATCHES_FOR_LEADERBOARD} matches move your rating the most; after that it keeps settling with every match.`;
+  const tail = 'After a long break your next match moves your rating a bit more, since the system is less sure about you after time away.';
   return `${base}\n\n${status}\n\n${tail}`;
 }
 
@@ -97,7 +96,7 @@ export function PlayerProfileScreen() {
   }, [load]);
 
   const rating = player?.rating;
-  const isProvisional = (rating?.matches_played ?? 0) < 10;
+  const isRanked = (rating?.matches_played ?? 0) >= MIN_MATCHES_FOR_LEADERBOARD;
   // Picked once per fresh match list, not on every re-render.
   const streakLine = useMemo(() => {
     const streak = currentStreak(matches);
@@ -129,16 +128,17 @@ export function PlayerProfileScreen() {
                 onInfoPress={() =>
                   showAlert(
                     'Why this RD?',
-                    describeRd(rating?.rd ?? 350, rating?.matches_played ?? 0, isProvisional),
+                    describeRd(rating?.rd ?? 350, rating?.matches_played ?? 0),
                   )
                 }
               />
               <Stat label="W–L" value={`${record.wins}–${record.losses}`} />
               <Stat label="Season" value={String(seasonPoints)} />
             </View>
-            {isProvisional && (
-              <Text style={styles.provisional}>
-                Provisional — under 10 matches, rating still settling.
+            {!isRanked && (
+              <Text style={styles.unranked}>
+                Not ranked yet — players join the leaderboard after {MIN_MATCHES_FOR_LEADERBOARD}{' '}
+                matches.
               </Text>
             )}
 
@@ -245,7 +245,7 @@ function createStyles(colors: Colors) {
     statLabelRow: { flexDirection: 'row', alignItems: 'center', marginTop: 2, gap: 3 },
     statLabel: { color: colors.textMuted, fontSize: 12 },
     infoIcon: { color: colors.textMuted, fontSize: 12 },
-    provisional: { color: colors.textMuted, fontSize: 13, marginTop: spacing.sm },
+    unranked: { color: colors.textMuted, fontSize: 13, marginTop: spacing.sm },
     section: {
       color: colors.textMuted,
       fontSize: 13,

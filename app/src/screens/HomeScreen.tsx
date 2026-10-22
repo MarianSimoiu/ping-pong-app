@@ -40,9 +40,9 @@ const GLICKO2_EXPLANATION =
   'means your real skill might be lower than thought. This is what keeps it fair: ' +
   'farming easy opponents just does not work.\n\n' +
   '±RD is how sure the system is about your number. It starts wide (350) and narrows ' +
-  'as you play — that is why new players move fast for their first 10 matches, then ' +
-  'settle down. Stop playing for a while and it creeps back up, since the system gets ' +
-  'less sure about you over time.\n\n' +
+  `with every match — that is why your first ${MIN_MATCHES_FOR_LEADERBOARD} matches move ` +
+  'your rating the most, and it keeps settling as you play. After a long break your next ' +
+  'match moves it a bit more, since the system is less sure about you after time away.\n\n' +
   'Bottom line: play real matches, win or lose, and your rating finds its true level ' +
   'on its own.';
 
@@ -117,7 +117,6 @@ export function HomeScreen({ navigation }: HomeStackScreenProps<'Home'>) {
   );
 
   const rating = profile?.rating;
-  const isProvisional = (rating?.matches_played ?? 0) < 10;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -164,7 +163,6 @@ export function HomeScreen({ navigation }: HomeStackScreenProps<'Home'>) {
             <Text style={styles.ratingValue}>{Math.round(rating?.rating ?? 1500)}</Text>
             <Text style={styles.ratingMeta}>
               ± {Math.round(rating?.rd ?? 350)} · {rating?.matches_played ?? 0} matches
-              {isProvisional ? ' · provisional' : ''}
             </Text>
             <Text style={styles.ratingRank}>
               {rank

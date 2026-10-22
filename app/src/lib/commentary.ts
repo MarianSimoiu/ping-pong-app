@@ -2,6 +2,8 @@
 // on real match context (score margin, rating delta, streak length) so the
 // jokes are grounded in what actually happened, not generic filler.
 
+import { MIN_MATCHES_FOR_LEADERBOARD } from '@/lib/constants';
+
 // A single-match rating swing at or above this is treated as an "upset" —
 // the Glicko-2 engine already makes big deltas rare unless the result was
 // genuinely surprising, so this doubles as a decent surprise detector.
@@ -138,7 +140,7 @@ const HOME_TIPS = [
   'Play the same opponent five times in a day? After the second one, the refs start docking style points. Go find someone new.',
   'Sit out too long and that rating gets rusty — the algorithm does not forget, but it does get suspicious.',
   'Every match is being scored, folks — and the computer does not care about your feelings, only your opponent’s rating.',
-  'New to the ladder? Your first ten matches move FAST. Buckle up.',
+  `New to the ladder? Your first ${MIN_MATCHES_FOR_LEADERBOARD} matches move FAST — and then you're on the leaderboard. Buckle up.`,
 ];
 
 const STREAK_WIN = [

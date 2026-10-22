@@ -16,8 +16,11 @@ export const GLICKO2 = {
   DEFAULT_VOLATILITY: 0.06,
   /** System constant τ: constrains volatility change. Smaller = steadier. */
   TAU: 0.5,
-  /** Below this many matches a player is "provisional" (rating still settling). */
-  PROVISIONAL_MATCHES: 10,
+  /**
+   * Below this many matches a player is "provisional": not on the leaderboard
+   * yet. Keep in step with the app's MIN_MATCHES_FOR_LEADERBOARD.
+   */
+  PROVISIONAL_MATCHES: 3,
   /** Convergence tolerance for the volatility solver. */
   CONVERGENCE: 1e-6,
 } as const;

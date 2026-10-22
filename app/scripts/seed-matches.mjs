@@ -3,7 +3,7 @@
 // actual submit-match / confirm-match Edge Functions (not raw table inserts),
 // so the real Glicko-2 engine and repeat-opponent guard run exactly as they
 // would in the app. Useful for quickly testing the leaderboard gate
-// (MIN_MATCHES_FOR_LEADERBOARD) and the provisional cutoff (10 matches).
+// (MIN_MATCHES_FOR_LEADERBOARD).
 //
 // Admin mode: no passwords needed. Each account is signed in via an
 // admin-generated one-time link (the same mechanism behind magic-link
@@ -20,10 +20,9 @@
 // Note: all seeded matches happen within minutes of each other, so the
 // repeat-opponent guard (repeatFactor in glicko2.ts) will damp the rating
 // change toward zero from the 3rd match onward *today* between this pair —
-// matches_played still reaches `count` and clears every leaderboard/
-// provisional gate, but don't expect the rating itself to move much past
-// the first couple of games. That's the anti-farming guard working as
-// designed, not a bug.
+// matches_played still reaches `count` and clears the leaderboard gate, but
+// don't expect the rating itself to move much past the first couple of games.
+// That's the anti-farming guard working as designed, not a bug.
 
 import { readFileSync } from 'node:fs';
 import { createClient } from '@supabase/supabase-js';
@@ -189,7 +188,7 @@ async function main() {
   console.log(
     '\nDone. Remember: repeated same-day matches between the same two players barely move the ' +
       'rating past the first couple of games (the repeat-opponent guard) — matches_played still ' +
-      'climbed normally, so the leaderboard gate and provisional cutoff should now behave as expected.',
+      'climbed normally, so the leaderboard gate should now behave as expected.',
   );
 }
 
