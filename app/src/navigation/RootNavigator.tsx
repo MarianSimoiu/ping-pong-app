@@ -6,6 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import { SignInScreen } from '@/screens/SignInScreen';
 import { useTheme } from '@/theme';
 
+import { linking } from './linking';
 import { TabNavigator } from './TabNavigator';
 
 export function RootNavigator() {
@@ -39,7 +40,7 @@ export function RootNavigator() {
   }
 
   return (
-    <NavigationContainer theme={navTheme}>
+    <NavigationContainer theme={navTheme} linking={linking}>
       {session ? <TabNavigator /> : <SignInScreen />}
     </NavigationContainer>
   );

@@ -1,4 +1,14 @@
+import type { NavigatorScreenParams } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+
+// The bottom tabs — the root navigator once signed in.
+export type TabParamList = {
+  Home: NavigatorScreenParams<HomeStackParamList>;
+  Leaderboard: NavigatorScreenParams<LeaderboardStackParamList>;
+  Tournaments: NavigatorScreenParams<TournamentsStackParamList>;
+  Doubles: undefined;
+  Profile: NavigatorScreenParams<ProfileStackParamList>;
+};
 
 // The Home tab is a stack so it can push the Submit-match screen.
 export type HomeStackParamList = {
