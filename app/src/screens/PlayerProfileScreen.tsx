@@ -161,6 +161,9 @@ export function PlayerProfileScreen() {
                     <View style={[styles.badge, m.result === 'win' ? styles.badgeWin : styles.badgeLoss]}>
                       <Text style={styles.badgeText}>{m.result === 'win' ? 'W' : 'L'}</Text>
                     </View>
+                    <View style={styles.matchAvatar}>
+                      <Avatar uri={m.opponentAvatarUrl} name={m.opponentName} size={32} />
+                    </View>
                     <View style={styles.matchMain}>
                       <Text style={styles.matchOpponent} numberOfLines={1}>
                         vs {m.opponentName}
@@ -272,7 +275,8 @@ function createStyles(colors: Colors) {
     badgeWin: { backgroundColor: colors.success },
     badgeLoss: { backgroundColor: colors.danger },
     badgeText: { color: colors.primaryText, fontWeight: '700', fontSize: 13 },
-    matchMain: { flex: 1, marginLeft: spacing.md },
+    matchAvatar: { marginLeft: spacing.sm },
+    matchMain: { flex: 1, marginLeft: spacing.sm },
     matchOpponent: { color: colors.text, fontSize: 15 },
     matchScore: { color: colors.textMuted, fontSize: 12, marginTop: 1 },
     matchTime: { color: colors.textMuted, fontSize: 11, marginTop: 1 },

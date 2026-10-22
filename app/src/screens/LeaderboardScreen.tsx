@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Avatar } from '@/components/Avatar';
 import { MIN_MATCHES_FOR_LEADERBOARD } from '@/lib/constants';
 import {
   fetchLeaderboard,
@@ -84,6 +85,7 @@ export function LeaderboardScreen({ navigation }: LeaderboardStackScreenProps<'L
             renderItem={({ item }) => (
               <Pressable style={styles.row} onPress={() => openProfile(item.playerId, item.displayName)}>
                 <Text style={styles.rank}>{rankLabel(item.rank)}</Text>
+                <Avatar uri={item.avatarUrl} name={item.displayName} size={36} />
                 <View style={styles.rowMain}>
                   <Text style={styles.rowName} numberOfLines={1}>
                     {item.displayName}
@@ -110,6 +112,7 @@ export function LeaderboardScreen({ navigation }: LeaderboardStackScreenProps<'L
           renderItem={({ item }) => (
             <Pressable style={styles.row} onPress={() => openProfile(item.playerId, item.displayName)}>
               <Text style={styles.rank}>{rankLabel(item.rank)}</Text>
+              <Avatar uri={item.avatarUrl} name={item.displayName} size={36} />
               <View style={styles.rowMain}>
                 <Text style={styles.rowName} numberOfLines={1}>
                   {item.displayName}
@@ -183,7 +186,7 @@ function createStyles(colors: Colors) {
       borderColor: colors.border,
     },
     rank: { color: colors.textMuted, fontSize: 16, fontWeight: '700', width: 28 },
-    rowMain: { flex: 1, marginLeft: spacing.sm },
+    rowMain: { flex: 1, marginLeft: spacing.md },
     rowName: { color: colors.text, fontSize: 16, fontWeight: '600' },
     rowMeta: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
     rowValue: { color: colors.primary, fontSize: 20, fontWeight: '800' },

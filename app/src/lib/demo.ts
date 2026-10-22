@@ -134,6 +134,7 @@ export function demoLeaderboard(): LeaderboardEntry[] {
       rank: i + 1,
       playerId: p.id,
       displayName: p.name,
+      avatarUrl: p.avatarUrl ?? null,
       rating: p.rating,
       rd: p.rd,
       matchesPlayed: p.matches,
@@ -148,6 +149,7 @@ export function demoSeasonStandings(): SeasonEntry[] {
       playerId,
       points,
       displayName: byId(playerId)?.name ?? '—',
+      avatarUrl: byId(playerId)?.avatarUrl ?? null,
       events: points > 120 ? 3 : points > 60 ? 2 : 1,
       rank: 0,
     }))
@@ -166,19 +168,20 @@ export function demoRatingHistory(id: string): HistoryPoint[] {
 }
 
 export function demoMatchHistory(id: string): MatchHistoryItem[] {
-  const names = players.filter((p) => p.id !== id).map((p) => p.name);
+  const opponents = players.filter((p) => p.id !== id);
   // A leading 3-win streak and a couple of big (|delta| >= 15) swings so the
   // streak banner and upset tags both have something to show in the demo.
-  const sample: Array<[string, 'win' | 'loss', number]> = [
-    [names[0], 'win', 9],
-    [names[1], 'win', 22],
-    [names[2], 'win', 7],
-    [names[3], 'loss', -15],
-    [names[4] ?? 'Ana', 'loss', -8],
+  const sample: Array<[P, 'win' | 'loss', number]> = [
+    [opponents[0], 'win', 9],
+    [opponents[1], 'win', 22],
+    [opponents[2], 'win', 7],
+    [opponents[3], 'loss', -15],
+    [opponents[4] ?? opponents[0], 'loss', -8],
   ];
-  return sample.map(([opponentName, result, delta], i) => ({
+  return sample.map(([opponent, result, delta], i) => ({
     id: `mh-${id}-${i}`,
-    opponentName,
+    opponentName: opponent.name,
+    opponentAvatarUrl: opponent.avatarUrl ?? null,
     result,
     delta,
     ratingAfter: (byId(id)?.rating ?? 1500) - i * 6,
