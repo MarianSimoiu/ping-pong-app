@@ -1,16 +1,59 @@
+import { Platform } from 'react-native';
+
 import { demoSetAvatar } from '@/lib/demo';
 import { DEMO } from '@/lib/env';
 import { supabase } from '@/lib/supabase';
 
+// Profile pictures are shown at most 80px wide, and every leaderboard viewer
+// downloads each one. The web photo picker ignores the picker's crop/quality
+// options and hands back the original photo (often several MB), so on the web
+// center-crop and shrink it to a small square JPEG (~20 KB) before uploading.
+// The native picker already crops and compresses.
+const AVATAR_PX = 256;
+
+async function shrinkForAvatar(localUri: string): Promise<Blob> {
+  if (Platform.OS !== 'web') return (await fetch(localUri)).blob();
+
+  const img = new Image();
+  img.src = localUri;
+  await img.decode();
+  const side = Math.min(img.naturalWidth, img.naturalHeight);
+  const canvas = document.createElement('canvas');
+  canvas.width = AVATAR_PX;
+  canvas.height = AVATAR_PX;
+  canvas
+    .getContext('2d')!
+    .drawImage(
+      img,
+      (img.naturalWidth - side) / 2,
+      (img.naturalHeight - side) / 2,
+      side,
+      side,
+      0,
+      0,
+      AVATAR_PX,
+      AVATAR_PX,
+    );
+  return new Promise((resolve, reject) =>
+    canvas.toBlob(
+      (blob) => (blob ? resolve(blob) : reject(new Error('Could not process that photo'))),
+      'image/jpeg',
+      0.85,
+    ),
+  );
+}
+
 // Uploads the image at `localUri` (from expo-image-picker) as the user's
 // profile picture and returns the URL to store on players.avatar_url.
 export async function uploadAvatar(userId: string, localUri: string): Promise<string> {
+  const blob = await shrinkForAvatar(localUri);
+
   if (DEMO) {
-    demoSetAvatar(localUri);
-    return localUri;
+    const uri = Platform.OS === 'web' ? URL.createObjectURL(blob) : localUri;
+    demoSetAvatar(uri);
+    return uri;
   }
 
-  const blob = await (await fetch(localUri)).blob();
   const path = `${userId}/avatar.jpg`;
 
   const { error: uploadError } = await supabase.storage

@@ -42,22 +42,17 @@ export async function fetchLeaderboard(): Promise<LeaderboardEntry[]> {
   });
   if (entries.length === 0) return entries;
 
-  // One extra query for everyone's win/loss record, instead of one per row.
-  const { data: events, error: eventsError } = await supabase
-    .from('rating_events')
-    .select('player_id, result')
+  // One extra query for everyone's win/loss record, counted in the database
+  // (player_records view): one row per player, so no row cap to run into.
+  const { data: records, error: recordsError } = await supabase
+    .from('player_records')
+    .select('player_id, wins, losses')
     .in('player_id', entries.map((e) => e.playerId));
-  if (eventsError) throw eventsError;
+  if (recordsError) throw recordsError;
 
-  const records = new Map<string, { wins: number; losses: number }>();
-  for (const event of events ?? []) {
-    const record = records.get(event.player_id) ?? { wins: 0, losses: 0 };
-    if (event.result === 'win') record.wins += 1;
-    else record.losses += 1;
-    records.set(event.player_id, record);
-  }
+  const byPlayer = new Map((records ?? []).map((r: any) => [r.player_id as string, r]));
   for (const entry of entries) {
-    const record = records.get(entry.playerId);
+    const record = byPlayer.get(entry.playerId);
     if (record) {
       entry.wins = record.wins;
       entry.losses = record.losses;
