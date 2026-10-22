@@ -6,10 +6,11 @@ import { HomeStack } from '@/navigation/HomeStack';
 import { LeaderboardStack } from '@/navigation/LeaderboardStack';
 import { ProfileStack } from '@/navigation/ProfileStack';
 import { TournamentsStack } from '@/navigation/TournamentsStack';
+import type { TabParamList } from '@/navigation/types';
 import { DoublesScreen } from '@/screens/DoublesScreen';
 import { useTheme } from '@/theme';
 
-const Tab = createBottomTabNavigator();
+const Tab = createBottomTabNavigator<TabParamList>();
 
 // Emoji tab icons keep Phase 1 dependency-free (no icon font needed yet).
 const icons: Record<string, string> = {
