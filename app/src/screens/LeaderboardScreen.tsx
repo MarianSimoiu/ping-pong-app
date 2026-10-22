@@ -85,11 +85,13 @@ export function LeaderboardScreen({ navigation }: LeaderboardStackScreenProps<'L
             renderItem={({ item }) => (
               <Pressable style={styles.row} onPress={() => openProfile(item.playerId, item.displayName)}>
                 <Text style={styles.rank}>{rankLabel(item.rank)}</Text>
-                <Avatar uri={item.avatarUrl} name={item.displayName} size={36} />
                 <View style={styles.rowMain}>
-                  <Text style={styles.rowName} numberOfLines={1}>
-                    {item.displayName}
-                  </Text>
+                  <View style={styles.nameLine}>
+                    <Avatar uri={item.avatarUrl} name={item.displayName} size={20} />
+                    <Text style={styles.rowName} numberOfLines={1}>
+                      {item.displayName}
+                    </Text>
+                  </View>
                   <Text style={styles.rowMeta}>
                     ± {Math.round(item.rd)} · {item.matchesPlayed} matches · {item.wins}-{item.losses}
                   </Text>
@@ -112,11 +114,13 @@ export function LeaderboardScreen({ navigation }: LeaderboardStackScreenProps<'L
           renderItem={({ item }) => (
             <Pressable style={styles.row} onPress={() => openProfile(item.playerId, item.displayName)}>
               <Text style={styles.rank}>{rankLabel(item.rank)}</Text>
-              <Avatar uri={item.avatarUrl} name={item.displayName} size={36} />
               <View style={styles.rowMain}>
-                <Text style={styles.rowName} numberOfLines={1}>
-                  {item.displayName}
-                </Text>
+                <View style={styles.nameLine}>
+                  <Avatar uri={item.avatarUrl} name={item.displayName} size={20} />
+                  <Text style={styles.rowName} numberOfLines={1}>
+                    {item.displayName}
+                  </Text>
+                </View>
                 <Text style={styles.rowMeta}>
                   {item.events} {item.events === 1 ? 'result' : 'results'} counted
                 </Text>
@@ -186,8 +190,9 @@ function createStyles(colors: Colors) {
       borderColor: colors.border,
     },
     rank: { color: colors.textMuted, fontSize: 16, fontWeight: '700', width: 28 },
-    rowMain: { flex: 1, marginLeft: spacing.md },
-    rowName: { color: colors.text, fontSize: 16, fontWeight: '600' },
+    rowMain: { flex: 1, marginLeft: spacing.sm },
+    nameLine: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+    rowName: { color: colors.text, fontSize: 16, fontWeight: '600', flexShrink: 1 },
     rowMeta: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
     rowValue: { color: colors.primary, fontSize: 20, fontWeight: '800' },
     center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
