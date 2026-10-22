@@ -8,6 +8,7 @@ export type LeaderboardEntry = {
   rank: number;
   playerId: string;
   displayName: string;
+  avatarUrl: string | null;
   rating: number;
   rd: number;
   matchesPlayed: number;
@@ -20,7 +21,7 @@ export async function fetchLeaderboard(): Promise<LeaderboardEntry[]> {
   if (DEMO) return demo.demoLeaderboard();
   const { data, error } = await supabase
     .from('player_ratings')
-    .select('rating, rd, matches_played, player:players(id, display_name)')
+    .select('rating, rd, matches_played, player:players(id, display_name, avatar_url)')
     .gte('matches_played', MIN_MATCHES_FOR_LEADERBOARD)
     .order('rating', { ascending: false });
   if (error) throw error;
@@ -31,6 +32,7 @@ export async function fetchLeaderboard(): Promise<LeaderboardEntry[]> {
       rank: i + 1,
       playerId: player.id,
       displayName: player.display_name,
+      avatarUrl: player.avatar_url ?? null,
       rating: row.rating,
       rd: row.rd,
       matchesPlayed: row.matches_played,
@@ -69,6 +71,7 @@ export type SeasonEntry = {
   rank: number;
   playerId: string;
   displayName: string;
+  avatarUrl: string | null;
   points: number;
   events: number;
 };
@@ -78,10 +81,22 @@ export async function fetchSeasonStandings(): Promise<SeasonEntry[]> {
   if (DEMO) return demo.demoSeasonStandings();
   const { data, error } = await supabase.rpc('season_standings', { best_n: 8 });
   if (error) throw error;
-  return (data ?? []).map((r: any, i: number) => ({
+  const rows: any[] = data ?? [];
+  if (rows.length === 0) return [];
+
+  // The season_standings RPC doesn't return avatars; one extra query adds them.
+  const { data: pics, error: picsError } = await supabase
+    .from('players')
+    .select('id, avatar_url')
+    .in('id', rows.map((r) => r.player_id));
+  if (picsError) throw picsError;
+  const avatars = new Map<string, string | null>((pics ?? []).map((p: any) => [p.id, p.avatar_url]));
+
+  return rows.map((r, i) => ({
     rank: i + 1,
     playerId: r.player_id,
     displayName: r.display_name,
+    avatarUrl: avatars.get(r.player_id) ?? null,
     points: Number(r.points),
     events: r.events,
   }));
@@ -152,6 +167,7 @@ export async function fetchRecord(playerId: string): Promise<{ wins: number; los
 export type MatchHistoryItem = {
   id: string;
   opponentName: string;
+  opponentAvatarUrl: string | null;
   result: 'win' | 'loss';
   delta: number;
   ratingAfter: number;
@@ -167,7 +183,7 @@ export async function fetchMatchHistory(playerId: string, limit = 25): Promise<M
     .from('rating_events')
     .select(
       'id, result, delta, rating_after, created_at, ' +
-        'opponent:players!rating_events_opponent_id_fkey(display_name), ' +
+        'opponent:players!rating_events_opponent_id_fkey(display_name, avatar_url), ' +
         'match:matches(player_a, games:match_games(game_no, score_a, score_b))',
     )
     .eq('player_id', playerId)
@@ -188,6 +204,7 @@ export async function fetchMatchHistory(playerId: string, limit = 25): Promise<M
     return {
       id: r.id,
       opponentName: opponent?.display_name ?? 'Unknown',
+      opponentAvatarUrl: opponent?.avatar_url ?? null,
       result: r.result,
       delta: r.delta,
       ratingAfter: r.rating_after,
