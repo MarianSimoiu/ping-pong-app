@@ -156,6 +156,7 @@ export function PlayerProfileScreen() {
             ) : (
               matches.map((m) => {
                 const isUpset = Math.abs(m.delta) >= UPSET_DELTA_THRESHOLD;
+                const gamesWon = m.games.filter((g) => g.myScore > g.opponentScore).length;
                 return (
                   <View key={m.id} style={styles.matchRow}>
                     <View style={[styles.badge, m.result === 'win' ? styles.badgeWin : styles.badgeLoss]}>
@@ -171,6 +172,10 @@ export function PlayerProfileScreen() {
                       </View>
                       {m.games.length > 0 && (
                         <Text style={styles.matchScore} numberOfLines={1}>
+                          <Text style={styles.matchOverall}>
+                            {gamesWon}–{m.games.length - gamesWon}
+                          </Text>
+                          {' · '}
                           {m.games.map((g) => `${g.myScore}–${g.opponentScore}`).join(', ')}
                         </Text>
                       )}
@@ -281,6 +286,7 @@ function createStyles(colors: Colors) {
     matchOpponent: { color: colors.text, fontSize: 15 },
     opponentName: { flexShrink: 1 },
     matchScore: { color: colors.textMuted, fontSize: 12, marginTop: 1 },
+    matchOverall: { color: colors.text, fontWeight: '700' },
     matchTime: { color: colors.textMuted, fontSize: 11, marginTop: 1 },
     matchDelta: { fontSize: 15, fontWeight: '600' },
     deltaUp: { color: colors.success },
