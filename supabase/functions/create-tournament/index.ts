@@ -1,6 +1,7 @@
 // Edge Function: create-tournament
 //
-// Creates a single-elimination tournament. The caller passes an ordered list of
+// Creates a single-elimination tournament (admins only — see the admins
+// table, migration 0009). The caller passes an ordered list of
 // participant player ids (index 0 = top seed). This function generates the full
 // bracket (tested TS) and persists tournament + participants + bracket nodes
 // atomically via the create_tournament RPC. Byes are handled by the generator.
@@ -54,6 +55,15 @@ Deno.serve(async (req) => {
       .eq('user_id', userData.user.id)
       .single();
     if (cErr || !creator) return jsonResponse({ error: 'Player profile not found' }, 404);
+
+    // Only admins (the public.admins table) may create tournaments.
+    const { data: adminRow, error: aErr } = await admin
+      .from('admins')
+      .select('player_id')
+      .eq('player_id', creator.id)
+      .maybeSingle();
+    if (aErr) return jsonResponse({ error: aErr.message }, 500);
+    if (!adminRow) return jsonResponse({ error: 'Only admins can create tournaments' }, 403);
 
     // Verify every participant exists.
     const { data: found, error: pErr } = await admin

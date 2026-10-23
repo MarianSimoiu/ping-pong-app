@@ -61,6 +61,8 @@ atomically. Phase 4 (`0003_tournaments.sql`) adds `tournaments`,
 (`0004_season_points.sql`) adds `season_points` plus the `award_season_points`
 RPC and the `season_standings(best_n)` ranking function. `0005_match_confirmation.sql`
 adds a `status` column to `matches` and the confirmation RPCs (below).
+`0009_admins.sql` adds `admins`, the players allowed to create tournaments
+(read-only to the app; managed in the SQL Editor — see docs/DEPLOYMENT.md).
 
 ### Match confirmation
 

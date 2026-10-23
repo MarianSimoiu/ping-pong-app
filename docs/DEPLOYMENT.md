@@ -83,6 +83,28 @@ the app is actually reachable:
 | `0003_tournaments.sql` | tournaments + bracket tables, `create_tournament`, `apply_tournament_result` |
 | `0004_season_points.sql` | `season_points`, `award_season_points`, `season_standings` |
 | `0005_match_confirmation.sql` | `matches.status`, `create_pending_match`, `confirm_match`, `reject_match` |
+| `0006_avatar_storage.sql` | public `avatars` Storage bucket, upload limited to your own folder |
+| `0007_freeform_casual_matches.sql` | casual matches record however many games were played |
+| `0008_player_records.sql` | `player_records` view (win/loss counted in the database) |
+| `0009_admins.sql` | `admins` (who can create tournaments) |
+
+### Admins
+
+Only players listed in the `admins` table can create tournaments: the
+Tournaments tab shows **+ New** only to them, and the `create-tournament`
+function rejects everyone else. Nobody can add themselves from the app. To
+make someone an admin, run this in the Supabase **SQL Editor** with the email
+they sign in with:
+
+```sql
+insert into public.admins (player_id)
+select p.id from public.players p
+join auth.users u on u.id = p.user_id
+where u.email = 'their-sign-in@email.com';
+```
+
+To remove an admin, delete their row the same way:
+`delete from public.admins where player_id = (select p.id from public.players p join auth.users u on u.id = p.user_id where u.email = 'their-sign-in@email.com');`
 
 ---
 
@@ -177,7 +199,8 @@ Set the app's Supabase env for builds via EAS environment variables (or an
 - All rating and tournament writes go through Edge Functions using the **service
   role**; clients only ever hold the **anon** key.
 - Every data table has RLS: authenticated users can **read**, and can **write only
-  their own profile**. Ratings, matches, tournaments, and season points have **no
-  client write policy** — they change only via the server-side functions/RPCs.
+  their own profile**. Ratings, matches, tournaments, season points, and admins
+  have **no client write policy** — they change only via the server-side
+  functions/RPCs (or, for admins, the SQL Editor).
 - Keep the service-role key server-side only. It must never appear in `app/` or in
   any `EXPO_PUBLIC_*` variable.
