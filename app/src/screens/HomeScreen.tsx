@@ -32,21 +32,6 @@ const BETA_MESSAGE =
   'Found a bug, have an idea, or something just feels off? Tell whoever gave you ' +
   'access. Feedback from real games is exactly what shapes what gets built next.';
 
-const GLICKO2_EXPLANATION =
-  'Glicko-2 is the system behind your Skill rating — think of it as an upgraded ' +
-  'version of the Elo rating used in chess.\n\n' +
-  'Everyone starts at 1500. After every match, your rating moves based on how ' +
-  'surprising the result was. Beat someone much weaker than you? It barely moves — ' +
-  "you were supposed to win. Lose to someone much weaker? That costs a lot, since it " +
-  'means your real skill might be lower than thought. This is what keeps it fair: ' +
-  'farming easy opponents just does not work.\n\n' +
-  '±RD is how sure the system is about your number. It starts wide (350) and narrows ' +
-  `with every match — that is why your first ${MIN_MATCHES_FOR_LEADERBOARD} matches move ` +
-  'your rating the most, and it keeps settling as you play. After a long break your next ' +
-  'match moves it a bit more, since the system is less sure about you after time away.\n\n' +
-  'Bottom line: play real matches, win or lose, and your rating finds its true level ' +
-  'on its own.';
-
 export function HomeScreen({ navigation }: HomeStackScreenProps<'Home'>) {
   const { colors, scheme, setDarkMode } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -161,10 +146,7 @@ export function HomeScreen({ navigation }: HomeStackScreenProps<'Home'>) {
           <View style={styles.ratingCard}>
             <View style={styles.ratingLabelRow}>
               <Text style={styles.ratingLabel}>Skill rating</Text>
-              <Pressable
-                onPress={() => showAlert('What is Glicko-2?', GLICKO2_EXPLANATION)}
-                hitSlop={8}
-              >
+              <Pressable onPress={() => navigation.navigate('HowRatingsWork')} hitSlop={8}>
                 <Text style={styles.infoIcon}>ⓘ</Text>
               </Pressable>
             </View>
@@ -187,6 +169,9 @@ export function HomeScreen({ navigation }: HomeStackScreenProps<'Home'>) {
                 position among players with at least {MIN_MATCHES_FOR_LEADERBOARD} matches, on
                 the Leaderboard tab.
               </Text>
+              <Pressable onPress={() => navigation.navigate('HowRatingsWork')} hitSlop={8}>
+                <Text style={styles.legendLink}>How ratings work →</Text>
+              </Pressable>
             </View>
           </View>
         )}
@@ -308,6 +293,7 @@ function createStyles(colors: Colors) {
     },
     legendText: { color: colors.textMuted, fontSize: 12, lineHeight: 18 },
     legendBold: { color: colors.text, fontWeight: '700' },
+    legendLink: { color: colors.primary, fontSize: 12, fontWeight: '700', marginTop: spacing.sm },
     cta: {
       backgroundColor: colors.primary,
       borderRadius: radius.md,

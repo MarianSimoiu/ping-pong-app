@@ -20,6 +20,7 @@ export const linking: LinkingOptions<TabParamList> = {
         screens: {
           Home: '',
           SubmitMatch: 'record',
+          HowRatingsWork: 'how-ratings-work',
         },
       },
       Leaderboard: {
@@ -27,6 +28,7 @@ export const linking: LinkingOptions<TabParamList> = {
         screens: {
           Leaderboard: 'leaderboard',
           PlayerProfile: 'leaderboard/player/:playerId',
+          HowRatingsWork: 'leaderboard/how-ratings-work',
         },
       },
       Tournaments: {
@@ -48,6 +50,7 @@ export const linking: LinkingOptions<TabParamList> = {
         screens: {
           Account: 'profile',
           PlayerProfile: 'profile/stats/:playerId',
+          HowRatingsWork: 'profile/how-ratings-work',
         },
       },
     },

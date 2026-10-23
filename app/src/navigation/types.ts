@@ -14,6 +14,7 @@ export type TabParamList = {
 export type HomeStackParamList = {
   Home: undefined;
   SubmitMatch: undefined;
+  HowRatingsWork: undefined;
 };
 
 export type HomeStackScreenProps<T extends keyof HomeStackParamList> =
@@ -23,6 +24,7 @@ export type HomeStackScreenProps<T extends keyof HomeStackParamList> =
 export type LeaderboardStackParamList = {
   Leaderboard: undefined;
   PlayerProfile: { playerId: string; displayName: string };
+  HowRatingsWork: undefined;
 };
 
 export type LeaderboardStackScreenProps<T extends keyof LeaderboardStackParamList> =
@@ -32,6 +34,7 @@ export type LeaderboardStackScreenProps<T extends keyof LeaderboardStackParamLis
 export type ProfileStackParamList = {
   Account: undefined;
   PlayerProfile: { playerId: string; displayName: string };
+  HowRatingsWork: undefined;
 };
 
 export type ProfileStackScreenProps<T extends keyof ProfileStackParamList> =

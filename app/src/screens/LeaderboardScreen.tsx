@@ -60,7 +60,17 @@ export function LeaderboardScreen({ navigation }: LeaderboardStackScreenProps<'L
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <Text style={styles.title}>Leaderboard</Text>
+      <View style={styles.titleRow}>
+        <Text style={styles.title}>Leaderboard</Text>
+        <Pressable
+          style={styles.howButton}
+          onPress={() => navigation.navigate('HowRatingsWork')}
+          hitSlop={8}
+          accessibilityRole="link"
+        >
+          <Text style={styles.howButtonText}>ⓘ How it works</Text>
+        </Pressable>
+      </View>
 
       <View style={styles.tabs}>
         <TabButton label="Skill rating" active={tab === 'skill'} onPress={() => setTab('skill')} />
@@ -158,13 +168,23 @@ function Empty({ emoji, text }: { emoji: string; text: string }) {
 function createStyles(colors: Colors) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
-    title: {
-      fontSize: 24,
-      fontWeight: '700',
-      color: colors.text,
+    titleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
       paddingHorizontal: spacing.lg,
       paddingTop: spacing.sm,
     },
+    title: { fontSize: 24, fontWeight: '700', color: colors.text },
+    howButton: {
+      backgroundColor: colors.surfaceAlt,
+      borderRadius: radius.md,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.xs + 2,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    howButtonText: { color: colors.text, fontSize: 13, fontWeight: '600' },
     tabs: { flexDirection: 'row', gap: spacing.sm, padding: spacing.lg, paddingBottom: spacing.md },
     tab: {
       flex: 1,

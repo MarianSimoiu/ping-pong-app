@@ -2,6 +2,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import React from 'react';
 
 import { HomeScreen } from '@/screens/HomeScreen';
+import { HowRatingsWorkScreen } from '@/screens/HowRatingsWorkScreen';
 import { SubmitMatchScreen } from '@/screens/SubmitMatchScreen';
 import { useTheme } from '@/theme';
 
@@ -26,6 +27,11 @@ export function HomeStack() {
         name="SubmitMatch"
         component={SubmitMatchScreen}
         options={{ title: 'Record a match', presentation: 'modal' }}
+      />
+      <Stack.Screen
+        name="HowRatingsWork"
+        component={HowRatingsWorkScreen}
+        options={{ title: 'How ratings work' }}
       />
     </Stack.Navigator>
   );
