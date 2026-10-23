@@ -4,6 +4,11 @@ A quick, plain-language explanation of the two numbers behind the
 Leaderboard's two tabs. For the exact formulas and every anti-farming rule,
 see [`docs/RATING.md`](RATING.md) — the numbers here match it exactly.
 
+Players get the same rules in the app on the **How ratings work** page
+(`app/src/screens/HowRatingsWorkScreen.tsx`), opened from the ⓘ icons on Home,
+the Leaderboard and player profiles, and from the Profile tab. Update it
+whenever a rule changes.
+
 ## Skill rating (the "Skill rating" tab)
 
 Updated after **every match**, casual or tournament. Everyone starts at

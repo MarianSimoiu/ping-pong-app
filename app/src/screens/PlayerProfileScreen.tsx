@@ -1,4 +1,5 @@
-import { type RouteProp, useRoute } from '@react-navigation/native';
+import { type RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -25,19 +26,8 @@ import {
   type HistoryPoint,
   type MatchHistoryItem,
 } from '@/lib/leaderboard';
-import { showAlert } from '@/lib/platformAlert';
 import type { PlayerWithRating } from '@/lib/types';
 import { radius, spacing, useTheme, type Colors } from '@/theme';
-
-// A plain-language breakdown of why this player's RD is what it is — shown
-// on demand (tap the info icon) rather than cluttering the stats row.
-function describeRd(rd: number, matchesPlayed: number): string {
-  const base =
-    'Everyone starts at RD 350 — total uncertainty. Every confirmed match narrows it, since each match is new information about your real skill.';
-  const status = `Currently ±${Math.round(rd)} after ${matchesPlayed} match${matchesPlayed === 1 ? '' : 'es'}. Your first ${MIN_MATCHES_FOR_LEADERBOARD} matches move your rating the most; after that it keeps settling with every match.`;
-  const tail = 'After a long break your next match moves your rating a bit more, since the system is less sure about you after time away.';
-  return `${base}\n\n${status}\n\n${tail}`;
-}
 
 // Count of leading same-result matches in a newest-first list — e.g. [W,W,W,L]
 // is a 3-match win streak.
@@ -52,13 +42,18 @@ function currentStreak(matches: MatchHistoryItem[]): { count: number; kind: 'win
   return { count, kind };
 }
 
-// Shared param shape (the route exists in both the Leaderboard and Profile stacks).
-type ParamList = { PlayerProfile: { playerId: string; displayName: string } };
+// Shared param shape (the route exists in both the Leaderboard and Profile
+// stacks, and both stacks have the How ratings work page).
+type ParamList = {
+  PlayerProfile: { playerId: string; displayName: string };
+  HowRatingsWork: undefined;
+};
 
 export function PlayerProfileScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const route = useRoute<RouteProp<ParamList, 'PlayerProfile'>>();
+  const navigation = useNavigation<NativeStackNavigationProp<ParamList>>();
   const { playerId } = route.params;
 
   const [player, setPlayer] = useState<PlayerWithRating | null>(null);
@@ -125,12 +120,7 @@ export function PlayerProfileScreen() {
               <Stat
                 label="±RD"
                 value={String(Math.round(rating?.rd ?? 350))}
-                onInfoPress={() =>
-                  showAlert(
-                    'Why this RD?',
-                    describeRd(rating?.rd ?? 350, rating?.matches_played ?? 0),
-                  )
-                }
+                onInfoPress={() => navigation.navigate('HowRatingsWork')}
               />
               <Stat label="W–L" value={`${record.wins}–${record.losses}`} />
               <Stat label="Season" value={String(seasonPoints)} />

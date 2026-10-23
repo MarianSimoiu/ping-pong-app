@@ -1,6 +1,7 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import React from 'react';
 
+import { HowRatingsWorkScreen } from '@/screens/HowRatingsWorkScreen';
 import { PlayerProfileScreen } from '@/screens/PlayerProfileScreen';
 import { ProfileScreen } from '@/screens/ProfileScreen';
 import { useTheme } from '@/theme';
@@ -26,6 +27,11 @@ export function ProfileStack() {
         name="PlayerProfile"
         component={PlayerProfileScreen}
         options={({ route }) => ({ title: route.params.displayName })}
+      />
+      <Stack.Screen
+        name="HowRatingsWork"
+        component={HowRatingsWorkScreen}
+        options={{ title: 'How ratings work' }}
       />
     </Stack.Navigator>
   );

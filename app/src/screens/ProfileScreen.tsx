@@ -133,6 +133,10 @@ export function ProfileScreen({ navigation }: ProfileStackScreenProps<'Account'>
           </Pressable>
         )}
 
+        <Pressable style={styles.linkCard} onPress={() => navigation.navigate('HowRatingsWork')}>
+          <Text style={styles.linkCardText}>How ratings work →</Text>
+        </Pressable>
+
         {/* Only while the app is open in a browser that can install it. */}
         {install.method && (
           <Pressable style={styles.linkCard} onPress={openInstall}>
