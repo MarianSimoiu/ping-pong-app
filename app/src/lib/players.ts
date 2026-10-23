@@ -20,3 +20,15 @@ export async function fetchMyProfile(userId: string): Promise<PlayerWithRating |
   const rating = Array.isArray(data.rating) ? data.rating[0] ?? null : data.rating ?? null;
   return { ...data, rating } as PlayerWithRating;
 }
+
+// Whether the signed-in user is an admin (the admins table). Only admins can
+// create tournaments; the create-tournament Edge Function enforces it.
+export async function fetchIsAdmin(userId: string): Promise<boolean> {
+  if (DEMO) return true;
+  const { data, error } = await supabase
+    .from('admins')
+    .select('player_id, players!inner(user_id)')
+    .eq('players.user_id', userId);
+  if (error) throw error;
+  return (data ?? []).length > 0;
+}

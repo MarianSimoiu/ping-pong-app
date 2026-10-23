@@ -3,6 +3,8 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { useAuth } from '@/context/AuthContext';
+import { fetchIsAdmin } from '@/lib/players';
 import { fetchTournaments, type TournamentSummary } from '@/lib/tournaments';
 import type { TournamentsStackScreenProps } from '@/navigation/types';
 import { radius, spacing, useTheme, type Colors } from '@/theme';
@@ -16,20 +18,28 @@ const STATUS_LABEL: Record<TournamentSummary['status'], string> = {
 export function TournamentsScreen({ navigation }: TournamentsStackScreenProps<'TournamentsList'>) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const { session } = useAuth();
   const [tournaments, setTournaments] = useState<TournamentSummary[]>([]);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
       setError(null);
-      setTournaments(await fetchTournaments());
+      const [list, admin] = await Promise.all([
+        fetchTournaments(),
+        // Only decides whether "+ New" shows, so a failure just hides it.
+        session ? fetchIsAdmin(session.user.id).catch(() => false) : false,
+      ]);
+      setTournaments(list);
+      setIsAdmin(admin);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load tournaments');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [session]);
 
   useFocusEffect(
     useCallback(() => {
@@ -41,9 +51,11 @@ export function TournamentsScreen({ navigation }: TournamentsStackScreenProps<'T
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.title}>Tournaments</Text>
-        <Pressable style={styles.newButton} onPress={() => navigation.navigate('CreateTournament')}>
-          <Text style={styles.newButtonText}>+ New</Text>
-        </Pressable>
+        {isAdmin && (
+          <Pressable style={styles.newButton} onPress={() => navigation.navigate('CreateTournament')}>
+            <Text style={styles.newButtonText}>+ New</Text>
+          </Pressable>
+        )}
       </View>
 
       {loading ? (
@@ -54,8 +66,9 @@ export function TournamentsScreen({ navigation }: TournamentsStackScreenProps<'T
         <View style={styles.center}>
           <Text style={styles.emoji}>🎽</Text>
           <Text style={styles.placeholder}>
-            No tournaments yet. Create one to bracket up your players — results feed
-            the same rating engine as casual matches.
+            {isAdmin
+              ? 'No tournaments yet. Create one to bracket up your players — results feed the same rating engine as casual matches.'
+              : 'No tournaments yet. They show up here once an admin creates one.'}
           </Text>
         </View>
       ) : (
