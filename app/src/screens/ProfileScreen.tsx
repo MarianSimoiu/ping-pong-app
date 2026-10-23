@@ -8,6 +8,7 @@ import { Avatar } from '@/components/Avatar';
 import { useAuth } from '@/context/AuthContext';
 import { uploadAvatar } from '@/lib/avatar';
 import { formatTimestamp } from '@/lib/format';
+import { openInstall, useInstall } from '@/lib/install';
 import { fetchSubmittedPending } from '@/lib/matches';
 import { fetchMyProfile } from '@/lib/players';
 import { showAlert } from '@/lib/platformAlert';
@@ -21,6 +22,7 @@ export function ProfileScreen({ navigation }: ProfileStackScreenProps<'Account'>
   const { colors, scheme, setDarkMode } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { session, signOut } = useAuth();
+  const install = useInstall();
   const [busy, setBusy] = useState(false);
   const [me, setMe] = useState<Me | null>(null);
   const [submittedPending, setSubmittedPending] = useState<SubmittedPendingMatch[]>([]);
@@ -144,14 +146,25 @@ export function ProfileScreen({ navigation }: ProfileStackScreenProps<'Account'>
 
         {me && (
           <Pressable
-            style={styles.statsLink}
+            style={styles.linkCard}
             onPress={() =>
               navigation.navigate('PlayerProfile', { playerId: me.id, displayName: me.displayName })
             }
           >
-            <Text style={styles.statsLinkText}>View my stats & rating history →</Text>
+            <Text style={styles.linkCardText}>View my stats & rating history →</Text>
           </Pressable>
         )}
+
+        {/* Only while the app is open in a browser that can install it. */}
+        {install.method && (
+          <Pressable style={styles.linkCard} onPress={openInstall}>
+            <Text style={styles.linkCardText}>📲 Install Ping Pong on this device</Text>
+          </Pressable>
+        )}
+
+        {/* Pushes Sign out to the bottom on a short page, and keeps a gap
+            above it once the page is taller than the screen and scrolls. */}
+        <View style={styles.spacer} />
 
         <Pressable
           style={[styles.signOut, busy && { opacity: 0.6 }]}
@@ -168,7 +181,7 @@ export function ProfileScreen({ navigation }: ProfileStackScreenProps<'Account'>
 function createStyles(colors: Colors) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
-    content: { flex: 1, padding: spacing.lg },
+    content: { flexGrow: 1, padding: spacing.lg },
     title: { fontSize: 24, fontWeight: '700', color: colors.text, marginBottom: spacing.lg },
     avatarSection: { alignItems: 'center', marginBottom: spacing.lg },
     photoButton: { marginTop: spacing.sm },
@@ -213,7 +226,7 @@ function createStyles(colors: Colors) {
       justifyContent: 'space-between',
       marginTop: spacing.md,
     },
-    statsLink: {
+    linkCard: {
       backgroundColor: colors.surface,
       borderRadius: radius.md,
       padding: spacing.md,
@@ -221,9 +234,9 @@ function createStyles(colors: Colors) {
       borderWidth: 1,
       borderColor: colors.border,
     },
-    statsLinkText: { color: colors.primary, fontSize: 15, fontWeight: '600' },
+    linkCardText: { color: colors.primary, fontSize: 15, fontWeight: '600' },
+    spacer: { flexGrow: 1, minHeight: spacing.lg },
     signOut: {
-      marginTop: 'auto',
       backgroundColor: colors.surfaceAlt,
       borderRadius: radius.md,
       paddingVertical: spacing.md,
