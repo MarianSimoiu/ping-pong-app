@@ -11,16 +11,17 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AwaitingOpponentList } from '@/components/AwaitingOpponentList';
 import { Avatar } from '@/components/Avatar';
 import { useAuth } from '@/context/AuthContext';
 import { pickDeclineLine, pickHomeTip, pickMatchResultLine, pickPendingLine } from '@/lib/commentary';
 import { MIN_MATCHES_FOR_LEADERBOARD } from '@/lib/constants';
 import { formatTimestamp } from '@/lib/format';
 import { fetchLeaderboard } from '@/lib/leaderboard';
-import { confirmMatch, fetchPendingConfirmations } from '@/lib/matches';
+import { confirmMatch, fetchPendingConfirmations, fetchSubmittedPending } from '@/lib/matches';
 import { showAlert } from '@/lib/platformAlert';
 import { fetchMyProfile } from '@/lib/players';
-import type { PendingMatch, PlayerWithRating } from '@/lib/types';
+import type { PendingMatch, PlayerWithRating, SubmittedPendingMatch } from '@/lib/types';
 import type { HomeStackScreenProps } from '@/navigation/types';
 import { radius, spacing, useTheme, type Colors } from '@/theme';
 
@@ -53,6 +54,7 @@ export function HomeScreen({ navigation }: HomeStackScreenProps<'Home'>) {
   const [profile, setProfile] = useState<PlayerWithRating | null>(null);
   const [rank, setRank] = useState<number | null>(null);
   const [pending, setPending] = useState<PendingMatch[]>([]);
+  const [submittedPending, setSubmittedPending] = useState<SubmittedPendingMatch[]>([]);
   const [actingId, setActingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -66,12 +68,18 @@ export function HomeScreen({ navigation }: HomeStackScreenProps<'Home'>) {
       const p = await fetchMyProfile(session.user.id);
       setProfile(p);
       if (p) {
-        const leaderboard = await fetchLeaderboard();
+        const [leaderboard, toConfirm, submitted] = await Promise.all([
+          fetchLeaderboard(),
+          fetchPendingConfirmations(p.id),
+          fetchSubmittedPending(p.id),
+        ]);
         setRank(leaderboard.find((entry) => entry.playerId === p.id)?.rank ?? null);
-        setPending(await fetchPendingConfirmations(p.id));
+        setPending(toConfirm);
+        setSubmittedPending(submitted);
       } else {
         setRank(null);
         setPending([]);
+        setSubmittedPending([]);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load profile');
@@ -231,6 +239,8 @@ export function HomeScreen({ navigation }: HomeStackScreenProps<'Home'>) {
         <Pressable style={styles.cta} onPress={() => navigation.navigate('SubmitMatch')}>
           <Text style={styles.ctaText}>+ Record a match</Text>
         </Pressable>
+
+        <AwaitingOpponentList matches={submittedPending} style={styles.pendingSection} />
 
         <View style={styles.hintCard}>
           <Text style={styles.hintTitle}>From the booth 🎙️</Text>
