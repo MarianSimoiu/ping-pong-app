@@ -4,10 +4,10 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AwaitingOpponentList } from '@/components/AwaitingOpponentList';
 import { Avatar } from '@/components/Avatar';
 import { useAuth } from '@/context/AuthContext';
 import { uploadAvatar } from '@/lib/avatar';
-import { formatTimestamp } from '@/lib/format';
 import { openInstall, useInstall } from '@/lib/install';
 import { fetchSubmittedPending } from '@/lib/matches';
 import { fetchMyProfile } from '@/lib/players';
@@ -110,30 +110,7 @@ export function ProfileScreen({ navigation }: ProfileStackScreenProps<'Account'>
           <Text style={styles.value}>{session?.user.email}</Text>
         </View>
 
-        {submittedPending.length > 0 && (
-          <View style={styles.pendingSection}>
-            <Text style={styles.sectionLabel}>Awaiting opponent’s confirmation</Text>
-            {submittedPending.map((m) => (
-              <View key={m.matchId} style={styles.pendingCard}>
-                <View style={styles.pendingHeaderRow}>
-                  <Avatar uri={m.opponentAvatarUrl} name={m.opponentName} size={36} />
-                  <View style={styles.pendingHeaderText}>
-                    <Text style={styles.pendingName}>vs {m.opponentName}</Text>
-                    <Text style={styles.pendingTime}>{formatTimestamp(m.submittedAt)}</Text>
-                  </View>
-                  <Text style={[styles.pendingResult, m.iWon ? styles.resultWin : styles.resultLoss]}>
-                    {m.iWon ? 'Won' : 'Lost'} {m.myGames}–{m.opponentGames}
-                  </Text>
-                </View>
-                <Text style={styles.pendingSets}>
-                  Sets (you–{m.opponentName}):{' '}
-                  {m.games.map((g) => `${g.myScore}–${g.opponentScore}`).join(', ')}
-                </Text>
-                <Text style={styles.waitingNote}>Waiting for {m.opponentName} to confirm</Text>
-              </View>
-            ))}
-          </View>
-        )}
+        <AwaitingOpponentList matches={submittedPending} style={styles.pendingSection} />
 
         <View style={[styles.card, styles.darkModeRow]}>
           <Text style={styles.value}>Dark mode</Text>
@@ -197,30 +174,6 @@ function createStyles(colors: Colors) {
     label: { color: colors.textMuted, fontSize: 13 },
     value: { color: colors.text, fontSize: 16, marginTop: spacing.xs },
     pendingSection: { marginTop: spacing.md },
-    sectionLabel: {
-      color: colors.textMuted,
-      fontSize: 13,
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
-      marginBottom: spacing.sm,
-    },
-    pendingCard: {
-      backgroundColor: colors.surface,
-      borderRadius: radius.md,
-      padding: spacing.md,
-      marginBottom: spacing.sm,
-      borderWidth: 1,
-      borderColor: colors.border,
-    },
-    pendingHeaderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm },
-    pendingHeaderText: { flex: 1, marginLeft: spacing.sm },
-    pendingName: { color: colors.text, fontSize: 14, fontWeight: '700' },
-    pendingTime: { color: colors.textMuted, fontSize: 11 },
-    pendingResult: { fontSize: 13, fontWeight: '700' },
-    resultWin: { color: colors.success },
-    resultLoss: { color: colors.danger },
-    pendingSets: { color: colors.textMuted, fontSize: 12, marginBottom: spacing.xs },
-    waitingNote: { color: colors.textMuted, fontSize: 12, fontStyle: 'italic' },
     darkModeRow: {
       flexDirection: 'row',
       alignItems: 'center',
