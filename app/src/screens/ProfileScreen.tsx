@@ -126,7 +126,8 @@ export function ProfileScreen({ navigation }: ProfileStackScreenProps<'Account'>
                   </Text>
                 </View>
                 <Text style={styles.pendingSets}>
-                  Sets: {m.games.map((g) => `${g.myScore}–${g.opponentScore}`).join(', ')}
+                  Sets (you–{m.opponentName}):{' '}
+                  {m.games.map((g) => `${g.myScore}–${g.opponentScore}`).join(', ')}
                 </Text>
                 <Text style={styles.waitingNote}>Waiting for {m.opponentName} to confirm</Text>
               </View>

@@ -204,7 +204,8 @@ export function HomeScreen({ navigation }: HomeStackScreenProps<'Home'>) {
                   })}
                 </Text>
                 <Text style={styles.pendingSets}>
-                  Sets: {m.games.map((g) => `${g.myScore}–${g.opponentScore}`).join(', ')}
+                  Sets (you–{m.submitterName}):{' '}
+                  {m.games.map((g) => `${g.myScore}–${g.opponentScore}`).join(', ')}
                 </Text>
                 <View style={styles.pendingActions}>
                   <Pressable
