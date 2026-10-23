@@ -77,6 +77,7 @@ export function SubmitMatchScreen({ navigation }: HomeStackScreenProps<'SubmitMa
     load();
   }, [load]);
 
+  const opponentName = opponents.find((o) => o.id === opponentId)?.display_name ?? 'Opponent';
   const setScoreError = describeSetScoreError(mySets, oppSets);
   const mine = Number(mySets);
   const theirs = Number(oppSets);
@@ -194,58 +195,84 @@ export function SubmitMatchScreen({ navigation }: HomeStackScreenProps<'SubmitMa
             <Text style={styles.hint}>
               How many games did each of you win? Any score works — 1–0, 2–1, 3–2, whatever happened.
             </Text>
-            <View style={styles.setScoreRow}>
-              <TextInput
-                style={styles.scoreInput}
-                keyboardType="number-pad"
-                placeholder="2"
-                placeholderTextColor={colors.textMuted}
-                value={mySets}
-                onChangeText={setMySets}
-              />
-              <Text style={styles.dash}>–</Text>
-              <TextInput
-                style={styles.scoreInput}
-                keyboardType="number-pad"
-                placeholder="1"
-                placeholderTextColor={colors.textMuted}
-                value={oppSets}
-                onChangeText={setOppSets}
-              />
+            <ScoreOwners opponentName={opponentName} styles={styles} />
+            <View style={styles.scoreRow}>
+              <View style={styles.scoreCell}>
+                <TextInput
+                  style={styles.scoreInput}
+                  keyboardType="number-pad"
+                  placeholder="2"
+                  placeholderTextColor={colors.textMuted}
+                  value={mySets}
+                  onChangeText={setMySets}
+                  accessibilityLabel="Games you won"
+                />
+              </View>
+              <View style={styles.dashBox}>
+                <Text style={styles.dash}>–</Text>
+              </View>
+              <View style={styles.scoreCell}>
+                <TextInput
+                  style={styles.scoreInput}
+                  keyboardType="number-pad"
+                  placeholder="1"
+                  placeholderTextColor={colors.textMuted}
+                  value={oppSets}
+                  onChangeText={setOppSets}
+                  accessibilityLabel={`Games ${opponentName} won`}
+                />
+              </View>
             </View>
-            {setScoreError && <Text style={styles.error}>{setScoreError}</Text>}
+            {setScoreError ? (
+              <Text style={styles.error}>{setScoreError}</Text>
+            ) : (
+              setScoreReady && (
+                <Text style={[styles.summary, mine > theirs ? styles.summaryWin : styles.summaryLoss]}>
+                  {mine > theirs ? `You won ${mine}–${theirs}` : `${opponentName} won ${theirs}–${mine}`}
+                </Text>
+              )
+            )}
           </>
         )}
 
         {setScoreReady && (
           <>
-            <Text style={styles.label}>3. Game scores (you · opponent)</Text>
+            <Text style={styles.label}>3. Game scores</Text>
             <View style={styles.gameScoresHeader}>
               <Text style={styles.hint}>Enter the exact points for each game.</Text>
               <Pressable style={styles.randomizeButton} onPress={randomizeGames}>
                 <Text style={styles.randomizeButtonText}>🎲 Randomize</Text>
               </Pressable>
             </View>
+            <ScoreOwners opponentName={opponentName} styles={styles} numbered />
             {rows.map((r, i) => (
-              <View key={i} style={styles.gameRow}>
+              <View key={i} style={styles.scoreRow}>
                 <Text style={styles.gameNo}>{i + 1}</Text>
-                <TextInput
-                  style={styles.scoreInput}
-                  keyboardType="number-pad"
-                  placeholder="11"
-                  placeholderTextColor={colors.textMuted}
-                  value={r.a}
-                  onChangeText={(v) => setRow(i, 'a', v)}
-                />
-                <Text style={styles.dash}>–</Text>
-                <TextInput
-                  style={styles.scoreInput}
-                  keyboardType="number-pad"
-                  placeholder="7"
-                  placeholderTextColor={colors.textMuted}
-                  value={r.b}
-                  onChangeText={(v) => setRow(i, 'b', v)}
-                />
+                <View style={styles.scoreCell}>
+                  <TextInput
+                    style={styles.scoreInput}
+                    keyboardType="number-pad"
+                    placeholder="11"
+                    placeholderTextColor={colors.textMuted}
+                    value={r.a}
+                    onChangeText={(v) => setRow(i, 'a', v)}
+                    accessibilityLabel={`Game ${i + 1}: your points`}
+                  />
+                </View>
+                <View style={styles.dashBox}>
+                  <Text style={styles.dash}>–</Text>
+                </View>
+                <View style={styles.scoreCell}>
+                  <TextInput
+                    style={styles.scoreInput}
+                    keyboardType="number-pad"
+                    placeholder="7"
+                    placeholderTextColor={colors.textMuted}
+                    value={r.b}
+                    onChangeText={(v) => setRow(i, 'b', v)}
+                    accessibilityLabel={`Game ${i + 1}: ${opponentName}'s points`}
+                  />
+                </View>
               </View>
             ))}
           </>
@@ -268,6 +295,32 @@ export function SubmitMatchScreen({ navigation }: HomeStackScreenProps<'SubmitMa
         )}
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+// "You" and the opponent's name over the two score columns, so it's clear
+// whose number goes in which box. `numbered` leaves room for the game-number
+// column of the game rows.
+function ScoreOwners({
+  opponentName,
+  numbered,
+  styles,
+}: {
+  opponentName: string;
+  numbered?: boolean;
+  styles: ReturnType<typeof createStyles>;
+}) {
+  return (
+    <View style={styles.ownersRow}>
+      {numbered && <View style={styles.gameNoSpacer} />}
+      <Text style={[styles.scoreCell, styles.owner]} numberOfLines={1}>
+        You
+      </Text>
+      <View style={styles.dashBox} />
+      <Text style={[styles.scoreCell, styles.owner]} numberOfLines={1}>
+        {opponentName}
+      </Text>
+    </View>
   );
 }
 
@@ -297,8 +350,13 @@ function createStyles(colors: Colors) {
     chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
     chipText: { color: colors.text, fontSize: 14 },
     chipTextActive: { color: colors.primaryText, fontWeight: '600' },
-    gameRow: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm },
+    scoreRow: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm },
+    ownersRow: { flexDirection: 'row', marginBottom: spacing.xs },
+    // Wider than the input, so a longer name fits over its column.
+    scoreCell: { width: 96, alignItems: 'center' },
+    owner: { color: colors.text, fontSize: 13, fontWeight: '600', textAlign: 'center' },
     gameNo: { color: colors.textMuted, width: 24, fontSize: 14 },
+    gameNoSpacer: { width: 24 },
     scoreInput: {
       backgroundColor: colors.surfaceAlt,
       borderRadius: radius.sm,
@@ -311,12 +369,11 @@ function createStyles(colors: Colors) {
       borderWidth: 1,
       borderColor: colors.border,
     },
-    dash: { color: colors.textMuted, marginHorizontal: spacing.md, fontSize: 18 },
-    setScoreRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginBottom: spacing.sm,
-    },
+    dashBox: { width: 24, alignItems: 'center' },
+    dash: { color: colors.textMuted, fontSize: 18 },
+    summary: { fontSize: 14, fontWeight: '600' },
+    summaryWin: { color: colors.success },
+    summaryLoss: { color: colors.danger },
     gameScoresHeader: {
       flexDirection: 'row',
       alignItems: 'center',
