@@ -5,8 +5,9 @@ The formulas here are implemented in
 [`supabase/functions/_shared/glicko2.ts`](../supabase/functions/_shared/glicko2.ts),
 and the worked numbers below are asserted by
 [`glicko2.test.ts`](../supabase/functions/_shared/glicko2.test.ts) — so the code
-and this doc can't drift apart. All rating math runs **server-side** in the
-`submit-match` Edge Function; clients never compute or write ratings.
+and this doc can't drift apart. All rating math runs **server-side** in Edge
+Functions (`confirm-match` for casual matches, `submit-tournament-match` for
+tournament ones); clients never compute or write ratings.
 
 Each player has **two numbers**:
 
@@ -26,7 +27,7 @@ each player carries:
 - **Volatility σ** (starts at **0.06**) — how erratic the player's results are.
 
 Constants used (from `GLICKO2` in the code): scale `173.7178`, `τ = 0.5`,
-provisional threshold `10` matches.
+provisional threshold `3` matches (the leaderboard threshold, §2.2).
 
 ### The update, step by step
 
@@ -85,11 +86,14 @@ other three are explicit and listed here with exact rules.
 Covered by step 3. Beating weak players ≈ 0 points; losing to them is costly.
 Worked example B is the proof.
 
-### 2.2 Provisional players
-While `matches_played < 10` a player is **provisional**. Their RD is high, so
-Glicko-2 already moves them quickly toward their real level; the app also labels
-them provisional and (Phase 3) can hide them from the public leaderboard until
-they've settled. Rule: `isProvisional(n) = n < 10`.
+### 2.2 Provisional players (the leaderboard threshold)
+While `matches_played < 3` a player is **provisional**: they don't appear on the
+public leaderboard yet. Their RD is high, so Glicko-2 already moves them quickly
+toward their real level — the first 3 matches move a rating the most, and it
+keeps settling after that. Rule: `isProvisional(n) = n < 3` in the engine
+(recorded on each rating event), mirrored by `MIN_MATCHES_FOR_LEADERBOARD` in
+the app. Players only ever see this one number; the app shows no separate
+"provisional" label.
 
 ### 2.3 Diminishing repeat-opponent returns
 The direct fix for "I'll just play the same weak friend 10 times today." Let
@@ -114,7 +118,10 @@ Sit out and the system becomes *less sure* you're still that good. For `p` ratin
 periods of inactivity, `RD` grows: `φ ← √(φ² + σ²·p)`, capped at 350 (you're never
 more uncertain than a newcomer). Rule: `applyInactivity(player, p)`. Example: a
 settled `1600 / RD 80` player after a long idle stretch → RD grows back toward the
-default while the rating itself is unchanged.
+default while the rating itself is unchanged. The growth is applied when the
+player next plays (it's part of that match's `rd_before`), so the ± RD shown in
+the app doesn't change during the break itself — the first match back just
+moves the rating a bit more.
 
 ---
 
@@ -123,9 +130,9 @@ default while the rating itself is unchanged.
 | Guard | Function | Applied in |
 |---|---|---|
 | Opponent weighting | `updateRating` (step 3) | every match |
-| Provisional | `isProvisional` | badge now; leaderboard gate (Phase 3) |
-| Repeat-opponent | `repeatFactor` + `applyRepeatFactor` | `submit-match` before persisting |
-| Inactivity/RD | `applyInactivity` | `submit-match` before the update |
+| Provisional | `isProvisional` / `MIN_MATCHES_FOR_LEADERBOARD` | leaderboard gate; flag on each rating event |
+| Repeat-opponent | `repeatFactor` + `applyRepeatFactor` | `confirm-match` before persisting (casual matches) |
+| Inactivity/RD | `applyInactivity` | every rated match, before the update (`engine.ts`) |
 
 Every match writes an append-only pair of rows to **`rating_events`** recording
 `rating_before/after`, `rd_before/after`, `volatility_before/after`, `delta`,
