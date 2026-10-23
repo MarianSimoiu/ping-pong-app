@@ -24,6 +24,15 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Ping Pong" />
 
+    <!-- Chrome's install prompt can fire before the app's code has loaded;
+         keep it for src/lib/install.ts, which shows our own Install popup. -->
+    <script>
+      window.addEventListener('beforeinstallprompt', function (event) {
+        event.preventDefault();
+        window.__installPrompt = event;
+      });
+    </script>
+
     <!-- The `react-native-web` recommended style reset: https://necolas.github.io/react-native-web/docs/setup/#root-element -->
     <style id="expo-reset">
       /* These styles make the body full-height. `100%` is a fallback for
@@ -68,6 +77,12 @@
       textarea {
         -webkit-user-select: text;
         user-select: text;
+      }
+      /* The install popup (InstallSheet.tsx) moves focus onto its panel when
+         it opens, so keyboard and screen-reader users start inside it. The
+         panel isn't a control, so no focus ring around it. */
+      #install-sheet:focus {
+        outline: none;
       }
       /* Crisper text rendering on WebKit. */
       body {

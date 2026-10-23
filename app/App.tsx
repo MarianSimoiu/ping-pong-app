@@ -1,7 +1,9 @@
 import { StatusBar } from 'expo-status-bar';
 import React from 'react';
+import { Platform } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { InstallSheet } from '@/components/InstallSheet';
 import { AuthProvider } from '@/context/AuthContext';
 import { RootNavigator } from '@/navigation/RootNavigator';
 import { ThemeProvider, useTheme } from '@/theme';
@@ -12,6 +14,7 @@ function AppChrome() {
     <>
       <StatusBar style={statusBarStyle} />
       <RootNavigator />
+      {Platform.OS === 'web' && <InstallSheet />}
     </>
   );
 }
