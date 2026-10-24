@@ -96,6 +96,23 @@ export function HowRatingsWorkScreen() {
           <P>They still count as matches played and in your win–loss record.</P>
         </Section>
 
+        <Section title="2v2 doubles">
+          <P>
+            In doubles, every pair of players is a <B>team</B> with its own rating, separate from
+            singles. Ana & Ben and Ana & Cris are different teams. A team is created automatically
+            the first time the pair records a match.
+          </P>
+          <Bullet>
+            A team rating works like a singles one: it starts at 1500 ± 350 and moves by how
+            surprising each result was.
+          </Bullet>
+          <Bullet>Either of the two opponents confirms the match; if one declines, it never counts.</Bullet>
+          <Bullet>
+            A team appears on the team leaderboard (Doubles tab) after {N} confirmed matches together.
+          </Bullet>
+          <Bullet>The same two teams playing again within 24 hours count less, as in singles.</Bullet>
+        </Section>
+
         <Section title="Tournaments and season points">
           <P>
             Tournament matches change your skill rating like any other match. Either player or the

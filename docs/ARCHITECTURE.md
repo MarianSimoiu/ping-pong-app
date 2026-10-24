@@ -86,6 +86,18 @@ winner — or finishes the tournament on the final). The rating orchestration li
 in `_shared/engine.ts`, shared by both `submit-match` and
 `submit-tournament-match`.
 
+### Doubles (2v2)
+
+Ranked by **team**: `0010_doubles.sql` adds `teams` (one row per pair of
+players, created on first use by `team_for_pair`, with its own Glicko-2 rating),
+`doubles_matches` + `doubles_games`, and `team_rating_events`. The flow mirrors
+casual singles: `submit-doubles-match` stores the match as `pending`
+(`create_pending_doubles_match`), then **either opponent** calls
+`confirm-doubles-match` to confirm (`confirm_doubles_match` applies both teams'
+updates, computed by `_shared/doubles.ts` through the same engine) or decline
+(`reject_doubles_match`). The repeat guard counts confirmed matches between the
+same two teams in the last 24 h. See docs/RATING.md §5.
+
 ## Security model (Row-Level Security)
 
 - Any **authenticated** user can **read** `players` and `player_ratings`

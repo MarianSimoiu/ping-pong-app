@@ -3,6 +3,7 @@
 // network, no auth, no database. This file is only reached on the DEMO path;
 // with real Supabase env set, none of it runs.
 
+import type { DoublesPendingMatch, RankedTeam, Team } from '@/lib/doubles';
 import type { LeaderboardEntry, HistoryPoint, MatchHistoryItem, SeasonEntry } from '@/lib/leaderboard';
 import type {
   PlayerWithRatingRow,
@@ -229,6 +230,106 @@ export function demoConfirm(
   me.rating += delta;
   me.rd = Math.max(40, me.rd - 3);
   return { status: 'confirmed', you: { delta, rating: me.rating, rd: me.rd } };
+}
+
+// --- doubles -----------------------------------------------------------------
+
+type DTeam = { id: string; a: string; b: string; rating: number; rd: number; matches: number; wins: number; losses: number };
+
+const teams: DTeam[] = [
+  { id: 't1', a: 'p2', b: 'p3', rating: 1648, rd: 92, matches: 12, wins: 9, losses: 3 },
+  { id: 't2', a: 'p4', b: 'p5', rating: 1583, rd: 108, matches: 8, wins: 5, losses: 3 },
+  { id: 't3', a: DEMO_ME, b: 'p6', rating: 1541, rd: 131, matches: 5, wins: 3, losses: 2 },
+  { id: 't4', a: 'p7', b: 'p8', rating: 1466, rd: 152, matches: 4, wins: 1, losses: 3 },
+  { id: 't5', a: DEMO_ME, b: 'p2', rating: 1580, rd: 290, matches: 1, wins: 1, losses: 0 },
+];
+
+const toTeam = (t: DTeam): Team => {
+  const m = (id: string) => ({ id, name: byId(id)!.name, avatarUrl: byId(id)!.avatarUrl ?? null });
+  return {
+    id: t.id,
+    members: [m(t.a), m(t.b)],
+    rating: t.rating,
+    rd: t.rd,
+    matchesPlayed: t.matches,
+    wins: t.wins,
+    losses: t.losses,
+  };
+};
+
+export const demoTeamLeaderboard = (): RankedTeam[] =>
+  teams
+    .filter((t) => t.matches >= 3)
+    .sort((x, y) => y.rating - x.rating)
+    .map((t, i) => ({ ...toTeam(t), rank: i + 1 }));
+
+export const demoMyTeams = (): Team[] =>
+  teams
+    .filter((t) => t.a === DEMO_ME || t.b === DEMO_ME)
+    .sort((x, y) => y.rating - x.rating)
+    .map(toTeam);
+
+let doublesToConfirm: DoublesPendingMatch[] = [
+  {
+    matchId: 'dpm1',
+    partnerName: 'Emil',
+    opponentNames: ['Cris', 'Dana'],
+    submitterName: 'Cris',
+    iWon: false,
+    myGames: 1,
+    opponentGames: 2,
+    games: [
+      { myScore: 11, opponentScore: 8 },
+      { myScore: 9, opponentScore: 11 },
+      { myScore: 10, opponentScore: 12 },
+    ],
+    submittedAt: new Date(Date.now() - 35 * 60 * 1000).toISOString(),
+  },
+];
+
+const doublesAwaitingOpponents: DoublesPendingMatch[] = [
+  {
+    matchId: 'dspm1',
+    partnerName: 'Ana',
+    opponentNames: ['Fei', 'Gabi'],
+    submitterName: 'You',
+    iWon: true,
+    myGames: 2,
+    opponentGames: 0,
+    games: [
+      { myScore: 11, opponentScore: 6 },
+      { myScore: 11, opponentScore: 9 },
+    ],
+    submittedAt: new Date(Date.now() - 90 * 60 * 1000).toISOString(),
+  },
+];
+
+export const demoDoublesToConfirm = (): DoublesPendingMatch[] => [...doublesToConfirm];
+
+export const demoDoublesAwaitingOpponents = (): DoublesPendingMatch[] => [...doublesAwaitingOpponents];
+
+export function demoSubmitDoublesMatch(): { matchId: string; status: 'pending' } {
+  // Like demoSubmitMatch: it waits on the opponents, so no list changes here.
+  return { matchId: `dm-${Date.now()}`, status: 'pending' };
+}
+
+export function demoConfirmDoubles(
+  matchId: string,
+  action: 'confirm' | 'decline',
+): { status: string; yourTeam?: { delta: number; rating: number; rd: number } } {
+  const match = doublesToConfirm.find((m) => m.matchId === matchId);
+  doublesToConfirm = doublesToConfirm.filter((m) => m.matchId !== matchId);
+  if (action !== 'confirm' || !match) {
+    return { status: action === 'confirm' ? 'confirmed' : 'rejected' };
+  }
+  const team = teams.find((t) => t.id === 't3')!; // You & Emil
+  const delta = match.iWon ? 16 : -13;
+  team.matches += 1;
+  team.rating += delta;
+  team.rd = Math.max(40, team.rd - 6);
+  if (match.iWon) team.wins += 1;
+  else team.losses += 1;
+  return { status: 'confirmed', yourTeam: { delta, rating: team.rating, rd: team.rd } };
 }
 
 // --- tournaments -------------------------------------------------------------

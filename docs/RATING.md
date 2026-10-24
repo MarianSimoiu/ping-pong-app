@@ -189,3 +189,27 @@ wins every match):
 
 `points.test.ts` asserts these exact values, and that each participant is placed
 exactly once. At tier 2 every number doubles (champion 200, runner-up 120, …).
+
+---
+
+## 5. Doubles (2v2): team ratings
+
+Doubles is ranked by **team**, not by player. A team is a pair of players: it's
+created automatically the first time the pair records a match, and has its own
+Glicko-2 rating, separate from both players' singles ratings (Ana & Ben and
+Ana & Cris are different teams). Implemented in
+[`_shared/doubles.ts`](../supabase/functions/_shared/doubles.ts) and asserted by
+`doubles.test.ts`.
+
+- **Same math as singles.** `computeTeamRatingUpdate` runs the team-vs-team match
+  through the singles engine (`computeRatingUpdate`), keyed by team id: a team
+  starts at **1500 / RD 350 / σ 0.06**, and two new teams produce exactly worked
+  example C (winner → 1662.31, loser → 1337.69).
+- **Inactivity decay** (§2.4) applies per team, from the team's last match.
+- **Repeat-opponent guard** (§2.3) counts confirmed matches between the **same
+  two teams** in the last 24 h.
+- **Confirmation:** either of the two opponents confirms (or declines); the
+  submitter's team can't.
+- **Leaderboard:** a team is ranked after **3 confirmed matches** together (the
+  app's `MIN_MATCHES_FOR_LEADERBOARD`, as in singles).
+- Doubles matches never change singles ratings, and don't earn season points.

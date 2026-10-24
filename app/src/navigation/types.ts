@@ -6,7 +6,7 @@ export type TabParamList = {
   Home: NavigatorScreenParams<HomeStackParamList>;
   Leaderboard: NavigatorScreenParams<LeaderboardStackParamList>;
   Tournaments: NavigatorScreenParams<TournamentsStackParamList>;
-  Doubles: undefined;
+  Doubles: NavigatorScreenParams<DoublesStackParamList>;
   Profile: NavigatorScreenParams<ProfileStackParamList>;
 };
 
@@ -56,3 +56,13 @@ export type TournamentsStackParamList = {
 
 export type TournamentsStackScreenProps<T extends keyof TournamentsStackParamList> =
   NativeStackScreenProps<TournamentsStackParamList, T>;
+
+// The Doubles tab is a stack: the hub -> record a doubles match / how it works.
+export type DoublesStackParamList = {
+  DoublesHome: undefined;
+  RecordDoublesMatch: undefined;
+  HowRatingsWork: undefined;
+};
+
+export type DoublesStackScreenProps<T extends keyof DoublesStackParamList> =
+  NativeStackScreenProps<DoublesStackParamList, T>;
