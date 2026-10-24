@@ -44,7 +44,14 @@ export const linking: LinkingOptions<TabParamList> = {
           },
         },
       },
-      Doubles: 'doubles',
+      Doubles: {
+        initialRouteName: 'DoublesHome',
+        screens: {
+          DoublesHome: 'doubles',
+          RecordDoublesMatch: 'doubles/record',
+          HowRatingsWork: 'doubles/how-ratings-work',
+        },
+      },
       Profile: {
         initialRouteName: 'Account',
         screens: {

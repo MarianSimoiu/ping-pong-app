@@ -13,9 +13,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AwaitingOpponentList } from '@/components/AwaitingOpponentList';
 import { Avatar } from '@/components/Avatar';
+import { DoublesMatchCard, useDoublesConfirm } from '@/components/DoublesMatchCard';
 import { useAuth } from '@/context/AuthContext';
 import { pickDeclineLine, pickHomeTip, pickMatchResultLine, pickPendingLine } from '@/lib/commentary';
 import { MIN_MATCHES_FOR_LEADERBOARD } from '@/lib/constants';
+import { fetchDoublesToConfirm, type DoublesPendingMatch } from '@/lib/doubles';
 import { formatTimestamp } from '@/lib/format';
 import { fetchLeaderboard } from '@/lib/leaderboard';
 import { confirmMatch, fetchPendingConfirmations, fetchSubmittedPending } from '@/lib/matches';
@@ -40,6 +42,7 @@ export function HomeScreen({ navigation }: HomeStackScreenProps<'Home'>) {
   const [rank, setRank] = useState<number | null>(null);
   const [pending, setPending] = useState<PendingMatch[]>([]);
   const [submittedPending, setSubmittedPending] = useState<SubmittedPendingMatch[]>([]);
+  const [doublesToConfirm, setDoublesToConfirm] = useState<DoublesPendingMatch[]>([]);
   const [actingId, setActingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -53,18 +56,21 @@ export function HomeScreen({ navigation }: HomeStackScreenProps<'Home'>) {
       const p = await fetchMyProfile(session.user.id);
       setProfile(p);
       if (p) {
-        const [leaderboard, toConfirm, submitted] = await Promise.all([
+        const [leaderboard, toConfirm, submitted, doubles] = await Promise.all([
           fetchLeaderboard(),
           fetchPendingConfirmations(p.id),
           fetchSubmittedPending(p.id),
+          fetchDoublesToConfirm(p.id),
         ]);
         setRank(leaderboard.find((entry) => entry.playerId === p.id)?.rank ?? null);
         setPending(toConfirm);
         setSubmittedPending(submitted);
+        setDoublesToConfirm(doubles);
       } else {
         setRank(null);
         setPending([]);
         setSubmittedPending([]);
+        setDoublesToConfirm([]);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load profile');
@@ -72,6 +78,8 @@ export function HomeScreen({ navigation }: HomeStackScreenProps<'Home'>) {
       setLoading(false);
     }
   }, [session]);
+
+  const doubles = useDoublesConfirm(load);
 
   const act = useCallback(
     async (match: PendingMatch, action: 'confirm' | 'decline') => {
@@ -176,7 +184,7 @@ export function HomeScreen({ navigation }: HomeStackScreenProps<'Home'>) {
           </View>
         )}
 
-        {pending.length > 0 && (
+        {pending.length + doublesToConfirm.length > 0 && (
           <View style={styles.pendingSection}>
             <Text style={styles.pendingHeader}>Awaiting your confirmation</Text>
             {pending.map((m) => (
@@ -217,6 +225,15 @@ export function HomeScreen({ navigation }: HomeStackScreenProps<'Home'>) {
                   </Pressable>
                 </View>
               </View>
+            ))}
+            {doublesToConfirm.map((m) => (
+              <DoublesMatchCard
+                key={m.matchId}
+                match={m}
+                busy={doubles.actingId === m.matchId}
+                onConfirm={() => doubles.act(m, 'confirm')}
+                onDecline={() => doubles.act(m, 'decline')}
+              />
             ))}
           </View>
         )}

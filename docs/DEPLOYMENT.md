@@ -40,6 +40,8 @@ supabase functions serve   # serves the Edge Functions locally
    supabase functions deploy confirm-match
    supabase functions deploy create-tournament
    supabase functions deploy submit-tournament-match
+   supabase functions deploy submit-doubles-match
+   supabase functions deploy confirm-doubles-match
    ```
 
    Or skip the local CLI entirely: the **Deploy Supabase** GitHub workflow
@@ -87,6 +89,7 @@ the app is actually reachable:
 | `0007_freeform_casual_matches.sql` | casual matches record however many games were played |
 | `0008_player_records.sql` | `player_records` view (win/loss counted in the database) |
 | `0009_admins.sql` | `admins` (who can create tournaments) |
+| `0010_doubles.sql` | 2v2: `teams` (one per pair, with its own rating), `doubles_matches`, `doubles_games`, `team_rating_events`, `team_records`, and the pending/confirm/decline RPCs |
 
 ### Admins
 

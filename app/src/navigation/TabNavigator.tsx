@@ -2,12 +2,12 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import React from 'react';
 import { Text } from 'react-native';
 
+import { DoublesStack } from '@/navigation/DoublesStack';
 import { HomeStack } from '@/navigation/HomeStack';
 import { LeaderboardStack } from '@/navigation/LeaderboardStack';
 import { ProfileStack } from '@/navigation/ProfileStack';
 import { TournamentsStack } from '@/navigation/TournamentsStack';
 import type { TabParamList } from '@/navigation/types';
-import { DoublesScreen } from '@/screens/DoublesScreen';
 import { useTheme } from '@/theme';
 
 const Tab = createBottomTabNavigator<TabParamList>();
@@ -40,7 +40,7 @@ export function TabNavigator() {
       <Tab.Screen name="Home" component={HomeStack} options={{ headerShown: false }} />
       <Tab.Screen name="Leaderboard" component={LeaderboardStack} options={{ headerShown: false }} />
       <Tab.Screen name="Tournaments" component={TournamentsStack} options={{ headerShown: false }} />
-      <Tab.Screen name="Doubles" component={DoublesScreen} options={{ headerShown: false }} />
+      <Tab.Screen name="Doubles" component={DoublesStack} options={{ headerShown: false }} />
       <Tab.Screen name="Profile" component={ProfileStack} options={{ headerShown: false }} />
     </Tab.Navigator>
   );
