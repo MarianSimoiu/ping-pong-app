@@ -11,7 +11,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/Avatar';
+import { TeamAvatars } from '@/components/TeamAvatars';
 import { MIN_MATCHES_FOR_LEADERBOARD } from '@/lib/constants';
+import { fetchTeamLeaderboard, teamName, type RankedTeam } from '@/lib/doubles';
 import {
   fetchLeaderboard,
   fetchSeasonStandings,
@@ -21,7 +23,7 @@ import {
 import type { LeaderboardStackScreenProps } from '@/navigation/types';
 import { radius, spacing, useTheme, type Colors } from '@/theme';
 
-type Tab = 'skill' | 'season';
+type Tab = 'skill' | 'season' | 'doubles';
 
 const MEDALS = ['🥇', '🥈', '🥉'] as const;
 // Top-3 get a medal in place of the plain rank number.
@@ -33,6 +35,7 @@ export function LeaderboardScreen({ navigation }: LeaderboardStackScreenProps<'L
   const [tab, setTab] = useState<Tab>('skill');
   const [skill, setSkill] = useState<LeaderboardEntry[]>([]);
   const [season, setSeason] = useState<SeasonEntry[]>([]);
+  const [doubles, setDoubles] = useState<RankedTeam[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -41,7 +44,8 @@ export function LeaderboardScreen({ navigation }: LeaderboardStackScreenProps<'L
     try {
       setError(null);
       if (which === 'skill') setSkill(await fetchLeaderboard());
-      else setSeason(await fetchSeasonStandings());
+      else if (which === 'season') setSeason(await fetchSeasonStandings());
+      else setDoubles(await fetchTeamLeaderboard());
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load leaderboard');
     } finally {
@@ -75,6 +79,7 @@ export function LeaderboardScreen({ navigation }: LeaderboardStackScreenProps<'L
       <View style={styles.tabs}>
         <TabButton label="Skill rating" active={tab === 'skill'} onPress={() => setTab('skill')} />
         <TabButton label="Season points" active={tab === 'season'} onPress={() => setTab('season')} />
+        <TabButton label="Doubles" active={tab === 'doubles'} onPress={() => setTab('doubles')} />
       </View>
 
       {loading ? (
@@ -111,32 +116,62 @@ export function LeaderboardScreen({ navigation }: LeaderboardStackScreenProps<'L
             )}
           />
         )
-      ) : season.length === 0 ? (
+      ) : tab === 'season' ? (
+        season.length === 0 ? (
+          <Empty
+            emoji="🎾"
+            text="No season points yet. Points are earned by placing in tournaments and count over a rolling 52-week window."
+          />
+        ) : (
+          <FlatList
+            data={season}
+            keyExtractor={(e) => e.playerId}
+            contentContainerStyle={styles.list}
+            renderItem={({ item }) => (
+              <Pressable style={styles.row} onPress={() => openProfile(item.playerId, item.displayName)}>
+                <Text style={styles.rank}>{rankLabel(item.rank)}</Text>
+                <View style={styles.rowMain}>
+                  <View style={styles.nameLine}>
+                    <Avatar uri={item.avatarUrl} name={item.displayName} size={20} />
+                    <Text style={styles.rowName} numberOfLines={1}>
+                      {item.displayName}
+                    </Text>
+                  </View>
+                  <Text style={styles.rowMeta}>
+                    {item.events} {item.events === 1 ? 'result' : 'results'} counted
+                  </Text>
+                </View>
+                <Text style={styles.rowValue}>{item.points}</Text>
+              </Pressable>
+            )}
+          />
+        )
+      ) : doubles.length === 0 ? (
         <Empty
-          emoji="🎾"
-          text="No season points yet. Points are earned by placing in tournaments and count over a rolling 52-week window."
+          emoji="🤝"
+          text={`No ranked teams yet. A team appears once it has played at least ${MIN_MATCHES_FOR_LEADERBOARD} matches together.`}
         />
       ) : (
         <FlatList
-          data={season}
-          keyExtractor={(e) => e.playerId}
+          data={doubles}
+          keyExtractor={(t) => t.id}
           contentContainerStyle={styles.list}
           renderItem={({ item }) => (
-            <Pressable style={styles.row} onPress={() => openProfile(item.playerId, item.displayName)}>
+            <View style={styles.row}>
               <Text style={styles.rank}>{rankLabel(item.rank)}</Text>
               <View style={styles.rowMain}>
                 <View style={styles.nameLine}>
-                  <Avatar uri={item.avatarUrl} name={item.displayName} size={20} />
+                  <TeamAvatars team={item} />
                   <Text style={styles.rowName} numberOfLines={1}>
-                    {item.displayName}
+                    {teamName(item)}
                   </Text>
                 </View>
                 <Text style={styles.rowMeta}>
-                  {item.events} {item.events === 1 ? 'result' : 'results'} counted
+                  ± {Math.round(item.rd)} · {item.matchesPlayed} matches · {item.wins}-{item.losses}
                 </Text>
               </View>
-              <Text style={styles.rowValue}>{item.points}</Text>
-            </Pressable>
+              <Text style={styles.rowValue}>{Math.round(item.rating)}</Text>
+            </View>
           )}
         />
       )}
@@ -192,11 +227,13 @@ function createStyles(colors: Colors) {
       borderRadius: radius.md,
       backgroundColor: colors.surface,
       alignItems: 'center',
+      // Centered both ways, so a label that wraps on a narrow phone still looks even.
+      justifyContent: 'center',
       borderWidth: 1,
       borderColor: colors.border,
     },
     tabActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-    tabText: { color: colors.textMuted, fontSize: 14, fontWeight: '600' },
+    tabText: { color: colors.textMuted, fontSize: 14, fontWeight: '600', textAlign: 'center' },
     tabTextActive: { color: colors.primaryText },
     list: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xl },
     row: {

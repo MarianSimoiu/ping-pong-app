@@ -108,9 +108,14 @@ export function HowRatingsWorkScreen() {
           </Bullet>
           <Bullet>Either of the two opponents confirms the match; if one declines, it never counts.</Bullet>
           <Bullet>
-            A team appears on the team leaderboard (Doubles tab) after {N} confirmed matches together.
+            A team appears on the team leaderboard after {N} confirmed matches together. It's under
+            Doubles on the Leaderboard tab, and in the Doubles tab.
           </Bullet>
           <Bullet>The same two teams playing again within 24 hours count less, as in singles.</Bullet>
+          <Bullet>
+            Doubles matches don't change your singles rating and don't earn season points, which come
+            only from tournaments.
+          </Bullet>
         </Section>
 
         <Section title="Tournaments and season points">

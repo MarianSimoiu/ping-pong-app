@@ -211,5 +211,6 @@ Ana & Cris are different teams). Implemented in
 - **Confirmation:** either of the two opponents confirms (or declines); the
   submitter's team can't.
 - **Leaderboard:** a team is ranked after **3 confirmed matches** together (the
-  app's `MIN_MATCHES_FOR_LEADERBOARD`, as in singles).
+  app's `MIN_MATCHES_FOR_LEADERBOARD`, as in singles). The team leaderboard is
+  under Doubles on the Leaderboard tab, and in the Doubles tab.
 - Doubles matches never change singles ratings, and don't earn season points.

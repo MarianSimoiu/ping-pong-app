@@ -3,8 +3,8 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Avatar } from '@/components/Avatar';
 import { DoublesMatchCard, useDoublesConfirm } from '@/components/DoublesMatchCard';
+import { TeamAvatars } from '@/components/TeamAvatars';
 import { useAuth } from '@/context/AuthContext';
 import { MIN_MATCHES_FOR_LEADERBOARD } from '@/lib/constants';
 import {
@@ -140,7 +140,7 @@ export function DoublesScreen({ navigation }: DoublesStackScreenProps<'DoublesHo
                     <Text style={styles.rank}>{rankLabel(t.rank)}</Text>
                     <View style={styles.rowMain}>
                       <View style={styles.nameLine}>
-                        <TeamAvatars team={t} styles={styles} />
+                        <TeamAvatars team={t} />
                         <Text style={styles.rowName} numberOfLines={1}>
                           {teamName(t)}
                         </Text>
@@ -165,7 +165,7 @@ export function DoublesScreen({ navigation }: DoublesStackScreenProps<'DoublesHo
                     <View key={t.id} style={styles.row}>
                       <View style={styles.rowMain}>
                         <View style={styles.nameLine}>
-                          <TeamAvatars team={t} styles={styles} />
+                          <TeamAvatars team={t} />
                           <Text style={styles.rowName} numberOfLines={1}>
                             {myTeamName(t)}
                           </Text>
@@ -190,17 +190,6 @@ export function DoublesScreen({ navigation }: DoublesStackScreenProps<'DoublesHo
         )}
       </ScrollView>
     </SafeAreaView>
-  );
-}
-
-function TeamAvatars({ team, styles }: { team: Team; styles: ReturnType<typeof createStyles> }) {
-  return (
-    <View style={styles.avatars}>
-      <Avatar uri={team.members[0].avatarUrl} name={team.members[0].name} size={20} />
-      <View style={styles.secondAvatar}>
-        <Avatar uri={team.members[1].avatarUrl} name={team.members[1].name} size={20} />
-      </View>
-    </View>
   );
 }
 
@@ -249,8 +238,6 @@ function createStyles(colors: Colors) {
     rank: { color: colors.textMuted, fontSize: 16, fontWeight: '700', width: 28 },
     rowMain: { flex: 1, marginRight: spacing.sm },
     nameLine: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-    avatars: { flexDirection: 'row' },
-    secondAvatar: { marginLeft: -6 },
     rowName: { color: colors.text, fontSize: 16, fontWeight: '600', flexShrink: 1 },
     rowMeta: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
     rowStatus: { color: colors.primary, fontSize: 12, fontWeight: '600', marginTop: 2 },
