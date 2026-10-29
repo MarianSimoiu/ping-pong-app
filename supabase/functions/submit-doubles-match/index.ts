@@ -3,13 +3,16 @@
 // Records a 2v2 doubles match as PENDING. The caller and their partner are one
 // team, the two opponents the other; each pair becomes a team automatically
 // (create_pending_doubles_match). No rating change happens here — one of the
-// opponents must confirm it (see confirm-doubles-match). Game scores are from
-// the caller's team's side: score_a = your team, score_b = the opponents.
+// opponents must confirm it (see confirm-doubles-match), and both get a push
+// notification asking them to. Game scores are from the caller's team's side:
+// score_a = your team, score_b = the opponents.
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
 import { corsHeaders, jsonResponse } from '../_shared/cors.ts';
 import { resolveFreeformMatch, type RawGame } from '../_shared/match.ts';
+import { doublesToConfirm } from '../_shared/messages.ts';
+import { afterResponse, notifyPlayers } from '../_shared/notify.ts';
 
 type Body = { partnerId?: string; opponentIds?: string[]; games?: RawGame[] };
 
@@ -38,7 +41,7 @@ Deno.serve(async (req) => {
 
     const { data: me, error: meErr } = await admin
       .from('players')
-      .select('id')
+      .select('id, display_name')
       .eq('user_id', userData.user.id)
       .single();
     if (meErr || !me) return jsonResponse({ error: 'Player profile not found' }, 404);
@@ -47,7 +50,7 @@ Deno.serve(async (req) => {
     if (new Set([me.id, ...others]).size !== 4) {
       return jsonResponse({ error: 'A doubles match needs four different players' }, 400);
     }
-    const { data: found, error: pErr } = await admin.from('players').select('id').in('id', others);
+    const { data: found, error: pErr } = await admin.from('players').select('id, display_name').in('id', others);
     if (pErr || !found || found.length !== 3) {
       return jsonResponse({ error: 'One or more players were not found' }, 404);
     }
@@ -74,6 +77,24 @@ Deno.serve(async (req) => {
 
     const { data: matchId, error: applyErr } = await admin.rpc('create_pending_doubles_match', { payload });
     if (applyErr) return jsonResponse({ error: applyErr.message }, 500);
+
+    const nameOf = (id: string) => found.find((p) => p.id === id)?.display_name ?? 'Someone';
+    const [o1, o2] = opponentIds;
+    await afterResponse(
+      Promise.all(
+        [[o1, o2], [o2, o1]].map(([recipient, theirPartner]) =>
+          notifyPlayers(admin, [recipient], doublesToConfirm({
+            matchId,
+            submitter: me.display_name,
+            submitterPartner: nameOf(partnerId),
+            yourPartner: nameOf(theirPartner),
+            youWon: outcome.winner === 'b',
+            yourGames: outcome.bWins,
+            theirGames: outcome.aWins,
+          }))
+        ),
+      ),
+    );
 
     return jsonResponse({ matchId, status: 'pending' });
   } catch (e) {

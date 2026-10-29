@@ -12,11 +12,20 @@ import { openInstall, useInstall } from '@/lib/install';
 import { fetchSubmittedPending } from '@/lib/matches';
 import { fetchMyProfile } from '@/lib/players';
 import { showAlert } from '@/lib/platformAlert';
+import { getPushStatus, turnOffPush, turnOnPush, type PushStatus } from '@/lib/push';
 import type { SubmittedPendingMatch } from '@/lib/types';
 import type { ProfileStackScreenProps } from '@/navigation/types';
 import { radius, spacing, useTheme, type Colors } from '@/theme';
 
 type Me = { id: string; displayName: string; avatarUrl: string | null };
+
+const PUSH_HINTS: Record<PushStatus, string> = {
+  on: 'You’ll be notified about matches to confirm, and when yours are confirmed or declined.',
+  off: 'Get notified about matches to confirm, and when yours are confirmed or declined.',
+  blocked: 'Blocked for this app. Allow notifications in your browser or phone settings, then come back.',
+  'needs-install': 'On iPhone and iPad, add the app to your Home Screen first, then turn this on from there.',
+  unsupported: 'This browser can’t show notifications.',
+};
 
 export function ProfileScreen({ navigation }: ProfileStackScreenProps<'Account'>) {
   const { colors, scheme, setDarkMode } = useTheme();
@@ -26,6 +35,8 @@ export function ProfileScreen({ navigation }: ProfileStackScreenProps<'Account'>
   const [busy, setBusy] = useState(false);
   const [me, setMe] = useState<Me | null>(null);
   const [submittedPending, setSubmittedPending] = useState<SubmittedPendingMatch[]>([]);
+  const [push, setPush] = useState<PushStatus | null>(null);
+  const [pushBusy, setPushBusy] = useState(false);
 
   const loadMe = useCallback(async () => {
     if (!session) return;
@@ -45,8 +56,30 @@ export function ProfileScreen({ navigation }: ProfileStackScreenProps<'Account'>
   useFocusEffect(
     useCallback(() => {
       loadMe();
+      // Also catches a permission changed in the phone's settings meanwhile.
+      getPushStatus().then(setPush, () => setPush('unsupported'));
     }, [loadMe]),
   );
+
+  async function handlePushToggle(on: boolean) {
+    if (!session) return;
+    setPushBusy(true);
+    try {
+      const next = on ? await turnOnPush(session.user.id) : await turnOffPush();
+      setPush(next);
+      if (on && next === 'blocked') {
+        showAlert('Notifications blocked', 'You can allow them for this app in your browser or phone settings.');
+      }
+    } catch (e) {
+      showAlert(
+        on ? 'Couldn’t turn on notifications' : 'Couldn’t turn off notifications',
+        e instanceof Error ? e.message : 'Something went wrong',
+      );
+      setPush(await getPushStatus().catch(() => 'off' as const));
+    } finally {
+      setPushBusy(false);
+    }
+  }
 
   async function handleChangePhoto() {
     if (!session || !me) return;
@@ -112,7 +145,7 @@ export function ProfileScreen({ navigation }: ProfileStackScreenProps<'Account'>
 
         <AwaitingOpponentList matches={submittedPending} style={styles.pendingSection} />
 
-        <View style={[styles.card, styles.darkModeRow]}>
+        <View style={[styles.card, styles.toggleRow]}>
           <Text style={styles.value}>Dark mode</Text>
           <Switch
             value={scheme === 'dark'}
@@ -121,6 +154,24 @@ export function ProfileScreen({ navigation }: ProfileStackScreenProps<'Account'>
             thumbColor={colors.surface}
           />
         </View>
+
+        {/* Web only: the installed app and the browser get Web Push. */}
+        {Platform.OS === 'web' && push && (
+          <View style={[styles.card, styles.toggleRow]}>
+            <View style={styles.toggleText}>
+              <Text style={styles.value}>Notifications</Text>
+              <Text style={styles.toggleHint}>{PUSH_HINTS[push]}</Text>
+            </View>
+            <Switch
+              value={push === 'on'}
+              onValueChange={handlePushToggle}
+              disabled={pushBusy || (push !== 'on' && push !== 'off')}
+              trackColor={{ false: colors.border, true: colors.primary }}
+              thumbColor={colors.surface}
+              accessibilityLabel="Notifications"
+            />
+          </View>
+        )}
 
         {me && (
           <Pressable
@@ -178,12 +229,14 @@ function createStyles(colors: Colors) {
     label: { color: colors.textMuted, fontSize: 13 },
     value: { color: colors.text, fontSize: 16, marginTop: spacing.xs },
     pendingSection: { marginTop: spacing.md },
-    darkModeRow: {
+    toggleRow: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
       marginTop: spacing.md,
     },
+    toggleText: { flex: 1, marginRight: spacing.md },
+    toggleHint: { color: colors.textMuted, fontSize: 13, lineHeight: 18, marginTop: spacing.xs },
     linkCard: {
       backgroundColor: colors.surface,
       borderRadius: radius.md,

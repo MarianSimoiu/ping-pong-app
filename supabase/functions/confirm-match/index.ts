@@ -3,13 +3,16 @@
 // The opponent confirms or declines a pending casual match. Only the participant
 // who did NOT submit it may act. On confirm, ratings are computed NOW (using
 // current values + the repeat-opponent guard) and applied atomically; on
-// decline, the match is marked rejected and never affects ratings.
+// decline, the match is marked rejected and never affects ratings. Either way
+// the player who recorded it gets a push notification.
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
 import { corsHeaders, jsonResponse } from '../_shared/cors.ts';
 import { repeatFactor } from '../_shared/glicko2.ts';
 import { computeRatingUpdate, roundRating, type RatingRow } from '../_shared/engine.ts';
+import { gamesWon, singlesConfirmed, singlesDeclined } from '../_shared/messages.ts';
+import { afterResponse, notifyPlayers } from '../_shared/notify.ts';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -39,7 +42,7 @@ Deno.serve(async (req) => {
 
     const { data: caller, error: callerErr } = await admin
       .from('players')
-      .select('id')
+      .select('id, display_name')
       .eq('user_id', userData.user.id)
       .single();
     if (callerErr || !caller) return jsonResponse({ error: 'Player profile not found' }, 404);
@@ -58,9 +61,22 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'Your opponent must confirm the match you submitted' }, 403);
     }
 
+    // The result as the player who recorded it sees it, for their notification.
+    const { data: gameRows } = await admin.from('match_games').select('score_a, score_b').eq('match_id', matchId);
+    const games = gamesWon(gameRows ?? []);
+    const submitterIsA = match.created_by === match.player_a;
+    const submitterResult = {
+      matchId,
+      opponent: caller.display_name,
+      youWon: match.winner_id === match.created_by,
+      yourGames: submitterIsA ? games.a : games.b,
+      theirGames: submitterIsA ? games.b : games.a,
+    };
+
     if (action === 'decline') {
       const { error: rejErr } = await admin.rpc('reject_match', { match_id: matchId });
       if (rejErr) return jsonResponse({ error: rejErr.message }, 500);
+      await afterResponse(notifyPlayers(admin, [match.created_by], singlesDeclined(submitterResult)));
       return jsonResponse({ status: 'rejected' });
     }
 
@@ -95,6 +111,16 @@ Deno.serve(async (req) => {
       payload: { match_id: matchId, events: update.events, ratings: update.ratings },
     });
     if (confirmErr) return jsonResponse({ error: confirmErr.message }, 500);
+
+    const submitterBefore = submitterIsA ? update.aBefore : update.bBefore;
+    const submitterAfter = submitterIsA ? update.aAfter : update.bAfter;
+    await afterResponse(
+      notifyPlayers(admin, [match.created_by], singlesConfirmed({
+        ...submitterResult,
+        delta: Math.round(submitterAfter.rating - submitterBefore.rating),
+        rating: Math.round(submitterAfter.rating),
+      })),
+    );
 
     // The caller is always the confirming (non-submitting) participant, but
     // may be either side of the match — surface their own before/after and

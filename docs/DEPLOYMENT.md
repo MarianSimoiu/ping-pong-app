@@ -42,6 +42,7 @@ supabase functions serve   # serves the Edge Functions locally
    supabase functions deploy submit-tournament-match
    supabase functions deploy submit-doubles-match
    supabase functions deploy confirm-doubles-match
+   supabase functions deploy push-subscription
    ```
 
    Or skip the local CLI entirely: the **Deploy Supabase** GitHub workflow
@@ -56,7 +57,9 @@ supabase functions serve   # serves the Edge Functions locally
 
 3. **No function secrets to set.** The functions read `SUPABASE_URL`,
    `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY`, which Supabase injects
-   automatically into deployed Edge Functions.
+   automatically into deployed Edge Functions. Push notifications need no
+   setup either: the server creates its own signing keys (in `push_keys`) the
+   first time someone turns notifications on.
 4. Grab the project's **API URL** and **anon key** from Project Settings → API for
    the app's `.env`. Never put the **service role** key in the app.
 
@@ -90,6 +93,7 @@ the app is actually reachable:
 | `0008_player_records.sql` | `player_records` view (win/loss counted in the database) |
 | `0009_admins.sql` | `admins` (who can create tournaments) |
 | `0010_doubles.sql` | 2v2: `teams` (one per pair, with its own rating), `doubles_matches`, `doubles_games`, `team_rating_events`, `team_records`, and the pending/confirm/decline RPCs |
+| `0011_push_notifications.sql` | `push_subscriptions` (one per device with notifications on) and `push_keys` (the server's own key pair), both invisible to the app |
 
 ### Admins
 

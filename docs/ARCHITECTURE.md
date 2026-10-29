@@ -98,6 +98,24 @@ updates, computed by `_shared/doubles.ts` through the same engine) or decline
 (`reject_doubles_match`). The repeat guard counts confirmed matches between the
 same two teams in the last 24 h. See docs/RATING.md §5.
 
+### Push notifications
+
+Players switch notifications on per device in Profile. That's web only (the
+browser or the installed app); on iPhone/iPad only the Home Screen app can get
+them, iOS 16.4+. `app/src/lib/push.ts` asks for permission and subscribes
+through the service worker (`app/public/sw.js`, which shows each notification
+and opens the app on its page when tapped); the `push-subscription` Edge
+Function stores the device in `push_subscriptions`
+(`0011_push_notifications.sql`, invisible to the app). Signing out turns them
+off on that device. `submit-match`, `confirm-match`, `submit-doubles-match`
+and `confirm-doubles-match` then notify the players involved
+(`_shared/notify.ts`, texts in `_shared/messages.ts`): a match to confirm, or
+a match they recorded confirmed (with the rating change) or declined. Sending
+is standard Web Push (`_shared/webpush.ts`: RFC 8291 encryption and VAPID,
+Web Crypto only), signed with a key pair the server creates on first use and
+keeps in `push_keys`. A subscription the push service reports as gone is
+deleted.
+
 ## Security model (Row-Level Security)
 
 - Any **authenticated** user can **read** `players` and `player_ratings`

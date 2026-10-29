@@ -85,6 +85,10 @@ export function HowRatingsWorkScreen() {
             see it under "Awaiting your confirmation". If they decline, it never counts. Matches
             you're waiting on show under "Awaiting opponent's confirmation".
           </P>
+          <P>
+            Turn on <B>Notifications</B> in Profile to be told when someone records a match against
+            you, and when yours is confirmed or declined.
+          </P>
         </Section>
 
         <Section title="Playing the same person a lot">
