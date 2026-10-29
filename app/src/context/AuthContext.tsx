@@ -9,6 +9,7 @@ import React, {
 
 import { DEMO } from '@/lib/env';
 import { DEMO_ME } from '@/lib/demo';
+import { syncPush, turnOffPush } from '@/lib/push';
 import { supabase } from '@/lib/supabase';
 
 export type SignUpResult = { needsEmailConfirmation: boolean };
@@ -47,6 +48,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => sub.subscription.unsubscribe();
   }, []);
 
+  // Keeps this device's push notifications with whoever is signed in.
+  const userId = session?.user.id;
+  useEffect(() => {
+    if (userId) syncPush(userId);
+  }, [userId]);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       session,
@@ -69,6 +76,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { needsEmailConfirmation: !data.session };
       },
       async signOut() {
+        // This device stops getting the player's notifications (a shared
+        // phone shouldn't keep receiving them).
+        await turnOffPush().catch(() => {});
         const { error } = await supabase.auth.signOut();
         if (error) throw error;
       },

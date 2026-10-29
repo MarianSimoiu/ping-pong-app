@@ -125,11 +125,19 @@ export async function promptInstall() {
   }
 }
 
-function runningAsInstalledApp(): boolean {
+export function runningAsInstalledApp(): boolean {
   return (
     window.matchMedia('(display-mode: standalone)').matches ||
     window.matchMedia('(display-mode: fullscreen)').matches ||
     (navigator as Navigator & { standalone?: boolean }).standalone === true
+  );
+}
+
+export function isIosDevice(): boolean {
+  // iPadOS Safari reports itself as a Mac; touch support gives it away.
+  return (
+    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
   );
 }
 
@@ -140,9 +148,7 @@ if (Platform.OS === 'web' && typeof window !== 'undefined') {
 
   if (!runningAsInstalledApp()) {
     const ua = navigator.userAgent;
-    // iPadOS Safari reports itself as a Mac; touch support gives it away.
-    const isIos =
-      /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const isIos = isIosDevice();
     const isAndroid = /Android/.test(ua);
     isPhoneOrTablet = isIos || isAndroid;
 

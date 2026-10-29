@@ -3,12 +3,15 @@
 // Records a CASUAL 1v1 match as PENDING. No rating change happens here — the
 // opponent must confirm the match (see confirm-match), and ratings are computed
 // at confirmation time. The caller submits their opponent and per-game scores
-// (from their perspective: score_a = you, score_b = opponent).
+// (from their perspective: score_a = you, score_b = opponent). The opponent
+// gets a push notification asking them to confirm it.
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
 import { corsHeaders, jsonResponse } from '../_shared/cors.ts';
 import { resolveFreeformMatch, type RawGame } from '../_shared/match.ts';
+import { singlesToConfirm } from '../_shared/messages.ts';
+import { afterResponse, notifyPlayers } from '../_shared/notify.ts';
 
 type Body = { opponentId?: string; games?: RawGame[] };
 
@@ -36,7 +39,7 @@ Deno.serve(async (req) => {
 
     const { data: me, error: meErr } = await admin
       .from('players')
-      .select('id')
+      .select('id, display_name')
       .eq('user_id', userData.user.id)
       .single();
     if (meErr || !me) return jsonResponse({ error: 'Player profile not found' }, 404);
@@ -71,6 +74,16 @@ Deno.serve(async (req) => {
 
     const { data: matchId, error: applyErr } = await admin.rpc('create_pending_match', { payload });
     if (applyErr) return jsonResponse({ error: applyErr.message }, 500);
+
+    await afterResponse(
+      notifyPlayers(admin, [opponent.id], singlesToConfirm({
+        matchId,
+        submitter: me.display_name,
+        youWon: outcome.winner === 'b',
+        yourGames: outcome.bWins,
+        theirGames: outcome.aWins,
+      })),
+    );
 
     return jsonResponse({ matchId, status: 'pending' });
   } catch (e) {
