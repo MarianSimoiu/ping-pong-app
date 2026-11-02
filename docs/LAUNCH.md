@@ -26,7 +26,8 @@ comfortably; email is the only real blocker.
 
 - [ ] Search box in the opponent/partner picker (today every player is a
   button).
-- [ ] "Forgot password?" on the sign-in screen (needs the email setup).
+- [x] "Forgot password?" on the sign-in screen. It needs the email setup, and
+  the Site URL / Redirect URLs above so the emailed link opens the app.
 - [ ] Unique player names that players can edit.
 
 ### Data safety
@@ -61,8 +62,9 @@ Use a separate Gmail made for the app, not a personal one.
    - Sender email: the Gmail address; sender name: Ping Pong
    - Host `smtp.gmail.com`, port `587`
    - Username: the Gmail address; password: the App Password (no spaces)
-4. Test: sign up with a second address and check the email arrives (and
-   spam the first time).
+4. Test: tap "Forgot password?" on the sign-in screen (or sign up with a
+   second address) and check the email arrives, looking in spam the first
+   time. The reset link should open the app on "Choose a new password".
 
 Changing that Google password or turning off 2-Step Verification cancels the
 App Password: make a new one and update it in Supabase. If emails stop, look

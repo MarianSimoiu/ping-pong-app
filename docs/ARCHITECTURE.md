@@ -136,7 +136,8 @@ lib/commentary.ts   Hype play-by-play line pools + pickers (match result, champi
 lib/avatar.ts       Uploads a picked photo to the `avatars` Storage bucket and
                     writes its public URL to players.avatar_url
 lib/                players, matches, leaderboard, tournaments data-access helpers
-context/AuthContext Session state + sign-in / sign-up / sign-out helpers
+context/AuthContext Session state + sign-in / sign-up / sign-out / password-reset helpers;
+                    signs in from email links (lib/authLink.ts reads them from the URL)
 navigation/         Root switch (auth vs app), bottom tabs, and per-tab stacks
 screens/            SignIn, Home, SubmitMatch, Leaderboard, PlayerProfile,
                     Tournaments, Profile

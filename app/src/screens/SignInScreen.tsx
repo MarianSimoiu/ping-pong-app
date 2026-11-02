@@ -15,11 +15,25 @@ import { useAuth } from '@/context/AuthContext';
 import { showAlert } from '@/lib/platformAlert';
 import { radius, spacing, useTheme, type Colors } from '@/theme';
 
+type Mode = 'signIn' | 'signUp' | 'reset';
+
+const SUBTITLES: Record<Mode, string> = {
+  signIn: 'Welcome back',
+  signUp: 'Create your account',
+  reset: 'Reset your password',
+};
+
+const BUTTONS: Record<Mode, string> = {
+  signIn: 'Sign in',
+  signUp: 'Sign up',
+  reset: 'Send reset link',
+};
+
 export function SignInScreen() {
   const { colors, statusBarStyle } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { signIn, signUp } = useAuth();
-  const [mode, setMode] = useState<'signIn' | 'signUp'>('signIn');
+  const { signIn, signUp, sendPasswordReset, linkError, dismissLinkError } = useAuth();
+  const [mode, setMode] = useState<Mode>('signIn');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
@@ -30,19 +44,34 @@ export function SignInScreen() {
   const [notice, setNotice] = useState<string | null>(null);
 
   const isSignUp = mode === 'signUp';
+  const isReset = mode === 'reset';
+  // An email link that didn't work (expired, already used) explains itself here.
+  const shownError = error ?? linkError;
 
-  function switchMode(next: 'signIn' | 'signUp') {
+  function switchMode(next: Mode) {
     setMode(next);
     setError(null);
     setNotice(null);
+    dismissLinkError();
   }
 
   async function submit() {
     setError(null);
     setNotice(null);
+    dismissLinkError();
+    if (isReset && !email.trim()) {
+      setError('Enter your email first.');
+      return;
+    }
     setBusy(true);
     try {
-      if (isSignUp) {
+      if (isReset) {
+        await sendPasswordReset(email.trim());
+        setNotice(
+          `If ${email.trim()} has an account, we've sent it a link to choose a new password. ` +
+            'It can take a minute; check your spam folder too. The link works once.',
+        );
+      } else if (isSignUp) {
         const { needsEmailConfirmation } = await signUp(
           email.trim(),
           password,
@@ -50,10 +79,9 @@ export function SignInScreen() {
         );
         if (needsEmailConfirmation) {
           const message =
-            `We sent a confirmation link to ${email.trim()}. Click it, then come back ` +
-            "here and sign in. If the link shows a browser error afterward (like " +
-            '"can\'t reach this page"), that\'s OK — your email is still confirmed, ' +
-            'just come back here.';
+            `We sent a confirmation link to ${email.trim()}. Open it to finish signing up: ` +
+            'it brings you back here, signed in. Check your spam folder if it doesn’t arrive ' +
+            'within a minute.';
           showAlert('Check your email', message);
           setNotice(message);
           setMode('signIn');
@@ -79,9 +107,7 @@ export function SignInScreen() {
       <StatusBar style={statusBarStyle} />
       <View style={styles.card}>
         <Text style={styles.title}>🏓 Ping Pong</Text>
-        <Text style={styles.subtitle}>
-          {isSignUp ? 'Create your account' : 'Welcome back'}
-        </Text>
+        <Text style={styles.subtitle}>{SUBTITLES[mode]}</Text>
 
         {isSignUp && (
           <TextInput
@@ -104,26 +130,37 @@ export function SignInScreen() {
           onChangeText={setEmail}
         />
 
-        <TextInput
-          style={styles.input}
-          placeholder="Password"
-          placeholderTextColor={colors.textMuted}
-          secureTextEntry
-          value={password}
-          onChangeText={setPassword}
-        />
+        {!isReset && (
+          <TextInput
+            style={styles.input}
+            placeholder="Password"
+            placeholderTextColor={colors.textMuted}
+            secureTextEntry
+            value={password}
+            onChangeText={setPassword}
+          />
+        )}
+
+        {mode === 'signIn' && (
+          <Pressable onPress={() => switchMode('reset')} style={styles.forgot} hitSlop={8}>
+            <Text style={styles.forgotText}>Forgot password?</Text>
+          </Pressable>
+        )}
 
         {isSignUp && (
           <Text style={styles.hint}>
-            Depending on how this app is set up, you may need to confirm your
-            email (check your inbox) before you can sign in. The confirmation
-            link may land on a browser error page during setup — that's
-            expected, your email still gets confirmed.
+            You'll get an email to confirm your address before you can sign in.
+          </Text>
+        )}
+
+        {isReset && (
+          <Text style={styles.hint}>
+            Enter your account's email and we'll send you a link to choose a new password.
           </Text>
         )}
 
         {notice && <Text style={styles.notice}>{notice}</Text>}
-        {error && <Text style={styles.error}>{error}</Text>}
+        {shownError && <Text style={styles.error}>{shownError}</Text>}
 
         <Pressable
           style={[styles.button, busy && styles.buttonDisabled]}
@@ -133,15 +170,17 @@ export function SignInScreen() {
           {busy ? (
             <ActivityIndicator color={colors.primaryText} />
           ) : (
-            <Text style={styles.buttonText}>{isSignUp ? 'Sign up' : 'Sign in'}</Text>
+            <Text style={styles.buttonText}>{BUTTONS[mode]}</Text>
           )}
         </Pressable>
 
-        <Pressable onPress={() => switchMode(isSignUp ? 'signIn' : 'signUp')}>
+        <Pressable onPress={() => switchMode(mode === 'signIn' ? 'signUp' : 'signIn')}>
           <Text style={styles.switch}>
-            {isSignUp
-              ? 'Already have an account? Sign in'
-              : "New here? Create an account"}
+            {mode === 'signIn'
+              ? 'New here? Create an account'
+              : isSignUp
+                ? 'Already have an account? Sign in'
+                : 'Back to sign in'}
           </Text>
         </Pressable>
       </View>
@@ -192,6 +231,8 @@ function createStyles(colors: Colors) {
     },
     buttonDisabled: { opacity: 0.6 },
     buttonText: { color: colors.primaryText, fontSize: 16, fontWeight: '600' },
+    forgot: { alignSelf: 'flex-end', marginBottom: spacing.sm },
+    forgotText: { color: colors.primary, fontSize: 13 },
     switch: {
       color: colors.primary,
       textAlign: 'center',

@@ -3,6 +3,7 @@ import React, { useMemo } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 
 import { useAuth } from '@/context/AuthContext';
+import { NewPasswordScreen } from '@/screens/NewPasswordScreen';
 import { SignInScreen } from '@/screens/SignInScreen';
 import { useTheme } from '@/theme';
 
@@ -10,7 +11,7 @@ import { linking } from './linking';
 import { TabNavigator } from './TabNavigator';
 
 export function RootNavigator() {
-  const { session, initializing } = useAuth();
+  const { session, initializing, recovering } = useAuth();
   const { colors } = useTheme();
 
   // `DarkTheme` here is just React Navigation's base theme shape (it always
@@ -41,7 +42,7 @@ export function RootNavigator() {
 
   return (
     <NavigationContainer theme={navTheme} linking={linking}>
-      {session ? <TabNavigator /> : <SignInScreen />}
+      {!session ? <SignInScreen /> : recovering ? <NewPasswordScreen /> : <TabNavigator />}
     </NavigationContainer>
   );
 }

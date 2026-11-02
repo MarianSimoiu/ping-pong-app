@@ -79,6 +79,12 @@ the app is actually reachable:
 - Only testing in a Codespace dev server? There's no stable URL to set — the
   error is harmless and expected; deploying to Vercel is the real fix.
 
+With the Site URL set, a confirmation link opens the app already signed in.
+**Password-reset links** ("Forgot password?" on the sign-in screen) depend on
+it too: the app asks Supabase to send people back to its own address, which
+must be the Site URL or listed under **Redirect URLs** on the same page.
+Otherwise the link lands on the wrong page and the reset can't finish.
+
 ### Migrations in this repo
 
 | File | Adds |
