@@ -81,6 +81,12 @@ function scheduleAutoOpen() {
   }, AUTO_OPEN_DELAY_MS);
 }
 
+// Whether the install popup is open, or pops up on its own during this visit.
+// The notifications popup (PushPromptSheet) waits for a visit without it.
+export function installPopupThisVisit(): boolean {
+  return autoOpenScheduled || state.open;
+}
+
 function capturePrompt(event: BeforeInstallPromptEvent) {
   deferredPrompt = event;
   update({ method: 'prompt' });
