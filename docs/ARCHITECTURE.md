@@ -100,9 +100,12 @@ same two teams in the last 24 h. See docs/RATING.md §5.
 
 ### Push notifications
 
-Players switch notifications on per device in Profile. That's web only (the
-browser or the installed app); on iPhone/iPad only the Home Screen app can get
-them, iOS 16.4+. `app/src/lib/push.ts` asks for permission and subscribes
+Players switch notifications on per device in Profile, or from the
+"Turn on notifications?" popup (`components/PushPromptSheet.tsx`) that a
+signed-in player with them off sees a few seconds after opening the app ("Not
+now" hides it for 3 days; never in a visit where the install popup shows).
+That's web only (the browser or the installed app); on iPhone/iPad only the
+Home Screen app can get them, iOS 16.4+. `app/src/lib/push.ts` asks for permission and subscribes
 through the service worker (`app/public/sw.js`, which shows each notification
 and opens the app on its page when tapped); the `push-subscription` Edge
 Function stores the device in `push_subscriptions`

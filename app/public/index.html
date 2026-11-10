@@ -78,10 +78,11 @@
         -webkit-user-select: text;
         user-select: text;
       }
-      /* The install popup (InstallSheet.tsx) moves focus onto its panel when
-         it opens, so keyboard and screen-reader users start inside it. The
-         panel isn't a control, so no focus ring around it. */
-      #install-sheet:focus {
+      /* The install and notification popups (BottomSheet.tsx) move focus onto
+         their panel when they open, so keyboard and screen-reader users start
+         inside it. The panel isn't a control, so no focus ring around it. */
+      #install-sheet:focus,
+      #push-sheet:focus {
         outline: none;
       }
       /* Crisper text rendering on WebKit. */

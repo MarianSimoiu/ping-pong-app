@@ -4,6 +4,7 @@ import { Platform } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { InstallSheet } from '@/components/InstallSheet';
+import { PushPromptSheet } from '@/components/PushPromptSheet';
 import { AuthProvider } from '@/context/AuthContext';
 import { RootNavigator } from '@/navigation/RootNavigator';
 import { ThemeProvider, useTheme } from '@/theme';
@@ -14,7 +15,12 @@ function AppChrome() {
     <>
       <StatusBar style={statusBarStyle} />
       <RootNavigator />
-      {Platform.OS === 'web' && <InstallSheet />}
+      {Platform.OS === 'web' && (
+        <>
+          <InstallSheet />
+          <PushPromptSheet />
+        </>
+      )}
     </>
   );
 }

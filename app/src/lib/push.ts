@@ -26,6 +26,10 @@ export type PushStatus =
 // the same browser doesn't inherit them.
 const OWNER_KEY = 'pingpong.push.owner';
 
+// "Not now" on the notifications popup (PushPromptSheet) hides it this long.
+const PROMPT_SNOOZE_DAYS = 3;
+const PROMPT_SNOOZE_KEY = 'pingpong.pushPrompt.snoozedUntil';
+
 // DEMO mode has no server and no real subscription: the switch just remembers.
 let demoOn = false;
 
@@ -153,5 +157,21 @@ export async function syncPush(userId: string): Promise<void> {
     setOwner(userId);
   } catch {
     // Not critical: the next start tries again.
+  }
+}
+
+export function pushPromptSnoozed(): boolean {
+  try {
+    return Number(localStorage.getItem(PROMPT_SNOOZE_KEY) ?? 0) > Date.now();
+  } catch {
+    return false;
+  }
+}
+
+export function snoozePushPrompt() {
+  try {
+    localStorage.setItem(PROMPT_SNOOZE_KEY, String(Date.now() + PROMPT_SNOOZE_DAYS * 24 * 60 * 60 * 1000));
+  } catch {
+    // Storage unavailable (private mode): the popup may just come back next visit.
   }
 }
