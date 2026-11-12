@@ -89,6 +89,18 @@ export function TierCard({
           {TIER_NAMES[lower]}.
         </Text>
       )}
+      {(badge.seasonLeader || badge.championCount > 0) && (
+        <Text style={styles.honours}>
+          {[
+            badge.seasonLeader ? '👑 Leads the season points' : null,
+            badge.championCount > 0
+              ? `🏆 ${badge.championCount === 1 ? 'Tournament champion' : `${badge.championCount}× tournament champion`}`
+              : null,
+          ]
+            .filter(Boolean)
+            .join(' · ')}
+        </Text>
+      )}
       {tierRank(best) > tierRank(badge.tier) && (
         <Text style={styles.hint}>
           Best: {TIER_EMOJI[best]} {TIER_NAMES[best]}
@@ -118,5 +130,6 @@ function createStyles(colors: Colors) {
     hint: { color: colors.textMuted, fontSize: 13 },
     warn: { color: colors.danger, fontSize: 13 },
     inactive: { color: colors.textMuted, fontSize: 13, fontStyle: 'italic' },
+    honours: { color: colors.text, fontSize: 13, fontWeight: '600' },
   });
 }

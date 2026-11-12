@@ -176,3 +176,38 @@ export function tierPromotion(o: {
     tag: 'tier',
   };
 }
+
+// --- Titles --------------------------------------------------------------------
+
+export type Unlock = { name: string; emoji: string; description: string; tournament?: string };
+
+// To a player who just earned one or more titles (all from one result).
+export function titlesUnlocked(unlocks: Unlock[]): PushMessage {
+  const champion = unlocks.find((u) => u.tournament);
+  const names = unlocks.map((u) => u.name).join(', ');
+  if (champion) {
+    return {
+      title: `Champion of ${champion.tournament} 🏆`,
+      body: unlocks.length > 1
+        ? `New titles: ${names}. A gold laurel now goes around your avatar.`
+        : 'A new title, and a gold laurel now goes around your avatar.',
+      url: '/profile',
+      tag: 'titles',
+    };
+  }
+  if (unlocks.length === 1) {
+    const [u] = unlocks;
+    return {
+      title: `New title: ${u.name} ${u.emoji}`,
+      body: `${u.description}. Show it under your name from your profile.`,
+      url: '/profile',
+      tag: 'titles',
+    };
+  }
+  return {
+    title: `${unlocks.length} new titles`,
+    body: `${names}. Show one under your name from your profile.`,
+    url: '/profile',
+    tag: 'titles',
+  };
+}

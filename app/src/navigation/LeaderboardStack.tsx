@@ -26,7 +26,8 @@ export function LeaderboardStack() {
       <Stack.Screen
         name="PlayerProfile"
         component={PlayerProfileScreen}
-        options={({ route }) => ({ title: route.params.displayName })}
+        // From a link there's no name yet; the screen sets it once loaded.
+        options={({ route }) => ({ title: route.params.displayName ?? 'Player' })}
       />
       <Stack.Screen
         name="HowRatingsWork"

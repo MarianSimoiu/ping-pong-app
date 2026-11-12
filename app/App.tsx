@@ -6,6 +6,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { InstallSheet } from '@/components/InstallSheet';
 import { PushPromptSheet } from '@/components/PushPromptSheet';
 import { TierCelebration } from '@/components/TierCelebration';
+import { TitleCelebration } from '@/components/TitleCelebration';
 import { AuthProvider } from '@/context/AuthContext';
 import { BadgesProvider } from '@/context/BadgesContext';
 import { RootNavigator } from '@/navigation/RootNavigator';
@@ -22,6 +23,7 @@ function AppChrome() {
           <InstallSheet />
           <PushPromptSheet />
           <TierCelebration />
+          <TitleCelebration />
         </>
       )}
     </>

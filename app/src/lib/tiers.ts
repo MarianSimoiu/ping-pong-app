@@ -14,6 +14,10 @@ export type PlayerBadge = {
   bestTier: Tier;
   legend: boolean; // #1 on the leaderboard
   inactive: boolean; // no rated match for 30 days
+  championCount: number; // tournaments won: a gold laurel
+  seasonLeader: boolean; // #1 in season points: a crown
+  title: string | null; // the title they show (0015), if still earned
+  titleLabel: string | null;
 };
 
 export const TIER_NAMES: Record<Tier, string> = {

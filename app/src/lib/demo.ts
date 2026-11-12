@@ -12,6 +12,7 @@ import type {
   TournamentParticipant,
   TournamentSummary,
 } from '@/lib/tournaments';
+import type { Achievement, Trophies } from '@/lib/achievements';
 import { DEFAULT_TIER_LINES, type PlayerBadge, type Tier, type TierLine } from '@/lib/tiers';
 import type { OpponentOption, PendingMatch, PlayerWithRating, SubmittedPendingMatch } from '@/lib/types';
 
@@ -113,6 +114,9 @@ let submittedPending: SubmittedPendingMatch[] = [
   },
 ];
 
+// Numbers each demo bracket (declared before the tournaments below are built).
+let bracketCount = 0;
+
 type TStore = {
   summary: TournamentSummary;
   // While open: who registered, and when (pots are worked out live).
@@ -121,7 +125,7 @@ type TStore = {
   participants: TournamentParticipant[];
   nodes: TournamentNode[];
 };
-const tournaments: TStore[] = [sampleTournament(), openTournament()];
+const tournaments: TStore[] = [finishedTournament(), sampleTournament(), openTournament()];
 
 // --- profile / leaderboard ---------------------------------------------------
 
@@ -349,12 +353,93 @@ export function demoBadges(): { badges: Record<string, PlayerBadge>; lines: Tier
   const tierFor = (rating: number): Tier =>
     [...lines].reverse().find((l) => rating >= l.minRating)?.tier ?? 'bronze';
   const best = [...players].filter((p) => p.matches >= 3).sort((a, b) => b.rating - a.rating)[0];
+  const leader = demoSeasonStandings()[0]?.playerId;
   const badges: Record<string, PlayerBadge> = {};
   for (const p of players) {
     const tier: Tier = p.matches >= 3 ? tierFor(p.rating) : 'unranked';
-    badges[p.id] = { playerId: p.id, tier, bestTier: tier, legend: p.id === best?.id, inactive: p.id === 'p7' };
+    const title = p.id === DEMO_ME ? myTitle : DEMO_TITLES[p.id] ?? null;
+    badges[p.id] = {
+      playerId: p.id,
+      tier,
+      bestTier: tier,
+      legend: p.id === best?.id,
+      inactive: p.id === 'p7',
+      championCount: p.id === 'p2' ? 1 : 0,
+      seasonLeader: p.id === leader,
+      title,
+      titleLabel: title ? titleLabel(title) : null,
+    };
   }
   return { badges, lines };
+}
+
+// --- titles ------------------------------------------------------------------
+// The same catalog as migration 0015; progress made up per player, plus the
+// finished Autumn Open (Ana beat Ben in the final).
+
+const DEMO_CATALOG: Achievement[] = [
+  { code: 'regular', name: 'Regular', description: 'Play 25 matches', emoji: '🏓', target: 25, sort: 10 },
+  { code: 'iron_paddle', name: 'Iron Paddle', description: 'Play 100 matches', emoji: '🛡️', target: 100, sort: 20 },
+  { code: 'social_butterfly', name: 'Social Butterfly', description: 'Play 15 different opponents', emoji: '🦋', target: 15, sort: 30 },
+  { code: 'giant_slayer', name: 'Giant Slayer', description: 'Beat someone rated 150+ points above you', emoji: '🗡️', target: 1, sort: 40 },
+  { code: 'comeback_kid', name: 'Comeback Kid', description: 'Win a match after losing the first two games', emoji: '🔄', target: 1, sort: 50 },
+  { code: 'bagel_baker', name: 'Bagel Baker', description: 'Win a game 11–0', emoji: '🥯', target: 1, sort: 60 },
+  { code: 'deuce_master', name: 'Deuce Master', description: 'Win 10 games that went past 10–10', emoji: '🎯', target: 10, sort: 70 },
+  { code: 'on_fire', name: 'On Fire', description: 'Win 5 matches in a row against 3+ different opponents', emoji: '🔥', target: 5, sort: 80 },
+  { code: 'doubles_dynamo', name: 'Doubles Dynamo', description: 'Win 20 doubles matches', emoji: '🤝', target: 20, sort: 90 },
+  { code: 'finalist', name: 'Finalist', description: 'Reach a tournament final', emoji: '🎖️', target: 1, sort: 100 },
+  { code: 'champion', name: 'Champion', description: 'Win a tournament', emoji: '🏆', target: 1, sort: 110 },
+];
+
+const daysAgo = (d: number) => new Date(Date.now() - d * 864e5).toISOString();
+const DEMO_PROGRESS: Record<string, Record<string, { progress: number; earnedAt: string | null }>> = {
+  [DEMO_ME]: {
+    regular: { progress: 14, earnedAt: null },
+    social_butterfly: { progress: 7, earnedAt: null },
+    giant_slayer: { progress: 1, earnedAt: daysAgo(5) },
+    bagel_baker: { progress: 1, earnedAt: daysAgo(12) },
+    deuce_master: { progress: 6, earnedAt: null },
+    on_fire: { progress: 3, earnedAt: null },
+    doubles_dynamo: { progress: 3, earnedAt: null },
+  },
+  p2: {
+    regular: { progress: 25, earnedAt: daysAgo(60) },
+    iron_paddle: { progress: 41, earnedAt: null },
+    social_butterfly: { progress: 15, earnedAt: daysAgo(40) },
+    deuce_master: { progress: 10, earnedAt: daysAgo(20) },
+    on_fire: { progress: 5, earnedAt: daysAgo(15) },
+  },
+  p3: { regular: { progress: 25, earnedAt: daysAgo(30) }, social_butterfly: { progress: 11, earnedAt: null } },
+};
+const AUTUMN = { tournamentId: 'demo-t0', tournamentName: 'Autumn Open', at: daysAgo(25) };
+const DEMO_HONOURS: Record<string, { won: boolean }> = { p2: { won: true }, p3: { won: false } };
+const DEMO_TITLES: Record<string, string> = { p2: 'champion:demo-t0', p3: 'finalist' };
+let myTitle: string | null = null;
+
+function titleLabel(title: string): string {
+  if (title.startsWith('champion:')) return `Champion · ${AUTUMN.tournamentName}`;
+  return DEMO_CATALOG.find((a) => a.code === title)?.name ?? title;
+}
+
+export function demoTrophies(playerId: string): Trophies {
+  const progress = { ...(DEMO_PROGRESS[playerId] ?? {}) };
+  const p = byId(playerId);
+  if (p && !progress.regular) progress.regular = { progress: Math.min(p.matches, 25), earnedAt: null };
+  const honour = DEMO_HONOURS[playerId];
+  const honours = honour ? [{ ...AUTUMN, won: honour.won }] : [];
+  const titles = [
+    ...Object.entries(progress)
+      .filter(([, v]) => v.earnedAt)
+      .map(([code, v]) => ({ title: code, label: titleLabel(code), earnedAt: v.earnedAt! })),
+    ...(honour ? [{ title: 'finalist', label: 'Finalist', earnedAt: AUTUMN.at }] : []),
+    ...(honour?.won ? [{ title: 'champion:demo-t0', label: titleLabel('champion:demo-t0'), earnedAt: AUTUMN.at }] : []),
+  ].sort((a, b) => (a.earnedAt < b.earnedAt ? -1 : 1));
+  return { catalog: DEMO_CATALOG, progress, honours, titles };
+}
+
+export function demoSetTitle(title: string | null): void {
+  if (title && !demoTrophies(DEMO_ME).titles.some((t) => t.title === title)) throw new Error("That title isn't earned yet");
+  myTitle = title;
 }
 
 // --- tournaments -------------------------------------------------------------
@@ -554,7 +639,7 @@ function buildBracket(ids: string[]): { nodes: TournamentNode[]; size: number } 
   let size = 2;
   while (size < ids.length) size *= 2;
   const rounds = Math.log2(size);
-  const stamp = Date.now();
+  const stamp = `${Date.now()}-${++bracketCount}`; // unique even for brackets built in the same millisecond
   const nodes: TournamentNode[] = [];
   for (let r = 1; r <= rounds; r++) {
     for (let s = 0; s < size / 2 ** r; s++) {
@@ -585,6 +670,46 @@ function buildBracket(ids: string[]): { nodes: TournamentNode[]; size: number } 
     }
   }
   return { nodes, size };
+}
+
+// A finished tournament: Ana beat Dana and Ben beat Cris, then Ana won the
+// final against Ben (her champion title and laurel come from it).
+function finishedTournament(): TStore {
+  const ids = ['p2', 'p3', 'p4', 'p5'];
+  const { nodes, size } = buildBracket(ids);
+  for (const n of nodes.filter((x) => x.round === 1)) {
+    n.winnerId = n.playerA;
+    n.status = 'completed';
+  }
+  const final = nodes.find((n) => n.round === 2)!;
+  final.playerA = 'p2';
+  final.playerB = 'p3';
+  final.winnerId = 'p2';
+  final.status = 'completed';
+  return {
+    summary: {
+      id: 'demo-t0',
+      name: 'Autumn Open',
+      status: 'completed',
+      size,
+      bestOf: 3,
+      tier: 1,
+      createdAt: new Date(Date.now() - 30 * 864e5).toISOString(),
+      kickoffAt: null,
+      createdBy: DEMO_ME,
+    },
+    registrations: [],
+    participants: ids.map((playerId, i) => ({
+      playerId,
+      seed: i + 1,
+      pot: null,
+      name: byId(playerId)?.name ?? '—',
+      avatarUrl: null,
+      rating: byId(playerId)?.rating ?? null,
+      registeredAt: null,
+    })),
+    nodes,
+  };
 }
 
 // A tournament from before registration existed: hand-picked, no pots, one

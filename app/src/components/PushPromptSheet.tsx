@@ -6,6 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import { installPopupThisVisit } from '@/lib/install';
 import { showAlert } from '@/lib/platformAlert';
 import { tierPopupThisVisit } from '@/components/TierCelebration';
+import { titlePopupThisVisit } from '@/components/TitleCelebration';
 import { getPushStatus, markPushPromptShown, pushPromptSnoozed, snoozePushPrompt, turnOnPush } from '@/lib/push';
 import { radius, useTheme, type Colors } from '@/theme';
 
@@ -31,9 +32,9 @@ export function PushPromptSheet() {
     if (!userId || recovering) return;
     let cancelled = false;
     const timer = setTimeout(async () => {
-      if (installPopupThisVisit() || tierPopupThisVisit() || pushPromptSnoozed()) return;
+      if (installPopupThisVisit() || tierPopupThisVisit() || titlePopupThisVisit() || pushPromptSnoozed()) return;
       const status = await getPushStatus().catch(() => 'unsupported');
-      if (cancelled || status !== 'off' || tierPopupThisVisit()) return;
+      if (cancelled || status !== 'off' || tierPopupThisVisit() || titlePopupThisVisit()) return;
       markPushPromptShown();
       setOpen(true);
     }, OPEN_DELAY_MS);

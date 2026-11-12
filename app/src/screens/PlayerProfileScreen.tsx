@@ -14,7 +14,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/Avatar';
 import { TierCard } from '@/components/TierCard';
-import { useBadges } from '@/context/BadgesContext';
+import { TrophyCabinet } from '@/components/TrophyCabinet';
+import { useBadge, useBadges } from '@/context/BadgesContext';
 import { RatingChart } from '@/components/RatingChart';
 import { pickStreakLine, UPSET_DELTA_THRESHOLD } from '@/lib/commentary';
 import { MIN_MATCHES_FOR_LEADERBOARD } from '@/lib/constants';
@@ -58,6 +59,7 @@ export function PlayerProfileScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<ParamList>>();
   const { playerId } = route.params;
   const { meId } = useBadges();
+  const badge = useBadge(playerId);
 
   const [player, setPlayer] = useState<PlayerWithRating | null>(null);
   const [history, setHistory] = useState<HistoryPoint[]>([]);
@@ -78,6 +80,7 @@ export function PlayerProfileScreen() {
         fetchPlayerSeasonPoints(playerId),
       ]);
       setPlayer(p);
+      if (p) navigation.setOptions({ title: p.display_name });
       setHistory(h);
       setMatches(m);
       setRecord(r);
@@ -116,6 +119,7 @@ export function PlayerProfileScreen() {
             <View style={styles.header}>
               <Avatar uri={player?.avatar_url} name={player?.display_name ?? '?'} size={72} playerId={player?.id} />
               <Text style={styles.name}>{player?.display_name}</Text>
+              {badge?.titleLabel && <Text style={styles.titleLabel}>{badge.titleLabel}</Text>}
             </View>
 
             <View style={styles.statsRow}>
@@ -193,6 +197,8 @@ export function PlayerProfileScreen() {
                 );
               })
             )}
+
+            {player && <TrophyCabinet playerId={player.id} isMe={!!meId && player.id === meId} />}
           </>
         )}
       </ScrollView>
@@ -232,6 +238,7 @@ function createStyles(colors: Colors) {
     content: { padding: spacing.lg },
     header: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.md },
     name: { fontSize: 26, fontWeight: '700', color: colors.text },
+    titleLabel: { color: colors.textMuted, fontSize: 14, fontStyle: 'italic', marginTop: 2 },
     statsRow: { flexDirection: 'row', gap: spacing.sm },
     stat: {
       flex: 1,
