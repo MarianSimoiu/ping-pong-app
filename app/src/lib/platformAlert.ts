@@ -12,3 +12,20 @@ export function showAlert(title: string, message: string): void {
   }
   Alert.alert(title, message);
 }
+
+// Asks "are you sure?" and resolves true if they confirm. On the web this is
+// the browser's own confirm() (React Native Web has no Alert dialogs).
+export function confirmAction(title: string, message: string, confirmLabel: string): Promise<boolean> {
+  if (Platform.OS === 'web') {
+    const ok = typeof window !== 'undefined' && typeof window.confirm === 'function'
+      ? window.confirm(message ? `${title}\n\n${message}` : title)
+      : false;
+    return Promise.resolve(ok);
+  }
+  return new Promise((resolve) => {
+    Alert.alert(title, message, [
+      { text: 'Not now', style: 'cancel', onPress: () => resolve(false) },
+      { text: confirmLabel, style: 'destructive', onPress: () => resolve(true) },
+    ], { cancelable: true, onDismiss: () => resolve(false) });
+  });
+}

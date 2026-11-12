@@ -16,7 +16,11 @@ comfortably; email is the only real blocker.
 - [ ] **Rate limits**: Authentication → Rate Limits → emails per hour about
   100. For launch night, also raise sign-ups/sign-ins per IP (about 30 per
   5 minutes by default) if everyone signs up on the club Wi-Fi.
-- [ ] **Admin**: add yourself to `admins` (SQL in [DEPLOYMENT.md](DEPLOYMENT.md#admins)).
+- [ ] **Admin**: add yourself to `admins` (SQL in [DEPLOYMENT.md](DEPLOYMENT.md#admins)). Only admins can
+      create, start, move or cancel tournaments; the database refuses anyone else.
+- [ ] **Tournament kickoff**: check `select jobname, schedule from cron.job;` lists `tournament-kickoff`
+      (see [DEPLOYMENT.md](DEPLOYMENT.md#tournament-kickoff)); otherwise tournaments start only when
+      someone opens them after kickoff.
 - [ ] **Deploy token**: when the GitHub secret `SUPABASE_ACCESS_TOKEN`
   expires, the Deploy Supabase workflow fails with "Invalid access token".
   Fix: new token at supabase.com/dashboard/account/tokens → update the secret

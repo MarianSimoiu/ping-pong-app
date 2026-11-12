@@ -1,60 +1,27 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { createTournament, fetchSeedablePlayers, type PlayerWithRatingRow } from '@/lib/tournaments';
+import { DateTimeField } from '@/components/DateTimeField';
+import { defaultKickoff, fromLocalInputValue, toLocalInputValue } from '@/lib/countdown';
+import { formatKickoff } from '@/lib/format';
+import { createTournament } from '@/lib/tournaments';
 import type { TournamentsStackScreenProps } from '@/navigation/types';
 import { radius, spacing, useTheme, type Colors } from '@/theme';
 
 const BEST_OF_OPTIONS = [3, 5] as const;
 
+// Admins only (the Tournaments tab shows "+ New" to them; the server checks
+// too). Opens a tournament for registration until the kickoff time.
 export function CreateTournamentScreen({ navigation }: TournamentsStackScreenProps<'CreateTournament'>) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const [players, setPlayers] = useState<PlayerWithRatingRow[]>([]);
-  const [loading, setLoading] = useState(true);
   const [name, setName] = useState('');
   const [bestOf, setBestOf] = useState(3);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [kickoff, setKickoff] = useState(() => toLocalInputValue(defaultKickoff()));
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    try {
-      setPlayers(await fetchSeedablePlayers());
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load players');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  function toggle(id: string) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
-
-  // Seed by rating (players is already sorted best-first); keep that order.
-  const seededIds = useMemo(
-    () => players.filter((p) => selected.has(p.id)).map((p) => p.id),
-    [players, selected],
-  );
+  const kickoffDate = fromLocalInputValue(kickoff);
 
   async function onCreate() {
     setError(null);
@@ -62,17 +29,20 @@ export function CreateTournamentScreen({ navigation }: TournamentsStackScreenPro
       setError('Give the tournament a name');
       return;
     }
-    if (seededIds.length < 2) {
-      setError('Select at least 2 participants');
+    if (!kickoffDate) {
+      setError('Pick a kickoff date and time');
+      return;
+    }
+    if (kickoffDate.getTime() <= Date.now() + 60_000) {
+      setError('Pick a kickoff time in the future');
       return;
     }
     setSubmitting(true);
     try {
       const { tournamentId } = await createTournament({
         name: name.trim(),
-        tier: 1,
         bestOf,
-        participantIds: seededIds,
+        kickoffAt: kickoffDate.toISOString(),
       });
       // Replace so Back returns to the list, not the create form.
       navigation.replace('TournamentDetail', { tournamentId, name: name.trim() });
@@ -83,24 +53,17 @@ export function CreateTournamentScreen({ navigation }: TournamentsStackScreenPro
     }
   }
 
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <ActivityIndicator color={colors.text} style={{ marginTop: spacing.xl }} />
-      </SafeAreaView>
-    );
-  }
-
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={styles.label}>Name</Text>
         <TextInput
           style={styles.input}
-          placeholder="Friday night cup"
+          placeholder="Winter Cup"
           placeholderTextColor={colors.textMuted}
           value={name}
           onChangeText={setName}
+          maxLength={60}
         />
 
         <Text style={styles.label}>Format</Text>
@@ -116,34 +79,34 @@ export function CreateTournamentScreen({ navigation }: TournamentsStackScreenPro
           ))}
         </View>
 
-        <Text style={styles.label}>
-          Participants ({seededIds.length} selected) — seeded by rating
-        </Text>
-        {players.length === 0 ? (
-          <Text style={styles.empty}>No players yet.</Text>
-        ) : (
-          players.map((p, i) => {
-            const isSelected = selected.has(p.id);
-            const seed = isSelected ? seededIds.indexOf(p.id) + 1 : null;
-            return (
-              <Pressable key={p.id} style={styles.playerRow} onPress={() => toggle(p.id)}>
-                <View style={[styles.checkbox, isSelected && styles.checkboxOn]}>
-                  {isSelected && <Text style={styles.check}>✓</Text>}
-                </View>
-                <Text style={styles.playerName} numberOfLines={1}>
-                  {p.name}
-                </Text>
-                <Text style={styles.playerRating}>{Math.round(p.rating)}</Text>
-                {seed !== null && <Text style={styles.seed}>#{seed}</Text>}
-              </Pressable>
-            );
-          })
-        )}
+        <Text style={styles.label}>Kickoff</Text>
+        <DateTimeField
+          label="Kickoff date and time"
+          value={kickoff}
+          onChange={setKickoff}
+          min={toLocalInputValue(new Date())}
+        />
+        {kickoffDate && <Text style={styles.hint}>{formatKickoff(kickoffDate.toISOString())}</Text>}
 
-        <Text style={styles.note}>
-          The field is rounded up to a power of two; top seeds get byes. Results
-          count toward Glicko-2 ratings just like casual matches.
-        </Text>
+        <View style={styles.howBox}>
+          <Text style={styles.howTitle}>How it works</Text>
+          <Text style={styles.how}>
+            • Until kickoff, players on the leaderboard (3+ matches) register themselves and can
+            withdraw. Everyone who can register gets a notification.
+          </Text>
+          <Text style={styles.how}>
+            • Registered players are split into pots by rating: 4 pots from 8 players, otherwise 2.
+            Pots change live as people join.
+          </Text>
+          <Text style={styles.how}>
+            • At kickoff the pots freeze and the draw is made: Pot 1 plays Pot 4 and Pot 2 plays
+            Pot 3, top seeds get any byes. Everyone is notified of their first opponent.
+          </Text>
+          <Text style={styles.how}>
+            • It needs at least 4 players. You can start it early, move the kickoff, or cancel it
+            from the tournament page.
+          </Text>
+        </View>
 
         {error && <Text style={styles.error}>{error}</Text>}
 
@@ -155,7 +118,7 @@ export function CreateTournamentScreen({ navigation }: TournamentsStackScreenPro
           {submitting ? (
             <ActivityIndicator color={colors.primaryText} />
           ) : (
-            <Text style={styles.buttonText}>Create tournament</Text>
+            <Text style={styles.buttonText}>Open registration</Text>
           )}
         </Pressable>
       </ScrollView>
@@ -185,6 +148,7 @@ function createStyles(colors: Colors) {
       borderWidth: 1,
       borderColor: colors.border,
     },
+    hint: { color: colors.textMuted, fontSize: 13, marginTop: spacing.sm },
     chips: { flexDirection: 'row', gap: spacing.sm },
     chip: {
       backgroundColor: colors.surface,
@@ -197,29 +161,17 @@ function createStyles(colors: Colors) {
     chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
     chipText: { color: colors.text, fontSize: 14 },
     chipTextActive: { color: colors.primaryText, fontWeight: '600' },
-    empty: { color: colors.textMuted, fontSize: 14 },
-    playerRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingVertical: spacing.sm,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
-    },
-    checkbox: {
-      width: 24,
-      height: 24,
-      borderRadius: 6,
+    howBox: {
+      backgroundColor: colors.surface,
+      borderRadius: radius.md,
       borderWidth: 1,
       borderColor: colors.border,
-      alignItems: 'center',
-      justifyContent: 'center',
+      padding: spacing.md,
+      marginTop: spacing.lg,
+      gap: spacing.xs,
     },
-    checkboxOn: { backgroundColor: colors.primary, borderColor: colors.primary },
-    check: { color: colors.primaryText, fontWeight: '700', fontSize: 14 },
-    playerName: { color: colors.text, fontSize: 15, marginLeft: spacing.md, flex: 1 },
-    playerRating: { color: colors.textMuted, fontSize: 14, marginRight: spacing.sm },
-    seed: { color: colors.primary, fontSize: 13, fontWeight: '700', width: 32, textAlign: 'right' },
-    note: { color: colors.textMuted, fontSize: 13, marginTop: spacing.lg, lineHeight: 19 },
+    howTitle: { color: colors.text, fontSize: 15, fontWeight: '700', marginBottom: spacing.xs },
+    how: { color: colors.textMuted, fontSize: 13, lineHeight: 19 },
     button: {
       backgroundColor: colors.primary,
       borderRadius: radius.md,

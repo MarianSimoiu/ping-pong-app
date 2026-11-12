@@ -41,7 +41,6 @@ export function seedOrder(size: number): number[] {
 export function generateSingleElim(seededPlayerIds: string[]): BracketNode[] {
   const n = seededPlayerIds.length;
   if (n < 2) throw new Error('A tournament needs at least 2 participants');
-  if (n > 32) throw new Error('At most 32 participants are supported');
 
   const size = nextPowerOfTwo(n);
   const rounds = Math.log2(size);

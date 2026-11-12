@@ -1,7 +1,8 @@
 // Sends push notifications to players' devices (the devices are in
 // push_subscriptions, migration 0011; the protocol is in webpush.ts). The
 // match Edge Functions call notifyPlayers after a match is recorded,
-// confirmed or declined, with a message from messages.ts.
+// confirmed or declined, and the tournament ones when a tournament opens, is
+// drawn, moved or cancelled, with a message from messages.ts.
 
 import type { SupabaseClient } from 'jsr:@supabase/supabase-js@2';
 
@@ -37,20 +38,32 @@ export async function vapidKeys(admin: SupabaseClient): Promise<VapidKeys> {
 // Sends `message` to every device where these players turned notifications
 // on. Never throws: a notification that can't be sent must not fail the
 // request that triggered it.
-export async function notifyPlayers(admin: SupabaseClient, playerIds: string[], message: PushMessage): Promise<void> {
+export function notifyPlayers(admin: SupabaseClient, playerIds: string[], message: PushMessage): Promise<void> {
+  return notifyEach(admin, playerIds.map((playerId) => ({ playerId, message })));
+}
+
+// Sends each player their own message (a tournament draw tells everyone who
+// they play): one lookup for all their devices, then one push per device.
+// Never throws, like notifyPlayers.
+export async function notifyEach(
+  admin: SupabaseClient,
+  notes: { playerId: string; message: PushMessage }[],
+): Promise<void> {
   try {
-    if (playerIds.length === 0) return;
+    if (notes.length === 0) return;
+    const payloadFor = new Map(notes.map((n) => [n.playerId, JSON.stringify(n.message)]));
     const { data: devices, error } = await admin
       .from('push_subscriptions')
-      .select('id, endpoint, p256dh, auth')
-      .in('player_id', playerIds);
+      .select('id, player_id, endpoint, p256dh, auth')
+      .in('player_id', [...payloadFor.keys()]);
     if (error) throw error;
     if (!devices || devices.length === 0) return;
 
     const keys = await vapidKeys(admin);
-    const payload = JSON.stringify(message);
     await Promise.all(
       devices.map(async (device) => {
+        const payload = payloadFor.get(device.player_id);
+        if (!payload) return;
         try {
           const res = await sendPush(device, payload, keys, CONTACT);
           if (res.status === 404 || res.status === 410) {

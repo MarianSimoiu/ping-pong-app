@@ -97,3 +97,61 @@ export function doublesDeclined(
     tag: `doubles-${o.matchId}`,
   };
 }
+
+// --- Tournaments ---------------------------------------------------------------
+
+const tournamentPage = (tournamentId: string) => `/tournaments/${tournamentId}`;
+
+// To every player who can register (on the leaderboard) when an admin opens a
+// tournament.
+export function tournamentOpened(o: { tournamentId: string; tournament: string }): PushMessage {
+  return {
+    title: `New tournament: ${o.tournament}`,
+    body: 'Registration is open until kickoff. Tap to sign up.',
+    url: tournamentPage(o.tournamentId),
+    tag: `tournament-${o.tournamentId}`,
+  };
+}
+
+// To each player once the draw is made: who they play first. `winnerOf` is
+// set instead of `opponent` after a round-1 bye whose next opponent comes from
+// a match still to play.
+export function tournamentDrawn(o: {
+  tournamentId: string;
+  tournament: string;
+  round: number;
+  opponent: string | null;
+  winnerOf: [string, string] | null;
+}): PushMessage {
+  const next = o.opponent ? o.opponent : o.winnerOf ? `the winner of ${o.winnerOf[0]} v ${o.winnerOf[1]}` : null;
+  let body: string;
+  if (o.round === 1 && next) body = `Round 1: you play ${next}. Good luck!`;
+  else if (next) body = `You have a bye in round 1, then you play ${next}.`;
+  else body = 'Tap to see your place in the bracket.';
+  return {
+    title: `${o.tournament}: the draw is out`,
+    body,
+    url: tournamentPage(o.tournamentId),
+    tag: `tournament-${o.tournamentId}`,
+  };
+}
+
+// To the registered players when an admin moves the kickoff.
+export function tournamentRescheduled(o: { tournamentId: string; tournament: string }): PushMessage {
+  return {
+    title: `${o.tournament}: kickoff moved`,
+    body: "You're still registered. Tap to see the new time.",
+    url: tournamentPage(o.tournamentId),
+    tag: `tournament-${o.tournamentId}`,
+  };
+}
+
+// To the registered players when an admin cancels before the draw.
+export function tournamentCancelled(o: { tournamentId: string; tournament: string }): PushMessage {
+  return {
+    title: `${o.tournament} is cancelled`,
+    body: 'The organizer called it off before the draw.',
+    url: tournamentPage(o.tournamentId),
+    tag: `tournament-${o.tournamentId}`,
+  };
+}

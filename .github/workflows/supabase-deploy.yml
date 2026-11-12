@@ -57,3 +57,10 @@ jobs:
 
       - name: Deploy Edge Functions
         run: supabase functions deploy --project-ref "$SUPABASE_PROJECT_REF" --use-api --yes
+
+      # The database calls tournament-kickoff on a schedule (migration 0013)
+      # without a user's token, so this one function must accept calls
+      # without one. It takes no input and only starts tournaments whose
+      # kickoff time has come, which is safe for anyone to trigger.
+      - name: Let the database call tournament-kickoff
+        run: supabase functions deploy tournament-kickoff --no-verify-jwt --project-ref "$SUPABASE_PROJECT_REF" --use-api --yes

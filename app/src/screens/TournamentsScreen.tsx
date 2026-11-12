@@ -1,51 +1,101 @@
 import { useFocusEffect } from '@react-navigation/native';
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/context/AuthContext';
+import { shortTimeLeft, useNow } from '@/lib/countdown';
 import { fetchIsAdmin } from '@/lib/players';
-import { fetchTournaments, type TournamentSummary } from '@/lib/tournaments';
+import {
+  fetchTournaments,
+  isPastKickoff,
+  MIN_TOURNAMENT_PLAYERS,
+  requestKickoff,
+  type TournamentListItem,
+  type TournamentStatus,
+} from '@/lib/tournaments';
 import type { TournamentsStackScreenProps } from '@/navigation/types';
 import { radius, spacing, useTheme, type Colors } from '@/theme';
 
-const STATUS_LABEL: Record<TournamentSummary['status'], string> = {
+const STATUS_LABEL: Record<TournamentStatus, string> = {
   draft: 'Draft',
+  registration: 'Registration open',
   active: 'In progress',
   completed: 'Completed',
+  cancelled: 'Cancelled',
 };
+
+// Open ones first (soonest kickoff first), then those being played, then the rest, newest first.
+const ORDER: Record<TournamentStatus, number> = { registration: 0, active: 1, draft: 2, completed: 2, cancelled: 2 };
+function byInterest(a: TournamentListItem, b: TournamentListItem): number {
+  if (ORDER[a.status] !== ORDER[b.status]) return ORDER[a.status] - ORDER[b.status];
+  if (a.status === 'registration' && a.kickoffAt && b.kickoffAt) return a.kickoffAt < b.kickoffAt ? -1 : 1;
+  return a.createdAt < b.createdAt ? 1 : -1;
+}
 
 export function TournamentsScreen({ navigation }: TournamentsStackScreenProps<'TournamentsList'>) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { session } = useAuth();
-  const [tournaments, setTournaments] = useState<TournamentSummary[]>([]);
+  const [tournaments, setTournaments] = useState<TournamentListItem[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const userId = session?.user.id ?? null;
 
   const load = useCallback(async () => {
     try {
       setError(null);
       const [list, admin] = await Promise.all([
-        fetchTournaments(),
+        fetchTournaments(userId),
         // Only decides whether "+ New" shows, so a failure just hides it.
-        session ? fetchIsAdmin(session.user.id).catch(() => false) : false,
+        userId ? fetchIsAdmin(userId).catch(() => false) : false,
       ]);
-      setTournaments(list);
+      setTournaments([...list].sort(byInterest));
       setIsAdmin(admin);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load tournaments');
     } finally {
       setLoading(false);
     }
-  }, [session]);
+  }, [userId]);
 
   useFocusEffect(
     useCallback(() => {
       load();
     }, [load]),
   );
+
+  // Tick only while a countdown is on screen.
+  const counting = tournaments.some((t) => t.status === 'registration');
+  const now = useNow(counting ? 1000 : null);
+
+  // A tournament whose kickoff has come with enough players: ask the server to
+  // make the draw now (it would within a minute anyway), then show it.
+  const asked = useRef(new Set<string>());
+  useEffect(() => {
+    const due = tournaments.filter(
+      (t) => isPastKickoff(t, now) && (t.registeredCount ?? 0) >= MIN_TOURNAMENT_PLAYERS && !asked.current.has(t.id),
+    );
+    if (due.length === 0) return;
+    for (const t of due) asked.current.add(t.id);
+    requestKickoff()
+      .catch(() => {})
+      .then(load);
+  }, [tournaments, now, load]);
+
+  function meta(t: TournamentListItem): string {
+    if (t.status === 'registration' && t.kickoffAt) {
+      const count = `${t.registeredCount ?? 0} registered`;
+      if (!isPastKickoff(t, now)) return `Kickoff in ${shortTimeLeft(t.kickoffAt, now)} · ${count}`;
+      return (t.registeredCount ?? 0) >= MIN_TOURNAMENT_PLAYERS
+        ? `Making the draw… · ${count}`
+        : `Waiting for the organizer · ${count}`;
+    }
+    if (t.status === 'cancelled') return `Best of ${t.bestOf}`;
+    const players = t.registeredCount !== null ? `${t.registeredCount} players` : `${t.size}-player`;
+    return `${players} · best of ${t.bestOf}`;
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -67,36 +117,38 @@ export function TournamentsScreen({ navigation }: TournamentsStackScreenProps<'T
           <Text style={styles.emoji}>🎽</Text>
           <Text style={styles.placeholder}>
             {isAdmin
-              ? 'No tournaments yet. Create one to bracket up your players — results feed the same rating engine as casual matches.'
-              : 'No tournaments yet. They show up here once an admin creates one.'}
+              ? 'No tournaments yet. Create one and players on the leaderboard can register until kickoff.'
+              : 'No tournaments yet. When one opens, you can register for it here.'}
           </Text>
         </View>
       ) : (
         <FlatList
           data={tournaments}
           keyExtractor={(t) => t.id}
+          extraData={now}
           contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.xl }}
           renderItem={({ item }) => {
             const status = statusStyle(item.status, colors);
             return (
               <Pressable
-                style={styles.row}
-                onPress={() =>
-                  navigation.navigate('TournamentDetail', { tournamentId: item.id, name: item.name })
-                }
+                style={[styles.row, item.status === 'cancelled' && styles.rowMuted]}
+                onPress={() => navigation.navigate('TournamentDetail', { tournamentId: item.id, name: item.name })}
               >
                 <View style={{ flex: 1 }}>
                   <Text style={styles.rowName} numberOfLines={1}>
                     {item.name}
                   </Text>
-                  <Text style={styles.rowMeta}>
-                    {item.size}-player · best of {item.bestOf}
+                  <Text style={styles.rowMeta} numberOfLines={1}>
+                    {meta(item)}
                   </Text>
                 </View>
-                <View style={[styles.badge, { backgroundColor: status.backgroundColor }]}>
-                  <Text style={[styles.badgeText, { color: status.color }]}>
-                    {STATUS_LABEL[item.status]}
-                  </Text>
+                <View style={styles.badges}>
+                  <View style={[styles.badge, { backgroundColor: status.backgroundColor }]}>
+                    <Text style={[styles.badgeText, { color: status.color }]}>{STATUS_LABEL[item.status]}</Text>
+                  </View>
+                  {item.imIn && (
+                    <Text style={styles.youreIn}>{item.status === 'registration' ? '✓ Registered' : "✓ You're in"}</Text>
+                  )}
                 </View>
               </Pressable>
             );
@@ -107,11 +159,11 @@ export function TournamentsScreen({ navigation }: TournamentsStackScreenProps<'T
   );
 }
 
-function statusStyle(status: TournamentSummary['status'], colors: Colors) {
-  // "active" sits on the saturated primary color, so it needs light text;
-  // the other two sit on pale backgrounds, where the normal dark text holds.
-  if (status === 'completed') return { backgroundColor: colors.surfaceAlt, color: colors.text };
+function statusStyle(status: TournamentStatus, colors: Colors) {
+  // The saturated badges (open, in progress) take light text; the pale ones the normal text.
+  if (status === 'registration') return { backgroundColor: colors.success, color: colors.primaryText };
   if (status === 'active') return { backgroundColor: colors.primary, color: colors.primaryText };
+  if (status === 'completed') return { backgroundColor: colors.surfaceAlt, color: colors.text };
   return { backgroundColor: colors.border, color: colors.text };
 }
 
@@ -143,11 +195,15 @@ function createStyles(colors: Colors) {
       marginBottom: spacing.sm,
       borderWidth: 1,
       borderColor: colors.border,
+      gap: spacing.sm,
     },
+    rowMuted: { opacity: 0.7 },
     rowName: { color: colors.text, fontSize: 16, fontWeight: '600' },
     rowMeta: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
+    badges: { alignItems: 'flex-end', gap: 4 },
     badge: { borderRadius: radius.sm, paddingHorizontal: spacing.sm, paddingVertical: 4 },
     badgeText: { color: colors.text, fontSize: 12, fontWeight: '600' },
+    youreIn: { color: colors.success, fontSize: 12, fontWeight: '600' },
     center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
     emoji: { fontSize: 44, marginBottom: spacing.md },
     placeholder: { color: colors.textMuted, fontSize: 14, textAlign: 'center', lineHeight: 20 },

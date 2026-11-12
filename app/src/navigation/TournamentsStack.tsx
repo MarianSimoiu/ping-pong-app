@@ -28,7 +28,8 @@ export function TournamentsStack() {
       <Stack.Screen
         name="TournamentDetail"
         component={TournamentDetailScreen}
-        options={({ route }) => ({ title: route.params.name })}
+        // A link from a notification has no name; the screen sets it once loaded.
+        options={({ route }) => ({ title: route.params.name ?? 'Tournament' })}
       />
       <Stack.Screen
         name="RecordTournamentMatch"

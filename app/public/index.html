@@ -85,6 +85,11 @@
       #push-sheet:focus {
         outline: none;
       }
+      /* The kickoff picker (DateTimeField.tsx): iOS Safari centers a date
+         field's value; keep it left-aligned like the other fields. */
+      input.datetime-field::-webkit-date-and-time-value {
+        text-align: left;
+      }
       /* Crisper text rendering on WebKit. */
       body {
         -webkit-font-smoothing: antialiased;
