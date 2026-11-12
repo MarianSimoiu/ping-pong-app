@@ -103,7 +103,7 @@ export function LeaderboardScreen({ navigation }: LeaderboardStackScreenProps<'L
             renderItem={({ item }) => (
               <Row
                 rank={item.rank}
-                avatar={<Avatar uri={item.avatarUrl} name={item.displayName} size={28} playerId={item.playerId} />}
+                avatar={<Avatar uri={item.avatarUrl} name={item.displayName} size={32} playerId={item.playerId} />}
                 name={item.displayName}
                 title={badges[item.playerId]?.titleLabel}
                 meta={record(item.matchesPlayed, item.wins, item.losses)}
@@ -129,8 +129,9 @@ export function LeaderboardScreen({ navigation }: LeaderboardStackScreenProps<'L
             renderItem={({ item }) => (
               <Row
                 rank={item.rank}
-                avatar={<Avatar uri={item.avatarUrl} name={item.displayName} size={28} playerId={item.playerId} />}
+                avatar={<Avatar uri={item.avatarUrl} name={item.displayName} size={32} playerId={item.playerId} />}
                 name={item.displayName}
+                title={badges[item.playerId]?.titleLabel}
                 meta={`${item.events} ${item.events === 1 ? 'result' : 'results'} counted`}
                 value={String(item.points)}
                 onPress={() => openProfile(item.playerId, item.displayName)}
@@ -168,8 +169,9 @@ export function LeaderboardScreen({ navigation }: LeaderboardStackScreenProps<'L
 const record = (matches: number, wins: number, losses: number): string =>
   `${matches} ${matches === 1 ? 'match' : 'matches'} · ${wins}–${losses}`;
 
-// One card on the board. Left: the rank, then the avatar and name (and title)
-// over a single line of detail. Right: the rating (with its ±) over the tier.
+// One card on the board. Left: the rank, then the avatar and name, the title
+// on its own line (so a long name can't push it out), and a line of detail.
+// Right: the rating (with its ±) over the tier.
 function Row({
   rank,
   avatar,
@@ -203,9 +205,13 @@ function Row({
           {avatar}
           <Text style={styles.rowName} numberOfLines={1}>
             {name}
-            {title ? <Text style={styles.rowTitle}> · {title}</Text> : null}
           </Text>
         </View>
+        {title ? (
+          <Text style={styles.rowTitle} numberOfLines={2}>
+            {title}
+          </Text>
+        ) : null}
         <Text style={styles.rowMeta} numberOfLines={1}>
           {meta}
         </Text>
@@ -290,7 +296,7 @@ function createStyles(colors: Colors) {
       alignItems: 'center',
       backgroundColor: colors.surface,
       borderRadius: radius.md,
-      paddingVertical: spacing.sm + 4,
+      paddingVertical: spacing.md,
       paddingHorizontal: spacing.sm + 4,
       marginBottom: spacing.sm,
       borderWidth: 1,
@@ -302,8 +308,8 @@ function createStyles(colors: Colors) {
     medal: { fontSize: 22 },
     rowMain: { flex: 1, marginLeft: spacing.sm },
     nameLine: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-    rowName: { color: colors.text, fontSize: 16, fontWeight: '600', flexShrink: 1 },
-    rowTitle: { color: colors.textMuted, fontSize: 13, fontWeight: '500', fontStyle: 'italic' },
+    rowName: { color: colors.text, fontSize: 17, fontWeight: '600', flexShrink: 1 },
+    rowTitle: { color: colors.accent, fontSize: 13, fontWeight: '600', fontStyle: 'italic', marginTop: 4 },
     rowMeta: { color: colors.textMuted, fontSize: 13, marginTop: 3 },
     rowSide: { alignItems: 'flex-end', marginLeft: spacing.sm },
     valueLine: { flexDirection: 'row', alignItems: 'baseline' },

@@ -6,7 +6,7 @@ import { useGradientId } from '@/components/Avatar';
 import { RING_COLORS, ringFor, tierName, type PlayerBadge } from '@/lib/tiers';
 import { useTheme, type Colors } from '@/theme';
 
-const DOT = 8;
+const DOT = 10;
 
 // A small chip with a player's tier: a dot in their avatar ring's colors and
 // the tier's name ("Gold", "Legend"). Nothing for players without a tier.
@@ -40,14 +40,14 @@ function createStyles(colors: Colors) {
     pill: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 4,
-      paddingHorizontal: 7,
-      paddingVertical: 2,
+      gap: 5,
+      paddingHorizontal: 9,
+      paddingVertical: 3,
       borderRadius: 999,
       backgroundColor: colors.surfaceAlt,
       borderWidth: 1,
       borderColor: colors.border,
     },
-    name: { color: colors.text, fontSize: 11, fontWeight: '600' },
+    name: { color: colors.text, fontSize: 13, fontWeight: '700' },
   });
 }
