@@ -160,6 +160,14 @@ export async function syncPush(userId: string): Promise<void> {
   }
 }
 
+let promptShown = false;
+// Whether the "Turn on notifications?" popup opened in this visit (other
+// popups then wait for the next one).
+export const pushPromptThisVisit = () => promptShown;
+export function markPushPromptShown() {
+  promptShown = true;
+}
+
 export function pushPromptSnoozed(): boolean {
   try {
     return Number(localStorage.getItem(PROMPT_SNOOZE_KEY) ?? 0) > Date.now();

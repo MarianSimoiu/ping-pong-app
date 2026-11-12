@@ -13,6 +13,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/Avatar';
+import { TierCard } from '@/components/TierCard';
+import { useBadges } from '@/context/BadgesContext';
 import { RatingChart } from '@/components/RatingChart';
 import { pickStreakLine, UPSET_DELTA_THRESHOLD } from '@/lib/commentary';
 import { MIN_MATCHES_FOR_LEADERBOARD } from '@/lib/constants';
@@ -55,6 +57,7 @@ export function PlayerProfileScreen() {
   const route = useRoute<RouteProp<ParamList, 'PlayerProfile'>>();
   const navigation = useNavigation<NativeStackNavigationProp<ParamList>>();
   const { playerId } = route.params;
+  const { meId } = useBadges();
 
   const [player, setPlayer] = useState<PlayerWithRating | null>(null);
   const [history, setHistory] = useState<HistoryPoint[]>([]);
@@ -111,7 +114,7 @@ export function PlayerProfileScreen() {
         ) : (
           <>
             <View style={styles.header}>
-              <Avatar uri={player?.avatar_url} name={player?.display_name ?? '?'} size={64} />
+              <Avatar uri={player?.avatar_url} name={player?.display_name ?? '?'} size={72} playerId={player?.id} />
               <Text style={styles.name}>{player?.display_name}</Text>
             </View>
 
@@ -130,6 +133,14 @@ export function PlayerProfileScreen() {
                 Not ranked yet — players join the leaderboard after {MIN_MATCHES_FOR_LEADERBOARD}{' '}
                 matches.
               </Text>
+            )}
+            {isRanked && (
+              <TierCard
+                playerId={player?.id}
+                rating={rating?.rating ?? 1500}
+                matchesPlayed={rating?.matches_played ?? 0}
+                isMe={!!meId && player?.id === meId}
+              />
             )}
 
             <Text style={styles.section}>Rating over time</Text>
@@ -155,7 +166,7 @@ export function PlayerProfileScreen() {
                     <View style={styles.matchMain}>
                       <View style={styles.opponentLine}>
                         <Text style={styles.matchOpponent}>vs</Text>
-                        <Avatar uri={m.opponentAvatarUrl} name={m.opponentName} size={20} />
+                        <Avatar uri={m.opponentAvatarUrl} name={m.opponentName} size={24} playerId={m.opponentId} />
                         <Text style={[styles.matchOpponent, styles.opponentName]} numberOfLines={1}>
                           {m.opponentName}
                         </Text>

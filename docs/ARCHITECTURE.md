@@ -133,6 +133,23 @@ updates, computed by `_shared/doubles.ts` through the same engine) or decline
 (`reject_doubles_match`). The repeat guard counts confirmed matches between the
 same two teams in the last 24 h. See docs/RATING.md §5.
 
+### Tiers
+
+Players on the leaderboard have a tier from their skill rating: Bronze,
+Silver, Gold, Platinum, Diamond (`0014_tiers.sql`). The lines are in
+`tier_lines`; a trigger on `player_ratings` keeps `player_tiers` up to date
+whatever changed the rating: up as soon as a line is reached, down only 25
+points under the tier's line (so one match near a line doesn't flip it), and
+records every move in `tier_changes`. After a rated result, `confirm-match`
+and `submit-tournament-match` call `announceRewards` (`_shared/rewards.ts`),
+which pushes promotions ("Promoted to Gold"). The app reads everyone's tier
+from the `player_badges` view (one row per player, plus Legend for #1 on the
+leaderboard and "inactive" after 30 days without a match) through
+`BadgesContext`, and draws it as a ring around avatars (`Avatar` with a
+`playerId`), a label on the leaderboard and a tier card with the way to the
+next line on profiles. `TierCelebration` shows "Promoted to Gold" once per
+device when the player's tier went up since they last saw it.
+
 ### Push notifications
 
 Players switch notifications on per device in Profile, or from the

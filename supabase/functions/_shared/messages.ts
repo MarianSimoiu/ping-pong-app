@@ -1,3 +1,5 @@
+import { TIER_EMOJI, TIER_NAMES, type Tier } from './tiers.ts';
+
 // The text of every push notification, in one place. The match Edge Functions
 // pick one of these and send it through notify.ts. Scores and rating changes
 // are always from the recipient's side.
@@ -153,5 +155,24 @@ export function tournamentCancelled(o: { tournamentId: string; tournament: strin
     body: 'The organizer called it off before the draw.',
     url: tournamentPage(o.tournamentId),
     tag: `tournament-${o.tournamentId}`,
+  };
+}
+
+// --- Tiers ---------------------------------------------------------------------
+
+// To a player who just moved up a tier (or got their first one at 3 matches).
+export function tierPromotion(o: {
+  from: Tier;
+  to: Tier;
+  next: { tier: Tier; rating: number } | null;
+}): PushMessage {
+  const name = `${TIER_NAMES[o.to]} ${TIER_EMOJI[o.to]}`.trim();
+  return {
+    title: o.from === 'unranked' ? `You're placed in ${name}` : `Promoted to ${name}`,
+    body: o.next
+      ? `Next up: ${TIER_NAMES[o.next.tier]} at ${o.next.rating}.`
+      : 'The top tier. Top the leaderboard to become Legend.',
+    url: '/profile',
+    tag: 'tier',
   };
 }

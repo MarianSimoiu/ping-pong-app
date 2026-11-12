@@ -65,6 +65,7 @@ export async function fetchPendingConfirmations(myPlayerId: string): Promise<Pen
 
     return {
       matchId: m.id,
+      submitterId: m.created_by,
       submitterName: creator?.display_name ?? 'Someone',
       submitterAvatarUrl: creator?.avatar_url ?? null,
       iWon: m.winner_id === myPlayerId,
@@ -86,7 +87,7 @@ export async function fetchSubmittedPending(myPlayerId: string): Promise<Submitt
   const { data, error } = await supabase
     .from('matches')
     .select(
-      'id, winner_id, played_at, ' +
+      'id, player_b, winner_id, played_at, ' +
         'opponent:players!matches_player_b_fkey(display_name, avatar_url), ' +
         'games:match_games(game_no, score_a, score_b)',
     )
@@ -111,6 +112,7 @@ export async function fetchSubmittedPending(myPlayerId: string): Promise<Submitt
 
     return {
       matchId: m.id,
+      opponentId: m.player_b,
       opponentName: opponent?.display_name ?? 'Someone',
       opponentAvatarUrl: opponent?.avatar_url ?? null,
       iWon: m.winner_id === myPlayerId,

@@ -3,7 +3,9 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { STREAK_MIN, UPSET_DELTA_THRESHOLD } from '@/lib/commentary';
+import { useBadges } from '@/context/BadgesContext';
 import { MIN_MATCHES_FOR_LEADERBOARD } from '@/lib/constants';
+import { LEGEND_EMOJI, TIER_EMOJI, TIER_NAMES, type Tier } from '@/lib/tiers';
 import { radius, spacing, useTheme, type Colors } from '@/theme';
 
 // Every rating rule in plain language, in one place (opened from the ⓘ icons
@@ -23,8 +25,19 @@ const SEASON_POINTS: [string, number][] = [
   ['Round of 32', 4],
 ];
 
+// How far under a tier's line a player can fall before dropping (0014).
+const DROP_MARGIN = 25;
+
 export function HowRatingsWorkScreen() {
   const styles = useStyles();
+  const { lines } = useBadges();
+  const lineOf = (tier: Tier) => Math.round(lines.find((l) => l.tier === tier)?.minRating ?? 0);
+  const tierRows: [string, string][] = [
+    [`${TIER_EMOJI.bronze} Bronze`, `under ${lineOf('silver')}`],
+    ...(['silver', 'gold', 'platinum', 'diamond'] as Tier[]).map(
+      (t): [string, string] => [`${TIER_EMOJI[t]} ${TIER_NAMES[t]}`, `from ${lineOf(t)}`],
+    ),
+  ];
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -77,6 +90,30 @@ export function HowRatingsWorkScreen() {
             at 1750 ± 200 can rank above a regular at 1700 ± 70, but their rating is far less
             certain.
           </P>
+        </Section>
+
+        <Section title="Tiers">
+          <P>
+            Everyone on the leaderboard has a tier from their rating, shown as a ring around their
+            photo:
+          </P>
+          <View style={styles.table}>
+            {tierRows.map(([label, from], i) => (
+              <View key={label} style={[styles.tableRow, i > 0 && styles.tableDivider]}>
+                <Text style={styles.tableCell}>{label}</Text>
+                <Text style={[styles.tableCell, styles.tablePoints]}>{from}</Text>
+              </View>
+            ))}
+          </View>
+          <Bullet>You move up as soon as your rating reaches the next line.</Bullet>
+          <Bullet>
+            You only drop once you're {DROP_MARGIN} points under your tier's line, so one bad match
+            near a line doesn't flip you.
+          </Bullet>
+          <Bullet>
+            {LEGEND_EMOJI} <B>Legend</B> is #1 on the leaderboard, with its own ring.
+          </Bullet>
+          <Bullet>After 30 days without a match the ring turns grey until you play again.</Bullet>
         </Section>
 
         <Section title="Recording matches">

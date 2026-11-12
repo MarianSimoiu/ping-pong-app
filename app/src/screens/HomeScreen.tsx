@@ -15,6 +15,7 @@ import { AwaitingOpponentList } from '@/components/AwaitingOpponentList';
 import { Avatar } from '@/components/Avatar';
 import { DoublesMatchCard, useDoublesConfirm } from '@/components/DoublesMatchCard';
 import { useAuth } from '@/context/AuthContext';
+import { useBadges } from '@/context/BadgesContext';
 import { pickDeclineLine, pickHomeTip, pickMatchResultLine, pickPendingLine } from '@/lib/commentary';
 import { MIN_MATCHES_FOR_LEADERBOARD } from '@/lib/constants';
 import { fetchDoublesToConfirm, type DoublesPendingMatch } from '@/lib/doubles';
@@ -38,6 +39,7 @@ export function HomeScreen({ navigation }: HomeStackScreenProps<'Home'>) {
   const { colors, scheme, setDarkMode } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { session } = useAuth();
+  const { refresh: refreshBadges } = useBadges();
   const [profile, setProfile] = useState<PlayerWithRating | null>(null);
   const [rank, setRank] = useState<number | null>(null);
   const [pending, setPending] = useState<PendingMatch[]>([]);
@@ -86,6 +88,8 @@ export function HomeScreen({ navigation }: HomeStackScreenProps<'Home'>) {
       setActingId(match.matchId);
       try {
         const result = await confirmMatch(match.matchId, action);
+        // A confirmed result can move tiers: refresh the rings (and the tier popup).
+        if (action === 'confirm') refreshBadges();
         if (action === 'confirm' && result.you) {
           showAlert(
             'MATCH CALLED!',
@@ -107,7 +111,7 @@ export function HomeScreen({ navigation }: HomeStackScreenProps<'Home'>) {
         setActingId(null);
       }
     },
-    [load],
+    [load, refreshBadges],
   );
 
   // Reload whenever the screen regains focus (e.g. after recording a match).
@@ -190,7 +194,7 @@ export function HomeScreen({ navigation }: HomeStackScreenProps<'Home'>) {
             {pending.map((m) => (
               <View key={m.matchId} style={styles.pendingCard}>
                 <View style={styles.pendingHeaderRow}>
-                  <Avatar uri={m.submitterAvatarUrl} name={m.submitterName} size={36} />
+                  <Avatar uri={m.submitterAvatarUrl} name={m.submitterName} size={36} playerId={m.submitterId} />
                   <View style={styles.pendingHeaderText}>
                     <Text style={styles.pendingName}>{m.submitterName}</Text>
                     <Text style={styles.pendingTime}>{formatTimestamp(m.submittedAt)}</Text>

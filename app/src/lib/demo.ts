@@ -12,6 +12,7 @@ import type {
   TournamentParticipant,
   TournamentSummary,
 } from '@/lib/tournaments';
+import { DEFAULT_TIER_LINES, type PlayerBadge, type Tier, type TierLine } from '@/lib/tiers';
 import type { OpponentOption, PendingMatch, PlayerWithRating, SubmittedPendingMatch } from '@/lib/types';
 
 const NOW = new Date().toISOString();
@@ -62,6 +63,7 @@ function toProfile(p: P): PlayerWithRating {
 let pending: PendingMatch[] = [
   {
     matchId: 'pm1',
+    submitterId: 'p2',
     submitterName: 'Ana',
     submitterAvatarUrl: null,
     iWon: false,
@@ -76,6 +78,7 @@ let pending: PendingMatch[] = [
   },
   {
     matchId: 'pm2',
+    submitterId: 'p6',
     submitterName: 'Emil',
     submitterAvatarUrl: null,
     iWon: true,
@@ -95,6 +98,7 @@ let pending: PendingMatch[] = [
 let submittedPending: SubmittedPendingMatch[] = [
   {
     matchId: 'spm1',
+    opponentId: 'p4',
     opponentName: 'Cris',
     opponentAvatarUrl: null,
     iWon: true,
@@ -184,6 +188,7 @@ export function demoMatchHistory(id: string): MatchHistoryItem[] {
   ];
   return sample.map(([opponent, result, delta], i) => ({
     id: `mh-${id}-${i}`,
+    opponentId: opponent.id,
     opponentName: opponent.name,
     opponentAvatarUrl: opponent.avatarUrl ?? null,
     result,
@@ -333,6 +338,23 @@ export function demoConfirmDoubles(
   if (match.iWon) team.wins += 1;
   else team.losses += 1;
   return { status: 'confirmed', yourTeam: { delta, rating: team.rating, rd: team.rd } };
+}
+
+// --- tiers -------------------------------------------------------------------
+
+// Tiers straight from the ratings with the default lines; Ana (best) is
+// Legend and Fei hasn't played for a while, so every look shows up.
+export function demoBadges(): { badges: Record<string, PlayerBadge>; lines: TierLine[] } {
+  const lines = DEFAULT_TIER_LINES;
+  const tierFor = (rating: number): Tier =>
+    [...lines].reverse().find((l) => rating >= l.minRating)?.tier ?? 'bronze';
+  const best = [...players].filter((p) => p.matches >= 3).sort((a, b) => b.rating - a.rating)[0];
+  const badges: Record<string, PlayerBadge> = {};
+  for (const p of players) {
+    const tier: Tier = p.matches >= 3 ? tierFor(p.rating) : 'unranked';
+    badges[p.id] = { playerId: p.id, tier, bestTier: tier, legend: p.id === best?.id, inactive: p.id === 'p7' };
+  }
+  return { badges, lines };
 }
 
 // --- tournaments -------------------------------------------------------------

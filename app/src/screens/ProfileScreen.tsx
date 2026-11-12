@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AwaitingOpponentList } from '@/components/AwaitingOpponentList';
 import { Avatar } from '@/components/Avatar';
+import { TierCard } from '@/components/TierCard';
 import { useAuth } from '@/context/AuthContext';
 import { uploadAvatar } from '@/lib/avatar';
 import { openInstall, useInstall } from '@/lib/install';
@@ -17,7 +18,7 @@ import type { SubmittedPendingMatch } from '@/lib/types';
 import type { ProfileStackScreenProps } from '@/navigation/types';
 import { radius, spacing, useTheme, type Colors } from '@/theme';
 
-type Me = { id: string; displayName: string; avatarUrl: string | null };
+type Me = { id: string; displayName: string; avatarUrl: string | null; rating: number; matchesPlayed: number };
 
 const PUSH_HINTS: Record<PushStatus, string> = {
   on: 'You’ll be notified about matches to confirm, and when yours are confirmed or declined.',
@@ -43,7 +44,13 @@ export function ProfileScreen({ navigation }: ProfileStackScreenProps<'Account'>
     try {
       const p = await fetchMyProfile(session.user.id);
       if (p) {
-        setMe({ id: p.id, displayName: p.display_name, avatarUrl: p.avatar_url });
+        setMe({
+          id: p.id,
+          displayName: p.display_name,
+          avatarUrl: p.avatar_url,
+          rating: p.rating?.rating ?? 1500,
+          matchesPlayed: p.rating?.matches_played ?? 0,
+        });
         setSubmittedPending(await fetchSubmittedPending(p.id));
       }
     } catch {
@@ -130,13 +137,15 @@ export function ProfileScreen({ navigation }: ProfileStackScreenProps<'Account'>
         <Text style={styles.title}>Profile</Text>
 
         <View style={styles.avatarSection}>
-          <Avatar uri={me?.avatarUrl} name={me?.displayName ?? '?'} size={80} />
+          <Avatar uri={me?.avatarUrl} name={me?.displayName ?? '?'} size={88} playerId={me?.id} />
           <Pressable style={styles.photoButton} onPress={handleChangePhoto}>
             <Text style={styles.photoButtonText}>
               {me?.avatarUrl ? 'Change photo' : 'Add photo'}
             </Text>
           </Pressable>
         </View>
+
+        {me && <TierCard playerId={me.id} rating={me.rating} matchesPlayed={me.matchesPlayed} isMe />}
 
         <View style={styles.card}>
           <Text style={styles.label}>Signed in as</Text>

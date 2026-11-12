@@ -26,7 +26,7 @@ export function AwaitingOpponentList({
       {matches.map((m) => (
         <View key={m.matchId} style={styles.card}>
           <View style={styles.headerRow}>
-            <Avatar uri={m.opponentAvatarUrl} name={m.opponentName} size={36} />
+            <Avatar uri={m.opponentAvatarUrl} name={m.opponentName} size={36} playerId={m.opponentId} />
             <View style={styles.headerText}>
               <Text style={styles.name}>vs {m.opponentName}</Text>
               <Text style={styles.time}>{formatTimestamp(m.submittedAt)}</Text>
