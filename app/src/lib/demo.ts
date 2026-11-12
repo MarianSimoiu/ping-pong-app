@@ -387,8 +387,16 @@ const DEMO_CATALOG: Achievement[] = [
   { code: 'deuce_master', name: 'Deuce Master', description: 'Win 10 games that went past 10–10', emoji: '🎯', target: 10, sort: 70 },
   { code: 'on_fire', name: 'On Fire', description: 'Win 5 matches in a row against 3+ different opponents', emoji: '🔥', target: 5, sort: 80 },
   { code: 'doubles_dynamo', name: 'Doubles Dynamo', description: 'Win 20 doubles matches', emoji: '🤝', target: 20, sort: 90 },
+  { code: 'ride_or_die', name: 'Ride or Die', description: 'Win 10 doubles matches with the same partner', emoji: '🫶', target: 10, sort: 92 },
+  { code: 'partner_hopper', name: 'Partner Hopper', description: 'Play doubles with 5 different partners', emoji: '🔀', target: 5, sort: 94 },
   { code: 'finalist', name: 'Finalist', description: 'Reach a tournament final', emoji: '🎖️', target: 1, sort: 100 },
+  { code: 'dark_horse', name: 'Dark Horse', description: 'Win your way into a tournament semifinal from the bottom pot', emoji: '🐴', target: 1, sort: 104 },
+  { code: 'seed_killer', name: 'Seed Killer', description: 'Knock the #1 seed out of a tournament', emoji: '🔪', target: 1, sort: 106 },
   { code: 'champion', name: 'Champion', description: 'Win a tournament', emoji: '🏆', target: 1, sort: 110 },
+  { code: 'lunch_break_legend', name: 'Lunch Break Legend', description: 'Win 10 matches between 12:00 and 14:00', emoji: '🥪', target: 10, sort: 120 },
+  { code: 'night_owl', name: 'Night Owl', description: 'Play a match after 20:00', emoji: '🦉', target: 1, sort: 130 },
+  { code: 'touch_grass', name: 'Touch Grass', description: 'Play 10 matches in one day', emoji: '🌱', target: 10, sort: 140 },
+  { code: 'coin_flip', name: 'Coin Flip', description: 'Have exactly as many wins as losses after 20+ matches', emoji: '🪙', target: 1, sort: 150 },
 ];
 
 const daysAgo = (d: number) => new Date(Date.now() - d * 864e5).toISOString();
@@ -401,6 +409,10 @@ const DEMO_PROGRESS: Record<string, Record<string, { progress: number; earnedAt:
     deuce_master: { progress: 6, earnedAt: null },
     on_fire: { progress: 3, earnedAt: null },
     doubles_dynamo: { progress: 3, earnedAt: null },
+    lunch_break_legend: { progress: 7, earnedAt: null },
+    touch_grass: { progress: 4, earnedAt: null },
+    ride_or_die: { progress: 3, earnedAt: null },
+    partner_hopper: { progress: 2, earnedAt: null },
   },
   p2: {
     regular: { progress: 25, earnedAt: daysAgo(60) },
@@ -408,8 +420,15 @@ const DEMO_PROGRESS: Record<string, Record<string, { progress: number; earnedAt:
     social_butterfly: { progress: 15, earnedAt: daysAgo(40) },
     deuce_master: { progress: 10, earnedAt: daysAgo(20) },
     on_fire: { progress: 5, earnedAt: daysAgo(15) },
+    lunch_break_legend: { progress: 10, earnedAt: daysAgo(9) },
+    night_owl: { progress: 1, earnedAt: daysAgo(33) },
   },
-  p3: { regular: { progress: 25, earnedAt: daysAgo(30) }, social_butterfly: { progress: 11, earnedAt: null } },
+  p3: {
+    regular: { progress: 25, earnedAt: daysAgo(30) },
+    social_butterfly: { progress: 11, earnedAt: null },
+    seed_killer: { progress: 1, earnedAt: daysAgo(26) },
+    touch_grass: { progress: 10, earnedAt: daysAgo(18) },
+  },
 };
 const AUTUMN = { tournamentId: 'demo-t0', tournamentName: 'Autumn Open', at: daysAgo(25) };
 const DEMO_HONOURS: Record<string, { won: boolean }> = { p2: { won: true }, p3: { won: false } };
