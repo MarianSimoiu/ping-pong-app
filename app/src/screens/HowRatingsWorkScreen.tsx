@@ -179,7 +179,8 @@ export function HowRatingsWorkScreen() {
           <P>
             🏆 Tournament champions get a gold laurel around their photo and a title for each
             tournament they win. 👑 Whoever leads the season points wears a crown while they hold
-            the lead.
+            the lead. Every final you play goes on the Trophies tab of your profile: 🏆 for a win,
+            🥈 for a runner-up.
           </P>
         </Section>
 

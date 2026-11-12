@@ -166,9 +166,10 @@ laurel around the avatar) and the season-points leader (a crown).
 `announceRewards` pushes new titles once each (`achievement_notices`; titles
 earned before 0015 count as announced), after singles, tournament and doubles
 results. In the app: the title next to names on the leaderboard and under them
-on profiles, a trophy cabinet on profiles (`TrophyCabinet`: progress, honours,
-and on your own profile the title to show), and `TitleCelebration` ("2 new
-titles") once per device, never in the same visit as another popup.
+on profiles, a cabinet on profiles (`TrophyCabinet`) with two tabs — Titles
+(progress toward each, and on your own profile the title to show) and Trophies
+(every final played, won or lost, and the crown) — and `TitleCelebration` ("2
+new titles") once per device, never in the same visit as another popup.
 
 ### Push notifications
 
