@@ -62,11 +62,16 @@ export function ringFor(badge: PlayerBadge | null | undefined): RingStyle | null
   return badge.tier;
 }
 
+// A player's tier by name, e.g. "Gold", "Legend".
+export function tierName(badge: PlayerBadge): string {
+  if (badge.tier === 'unranked') return 'Unranked';
+  return badge.legend ? 'Legend' : TIER_NAMES[badge.tier];
+}
+
 // The label for a player's tier, e.g. "🥇 Gold", "🌟 Legend".
 export function tierLabel(badge: PlayerBadge): string {
   if (badge.tier === 'unranked') return 'Unranked';
-  if (badge.legend) return `${LEGEND_EMOJI} Legend`;
-  return `${TIER_EMOJI[badge.tier]} ${TIER_NAMES[badge.tier]}`;
+  return `${badge.legend ? LEGEND_EMOJI : TIER_EMOJI[badge.tier]} ${tierName(badge)}`;
 }
 
 // Where a rating stands between its tier's line and the next one.

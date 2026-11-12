@@ -11,9 +11,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/Avatar';
-import { useBadges } from '@/context/BadgesContext';
-import { tierLabel } from '@/lib/tiers';
 import { TeamAvatars } from '@/components/TeamAvatars';
+import { TierPill } from '@/components/TierPill';
+import { useBadges } from '@/context/BadgesContext';
 import { MIN_MATCHES_FOR_LEADERBOARD } from '@/lib/constants';
 import { fetchTeamLeaderboard, teamName, type RankedTeam } from '@/lib/doubles';
 import {
@@ -101,27 +101,17 @@ export function LeaderboardScreen({ navigation }: LeaderboardStackScreenProps<'L
             keyExtractor={(e) => e.playerId}
             contentContainerStyle={styles.list}
             renderItem={({ item }) => (
-              <Pressable style={styles.row} onPress={() => openProfile(item.playerId, item.displayName)}>
-                <Text style={styles.rank}>{rankLabel(item.rank)}</Text>
-                <View style={styles.rowMain}>
-                  <View style={styles.nameLine}>
-                    <Avatar uri={item.avatarUrl} name={item.displayName} size={28} playerId={item.playerId} />
-                    <Text style={styles.rowName} numberOfLines={1}>
-                      {item.displayName}
-                      {badges[item.playerId]?.titleLabel ? (
-                        <Text style={styles.rowTitle}> · {badges[item.playerId].titleLabel}</Text>
-                      ) : null}
-                    </Text>
-                  </View>
-                  <Text style={styles.rowMeta}>
-                    {badges[item.playerId] && badges[item.playerId].tier !== 'unranked'
-                      ? `${tierLabel(badges[item.playerId])} · `
-                      : ''}
-                    ± {Math.round(item.rd)} · {item.matchesPlayed} matches · {item.wins}-{item.losses}
-                  </Text>
-                </View>
-                <Text style={styles.rowValue}>{Math.round(item.rating)}</Text>
-              </Pressable>
+              <Row
+                rank={item.rank}
+                avatar={<Avatar uri={item.avatarUrl} name={item.displayName} size={28} playerId={item.playerId} />}
+                name={item.displayName}
+                title={badges[item.playerId]?.titleLabel}
+                meta={record(item.matchesPlayed, item.wins, item.losses)}
+                value={String(Math.round(item.rating))}
+                valueNote={`±${Math.round(item.rd)}`}
+                side={<TierPill badge={badges[item.playerId]} />}
+                onPress={() => openProfile(item.playerId, item.displayName)}
+              />
             )}
           />
         )
@@ -137,21 +127,14 @@ export function LeaderboardScreen({ navigation }: LeaderboardStackScreenProps<'L
             keyExtractor={(e) => e.playerId}
             contentContainerStyle={styles.list}
             renderItem={({ item }) => (
-              <Pressable style={styles.row} onPress={() => openProfile(item.playerId, item.displayName)}>
-                <Text style={styles.rank}>{rankLabel(item.rank)}</Text>
-                <View style={styles.rowMain}>
-                  <View style={styles.nameLine}>
-                    <Avatar uri={item.avatarUrl} name={item.displayName} size={28} playerId={item.playerId} />
-                    <Text style={styles.rowName} numberOfLines={1}>
-                      {item.displayName}
-                    </Text>
-                  </View>
-                  <Text style={styles.rowMeta}>
-                    {item.events} {item.events === 1 ? 'result' : 'results'} counted
-                  </Text>
-                </View>
-                <Text style={styles.rowValue}>{item.points}</Text>
-              </Pressable>
+              <Row
+                rank={item.rank}
+                avatar={<Avatar uri={item.avatarUrl} name={item.displayName} size={28} playerId={item.playerId} />}
+                name={item.displayName}
+                meta={`${item.events} ${item.events === 1 ? 'result' : 'results'} counted`}
+                value={String(item.points)}
+                onPress={() => openProfile(item.playerId, item.displayName)}
+              />
             )}
           />
         )
@@ -166,25 +149,82 @@ export function LeaderboardScreen({ navigation }: LeaderboardStackScreenProps<'L
           keyExtractor={(t) => t.id}
           contentContainerStyle={styles.list}
           renderItem={({ item }) => (
-            <View style={styles.row}>
-              <Text style={styles.rank}>{rankLabel(item.rank)}</Text>
-              <View style={styles.rowMain}>
-                <View style={styles.nameLine}>
-                  <TeamAvatars team={item} />
-                  <Text style={styles.rowName} numberOfLines={1}>
-                    {teamName(item)}
-                  </Text>
-                </View>
-                <Text style={styles.rowMeta}>
-                  ± {Math.round(item.rd)} · {item.matchesPlayed} matches · {item.wins}-{item.losses}
-                </Text>
-              </View>
-              <Text style={styles.rowValue}>{Math.round(item.rating)}</Text>
-            </View>
+            <Row
+              rank={item.rank}
+              avatar={<TeamAvatars team={item} />}
+              name={teamName(item)}
+              meta={record(item.matchesPlayed, item.wins, item.losses)}
+              value={String(Math.round(item.rating))}
+              valueNote={`±${Math.round(item.rd)}`}
+            />
           )}
         />
       )}
     </SafeAreaView>
+  );
+}
+
+// "41 matches · 25–16": matches played, then the win–loss record.
+const record = (matches: number, wins: number, losses: number): string =>
+  `${matches} ${matches === 1 ? 'match' : 'matches'} · ${wins}–${losses}`;
+
+// One card on the board. Left: the rank, then the avatar and name (and title)
+// over a single line of detail. Right: the rating (with its ±) over the tier.
+function Row({
+  rank,
+  avatar,
+  name,
+  title,
+  meta,
+  value,
+  valueNote,
+  side,
+  onPress,
+}: {
+  rank: number;
+  avatar: React.ReactNode;
+  name: string;
+  title?: string | null;
+  meta: string;
+  value: string;
+  valueNote?: string;
+  side?: React.ReactNode;
+  onPress?: () => void;
+}) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const content = (
+    <>
+      <View style={styles.rankCell}>
+        <Text style={rank <= MEDALS.length ? styles.medal : styles.rank}>{rankLabel(rank)}</Text>
+      </View>
+      <View style={styles.rowMain}>
+        <View style={styles.nameLine}>
+          {avatar}
+          <Text style={styles.rowName} numberOfLines={1}>
+            {name}
+            {title ? <Text style={styles.rowTitle}> · {title}</Text> : null}
+          </Text>
+        </View>
+        <Text style={styles.rowMeta} numberOfLines={1}>
+          {meta}
+        </Text>
+      </View>
+      <View style={styles.rowSide}>
+        <View style={styles.valueLine}>
+          <Text style={styles.rowValue}>{value}</Text>
+          {valueNote ? <Text style={styles.valueNote}>{valueNote}</Text> : null}
+        </View>
+        {side ? <View style={styles.sideExtra}>{side}</View> : null}
+      </View>
+    </>
+  );
+  return onPress ? (
+    <Pressable style={styles.row} onPress={onPress}>
+      {content}
+    </Pressable>
+  ) : (
+    <View style={styles.row}>{content}</View>
   );
 }
 
@@ -250,18 +290,26 @@ function createStyles(colors: Colors) {
       alignItems: 'center',
       backgroundColor: colors.surface,
       borderRadius: radius.md,
-      padding: spacing.md,
+      paddingVertical: spacing.sm + 4,
+      paddingHorizontal: spacing.sm + 4,
       marginBottom: spacing.sm,
       borderWidth: 1,
       borderColor: colors.border,
     },
-    rank: { color: colors.textMuted, fontSize: 16, fontWeight: '700', width: 28 },
+    // Wide enough for a medal or a three-digit rank, centered either way.
+    rankCell: { width: 32, alignItems: 'center' },
+    rank: { color: colors.textMuted, fontSize: 16, fontWeight: '700' },
+    medal: { fontSize: 22 },
     rowMain: { flex: 1, marginLeft: spacing.sm },
     nameLine: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
     rowName: { color: colors.text, fontSize: 16, fontWeight: '600', flexShrink: 1 },
     rowTitle: { color: colors.textMuted, fontSize: 13, fontWeight: '500', fontStyle: 'italic' },
-    rowMeta: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
+    rowMeta: { color: colors.textMuted, fontSize: 13, marginTop: 3 },
+    rowSide: { alignItems: 'flex-end', marginLeft: spacing.sm },
+    valueLine: { flexDirection: 'row', alignItems: 'baseline' },
     rowValue: { color: colors.primary, fontSize: 20, fontWeight: '800' },
+    valueNote: { color: colors.textMuted, fontSize: 12, fontWeight: '600', marginLeft: 3 },
+    sideExtra: { marginTop: 3 },
     center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
     emoji: { fontSize: 44, marginBottom: spacing.md },
     placeholder: { color: colors.textMuted, fontSize: 14, textAlign: 'center', lineHeight: 20 },
