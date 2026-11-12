@@ -6,8 +6,8 @@
 import type { DoublesPendingMatch, RankedTeam, Team } from '@/lib/doubles';
 import type { LeaderboardEntry, HistoryPoint, MatchHistoryItem, SeasonEntry } from '@/lib/leaderboard';
 import type {
-  PlayerWithRatingRow,
   TournamentDetail,
+  TournamentListItem,
   TournamentNode,
   TournamentParticipant,
   TournamentSummary,
@@ -111,10 +111,13 @@ let submittedPending: SubmittedPendingMatch[] = [
 
 type TStore = {
   summary: TournamentSummary;
+  // While open: who registered, and when (pots are worked out live).
+  registrations: { playerId: string; at: number }[];
+  // Once drawn: everyone with their seed and frozen pot.
   participants: TournamentParticipant[];
   nodes: TournamentNode[];
 };
-const tournaments: TStore[] = [sampleTournament()];
+const tournaments: TStore[] = [sampleTournament(), openTournament()];
 
 // --- profile / leaderboard ---------------------------------------------------
 
@@ -333,53 +336,157 @@ export function demoConfirmDoubles(
 }
 
 // --- tournaments -------------------------------------------------------------
+// Mirrors the server: registration until kickoff for players on the
+// leaderboard, live pots (4 from 8 players, else 2), the draw at kickoff (each
+// pot shuffled, Pot 1 seeded first, standard bracket), admin start/move/cancel.
 
-export const demoTournaments = (): TournamentSummary[] =>
-  tournaments.map((t) => t.summary).sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+const MIN_MATCHES = 3;
+const MIN_PLAYERS = 4;
 
-export const demoSeedablePlayers = (): PlayerWithRatingRow[] =>
-  [...players]
-    .sort((a, b) => b.rating - a.rating)
-    .map((p) => ({ id: p.id, name: p.name, rating: p.rating, matchesPlayed: p.matches }));
+function listItem(t: TStore): TournamentListItem {
+  const ids = t.summary.status === 'registration' ? t.registrations.map((r) => r.playerId) : t.participants.map((p) => p.playerId);
+  const current = t.summary.status === 'registration' || t.summary.status === 'active';
+  return { ...t.summary, registeredCount: current ? ids.length : null, imIn: ids.includes(DEMO_ME) };
+}
+
+// Postgres's ntile: n rows into k buckets as equal as possible, bigger first.
+function ntile(i: number, n: number, k: number): number {
+  const base = Math.floor(n / k);
+  const extra = n % k;
+  const inBig = extra * (base + 1);
+  return i < inBig ? Math.floor(i / (base + 1)) + 1 : extra + Math.floor((i - inBig) / base) + 1;
+}
+
+function livePots(t: TStore): TournamentParticipant[] {
+  const regs = t.registrations
+    .map((r) => ({ at: r.at, p: byId(r.playerId)! }))
+    .sort((a, b) => b.p.rating - a.p.rating || a.at - b.at);
+  const k = regs.length >= 8 ? 4 : regs.length >= 2 ? 2 : 1;
+  return regs.map(({ p }, i) => ({
+    playerId: p.id,
+    name: p.name,
+    avatarUrl: p.avatarUrl ?? null,
+    seed: null,
+    pot: ntile(i, regs.length, k),
+    rating: p.rating,
+  }));
+}
+
+const find = (id: string) => {
+  const t = tournaments.find((x) => x.summary.id === id);
+  if (!t) throw new Error('Tournament not found');
+  return t;
+};
+
+function closedReason(t: TStore): string | null {
+  if (t.summary.status === 'cancelled') return 'This tournament was cancelled';
+  if (t.summary.status !== 'registration') return 'This tournament has already started';
+  if (t.summary.kickoffAt && new Date(t.summary.kickoffAt).getTime() <= Date.now()) return 'Registration closed at kickoff';
+  return null;
+}
+
+export const demoTournaments = (): TournamentListItem[] =>
+  tournaments.map(listItem).sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
 
 export function demoTournamentDetail(id: string): TournamentDetail {
-  const t = tournaments.find((x) => x.summary.id === id) ?? tournaments[0];
+  const t = find(id);
+  const participants =
+    t.summary.status === 'registration'
+      ? livePots(t)
+      : [...t.participants].sort((a, b) => (a.seed ?? 0) - (b.seed ?? 0));
   const nameById: Record<string, string> = {};
-  for (const p of t.participants) nameById[p.playerId] = p.name;
+  for (const p of participants) nameById[p.playerId] = p.name;
   return {
-    tournament: t.summary,
-    participants: t.participants,
+    tournament: { ...t.summary },
+    participants,
     nodes: t.nodes,
     nameById,
-    totalRounds: Math.log2(t.summary.size),
+    totalRounds: t.summary.size ? Math.log2(t.summary.size) : 0,
   };
 }
 
-export function demoCreateTournament(input: {
-  name: string;
-  bestOf: number;
-  participantIds: string[];
-}): { tournamentId: string } {
+export function demoCreateTournament(input: { name: string; bestOf: number; kickoffAt: string }): { tournamentId: string } {
   const id = `t-${Date.now()}`;
-  const { nodes, size } = buildBracket(input.participantIds);
   tournaments.push({
     summary: {
       id,
       name: input.name,
-      status: 'active',
-      size,
+      status: 'registration',
+      size: null,
       bestOf: input.bestOf,
       tier: 1,
       createdAt: new Date().toISOString(),
+      kickoffAt: input.kickoffAt,
+      createdBy: DEMO_ME,
     },
-    participants: input.participantIds.map((playerId, i) => ({
-      playerId,
-      seed: i + 1,
-      name: byId(playerId)?.name ?? '—',
-    })),
-    nodes,
+    registrations: [],
+    participants: [],
+    nodes: [],
   });
   return { tournamentId: id };
+}
+
+export function demoRegister(id: string, join: boolean): void {
+  const t = find(id);
+  const closed = closedReason(t);
+  if (closed) throw new Error(closed);
+  if (!join) {
+    t.registrations = t.registrations.filter((r) => r.playerId !== DEMO_ME);
+    return;
+  }
+  const played = byId(DEMO_ME)!.matches;
+  if (played < MIN_MATCHES) {
+    const more = MIN_MATCHES - played;
+    throw new Error(`Only players on the leaderboard can register: play ${more} more match${more === 1 ? '' : 'es'}`);
+  }
+  if (!t.registrations.some((r) => r.playerId === DEMO_ME)) t.registrations.push({ playerId: DEMO_ME, at: Date.now() });
+}
+
+function shuffled<T>(items: T[]): T[] {
+  const out = [...items];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
+function draw(t: TStore): void {
+  const pots = livePots(t);
+  if (pots.length < MIN_PLAYERS) throw new Error(`A tournament needs at least ${MIN_PLAYERS} players to start`);
+  const seeded = [1, 2, 3, 4].flatMap((pot) => shuffled(pots.filter((p) => p.pot === pot)));
+  const { nodes, size } = buildBracket(seeded.map((p) => p.playerId));
+  t.participants = seeded.map((p, i) => ({ ...p, seed: i + 1 }));
+  t.nodes = nodes;
+  t.summary.size = size;
+  t.summary.status = 'active';
+}
+
+export function demoStartNow(id: string): void {
+  const t = find(id);
+  if (t.summary.status !== 'registration') throw new Error('This tournament has already started');
+  draw(t);
+  t.summary.kickoffAt = new Date().toISOString();
+}
+
+export function demoKickoffDue(): void {
+  for (const t of tournaments) {
+    const due = t.summary.status === 'registration' && !!t.summary.kickoffAt && new Date(t.summary.kickoffAt).getTime() <= Date.now();
+    if (due && t.registrations.length >= MIN_PLAYERS) draw(t);
+  }
+}
+
+export function demoReschedule(id: string, kickoffAt: string): void {
+  const t = find(id);
+  if (t.summary.status !== 'registration') throw new Error("Only a tournament that hasn't started can be rescheduled");
+  if (new Date(kickoffAt).getTime() <= Date.now()) throw new Error('Pick a kickoff time in the future');
+  t.summary.kickoffAt = kickoffAt;
+}
+
+export function demoCancel(id: string): void {
+  const t = find(id);
+  if (t.summary.status !== 'registration') throw new Error("Only a tournament that hasn't started can be cancelled");
+  t.summary.status = 'cancelled';
 }
 
 export function demoRecordTournamentMatch(input: {
@@ -393,7 +500,7 @@ export function demoRecordTournamentMatch(input: {
   const winner = aWins >= bWins ? node.playerA! : node.playerB!;
   node.winnerId = winner;
   node.status = 'completed';
-  const rounds = Math.log2(t.summary.size);
+  const rounds = Math.log2(t.summary.size!);
   if (node.round < rounds) {
     const parent = t.nodes.find((n) => n.round === node.round + 1 && n.slot === Math.floor(node.slot / 2))!;
     if (node.slot % 2 === 0) parent.playerA = winner;
@@ -407,31 +514,42 @@ export function demoRecordTournamentMatch(input: {
 
 // --- helpers -----------------------------------------------------------------
 
+// Standard bracket seeding (same as the server's bracket.ts): for 8,
+// [1, 8, 4, 5, 2, 7, 3, 6], so seeds 1 and 2 can only meet in the final.
+function seedOrder(size: number): number[] {
+  let order = [1, 2];
+  while (order.length < size) {
+    const sum = order.length * 2 + 1;
+    order = order.flatMap((s) => [s, sum - s]);
+  }
+  return order;
+}
+
+// A single-elimination bracket from players in seed order; byes go to the top
+// seeds and move them straight on.
 function buildBracket(ids: string[]): { nodes: TournamentNode[]; size: number } {
-  let size = 1;
+  let size = 2;
   while (size < ids.length) size *= 2;
   const rounds = Math.log2(size);
+  const stamp = Date.now();
   const nodes: TournamentNode[] = [];
   for (let r = 1; r <= rounds; r++) {
     for (let s = 0; s < size / 2 ** r; s++) {
-      nodes.push({ id: `n-${Date.now()}-${r}-${s}`, round: r, slot: s, playerA: null, playerB: null, winnerId: null, status: 'pending' });
+      nodes.push({ id: `n-${stamp}-${r}-${s}`, round: r, slot: s, playerA: null, playerB: null, winnerId: null, status: 'pending' });
     }
   }
   const at = (r: number, s: number) => nodes.find((n) => n.round === r && n.slot === s)!;
-  const seeded: (string | null)[] = [...ids];
-  while (seeded.length < size) seeded.push(null);
+  const order = seedOrder(size);
+  const player = (seed: number) => (seed <= ids.length ? ids[seed - 1] : null);
   for (let s = 0; s < size / 2; s++) {
-    const a = seeded[s * 2];
-    const b = seeded[s * 2 + 1];
     const node = at(1, s);
-    node.playerA = a;
-    node.playerB = b;
-    if (a && b) node.status = 'ready';
+    node.playerA = player(order[s * 2]);
+    node.playerB = player(order[s * 2 + 1]);
+    if (node.playerA && node.playerB) node.status = 'ready';
   }
   for (let s = 0; s < size / 2; s++) {
     const node = at(1, s);
-    const only = !!node.playerA !== !!node.playerB;
-    if (only) {
+    if (!!node.playerA !== !!node.playerB) {
       const w = (node.playerA ?? node.playerB)!;
       node.winnerId = w;
       node.status = 'completed';
@@ -446,10 +564,11 @@ function buildBracket(ids: string[]): { nodes: TournamentNode[]; size: number } 
   return { nodes, size };
 }
 
+// A tournament from before registration existed: hand-picked, no pots, one
+// semifinal played (Ana beat Dana); yours against Ben is up next.
 function sampleTournament(): TStore {
   const ids = ['p2', 'p3', DEMO_ME, 'p5'];
   const { nodes, size } = buildBracket(ids);
-  // Play the first semifinal so there's a completed match to look at.
   const sf0 = nodes.find((n) => n.round === 1 && n.slot === 0)!;
   sf0.winnerId = sf0.playerA;
   sf0.status = 'completed';
@@ -464,8 +583,42 @@ function sampleTournament(): TStore {
       bestOf: 3,
       tier: 1,
       createdAt: new Date(Date.now() - 2 * 864e5).toISOString(),
+      kickoffAt: null,
+      createdBy: DEMO_ME,
     },
-    participants: ids.map((playerId, i) => ({ playerId, seed: i + 1, name: byId(playerId)?.name ?? '—' })),
+    registrations: [],
+    participants: ids.map((playerId, i) => ({
+      playerId,
+      seed: i + 1,
+      pot: null,
+      name: byId(playerId)?.name ?? '—',
+      avatarUrl: null,
+      rating: byId(playerId)?.rating ?? null,
+    })),
     nodes,
+  };
+}
+
+// Open for registration, kickoff in two days at 18:00: seven players in, so
+// two pots, until an eighth (you) makes it four.
+function openTournament(): TStore {
+  const kickoff = new Date(Date.now() + 2 * 864e5);
+  kickoff.setHours(18, 0, 0, 0);
+  const others = ['p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8'];
+  return {
+    summary: {
+      id: 'demo-t2',
+      name: 'Winter Cup',
+      status: 'registration',
+      size: null,
+      bestOf: 3,
+      tier: 1,
+      createdAt: new Date(Date.now() - 864e5).toISOString(),
+      kickoffAt: kickoff.toISOString(),
+      createdBy: DEMO_ME,
+    },
+    registrations: others.map((playerId, i) => ({ playerId, at: Date.now() - (others.length - i) * 36e5 })),
+    participants: [],
+    nodes: [],
   };
 }

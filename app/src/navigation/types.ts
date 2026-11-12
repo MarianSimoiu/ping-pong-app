@@ -44,7 +44,7 @@ export type ProfileStackScreenProps<T extends keyof ProfileStackParamList> =
 export type TournamentsStackParamList = {
   TournamentsList: undefined;
   CreateTournament: undefined;
-  TournamentDetail: { tournamentId: string; name: string };
+  TournamentDetail: { tournamentId: string; name?: string };
   RecordTournamentMatch: {
     tournamentMatchId: string;
     tournamentId: string;

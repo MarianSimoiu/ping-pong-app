@@ -56,7 +56,25 @@ Deno.test('parentSlot routes winners correctly', () => {
   assertEquals(parentSlot(2, 0, 2), null); // the final has no parent
 });
 
-Deno.test('rejects fewer than 2 or more than 32', () => {
+Deno.test('rejects fewer than 2', () => {
   assertThrows(() => generateSingleElim(['solo']), Error);
-  assertThrows(() => generateSingleElim(Array.from({ length: 33 }, (_, i) => `p${i}`)), Error);
+});
+
+Deno.test('no upper limit: 80 players make a 128 bracket with 48 byes to the top seeds', () => {
+  const ids = Array.from({ length: 80 }, (_, i) => `p${i + 1}`);
+  const nodes = generateSingleElim(ids);
+  const r1 = nodes.filter((n) => n.round === 1);
+  assertEquals(r1.length, 64);
+  assertEquals(Math.max(...nodes.map((n) => n.round)), 7);
+  const byes = r1.filter((n) => n.status === 'completed');
+  assertEquals(byes.length, 48);
+  assertEquals(
+    byes.map((n) => Number(n.winner!.slice(1))).sort((a, b) => a - b),
+    Array.from({ length: 48 }, (_, i) => i + 1),
+    'seeds 1-48 get the byes',
+  );
+  assertEquals(r1.filter((n) => n.status === 'ready').length, 16);
+  // Every player appears exactly once in round 1.
+  const seen = r1.flatMap((n) => [n.playerA, n.playerB]).filter(Boolean);
+  assertEquals(new Set(seen).size, 80);
 });

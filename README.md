@@ -41,7 +41,8 @@ See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the full design.
 ## See it running — no local install needed
 
 The app has a built-in **demo mode**: if no Supabase backend is configured, it
-boots with sample players, matches, and a tournament already loaded, so you can
+boots with sample players, matches, and two tournaments (one being played, one
+open for registration) already loaded, so you can
 see and click through every screen immediately.
 
 **Fastest path — GitHub Codespaces (everything runs in your browser):**

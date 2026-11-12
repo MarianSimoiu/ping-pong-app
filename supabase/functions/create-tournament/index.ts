@@ -1,113 +1,54 @@
 // Edge Function: create-tournament
 //
-// Creates a single-elimination tournament (admins only — see the admins
-// table, migration 0009). The caller passes an ordered list of
-// participant player ids (index 0 = top seed). This function generates the full
-// bracket (tested TS) and persists tournament + participants + bracket nodes
-// atomically via the create_tournament RPC. Byes are handled by the generator.
-
-import { createClient } from 'jsr:@supabase/supabase-js@2';
+// An admin (the admins table, migration 0009) opens a tournament for
+// registration until a kickoff time. Players then register themselves
+// (tournament-registration), and at kickoff the draw is made
+// (tournament-kickoff). The database refuses a tournament from anyone who
+// isn't an admin as well (0012), whoever creates it.
+//
+// Players who can register (on the leaderboard) get a notification.
 
 import { corsHeaders, jsonResponse } from '../_shared/cors.ts';
-import { generateSingleElim, nextPowerOfTwo } from '../_shared/bracket.ts';
+import { caller } from '../_shared/caller.ts';
+import { tournamentOpened } from '../_shared/messages.ts';
+import { afterResponse, notifyPlayers } from '../_shared/notify.ts';
+import { checkNewTournament, errorMessage, isRuleError } from '../_shared/tournaments.ts';
 
-type Body = {
-  name?: string;
-  tier?: number;
-  bestOf?: number;
-  participantIds?: string[]; // ordered by seed, best first
-};
+// Same as MIN_MATCHES_FOR_LEADERBOARD in the app and register_for_tournament.
+const MIN_MATCHES = 3;
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (req.method !== 'POST') return jsonResponse({ error: 'Method not allowed' }, 405);
 
-  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-  const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-
   try {
-    const authHeader = req.headers.get('Authorization') ?? '';
-    const asUser = createClient(supabaseUrl, anonKey, {
-      global: { headers: { Authorization: authHeader } },
+    const who = await caller(req);
+    if (who instanceof Response) return who;
+    if (!who.isAdmin) return jsonResponse({ error: 'Only admins can create tournaments' }, 403);
+    const { admin, playerId } = who;
+
+    const checked = checkNewTournament(await req.json(), new Date());
+    if (!checked.ok) return jsonResponse({ error: checked.error }, 400);
+    const t = checked.value;
+
+    const { data: tournamentId, error } = await admin.rpc('open_tournament', {
+      payload: { name: t.name, best_of: t.bestOf, tier: t.tier, kickoff_at: t.kickoffAt, created_by: playerId },
     });
-    const { data: userData, error: userErr } = await asUser.auth.getUser();
-    if (userErr || !userData.user) return jsonResponse({ error: 'Not authenticated' }, 401);
+    if (error) return jsonResponse({ error: error.message }, isRuleError(error) ? 400 : 500);
 
-    const body = (await req.json()) as Body;
-    const name = (body.name ?? '').trim();
-    const participantIds = body.participantIds ?? [];
-    const tier = body.tier ?? 1;
-    const bestOf = body.bestOf ?? 3;
+    await afterResponse(
+      (async () => {
+        const { data: eligible } = await admin
+          .from('player_ratings')
+          .select('player_id')
+          .gte('matches_played', MIN_MATCHES);
+        const others = (eligible ?? []).map((r) => r.player_id).filter((id) => id !== playerId);
+        await notifyPlayers(admin, others, tournamentOpened({ tournamentId, tournament: t.name }));
+      })(),
+    );
 
-    if (!name) return jsonResponse({ error: 'A tournament name is required' }, 400);
-    if (new Set(participantIds).size !== participantIds.length) {
-      return jsonResponse({ error: 'Participants must be unique' }, 400);
-    }
-    if (participantIds.length < 2) return jsonResponse({ error: 'Add at least 2 participants' }, 400);
-    if (participantIds.length > 32) return jsonResponse({ error: 'At most 32 participants' }, 400);
-
-    const admin = createClient(supabaseUrl, serviceKey);
-
-    const { data: creator, error: cErr } = await admin
-      .from('players')
-      .select('id')
-      .eq('user_id', userData.user.id)
-      .single();
-    if (cErr || !creator) return jsonResponse({ error: 'Player profile not found' }, 404);
-
-    // Only admins (the public.admins table) may create tournaments.
-    const { data: adminRow, error: aErr } = await admin
-      .from('admins')
-      .select('player_id')
-      .eq('player_id', creator.id)
-      .maybeSingle();
-    if (aErr) return jsonResponse({ error: aErr.message }, 500);
-    if (!adminRow) return jsonResponse({ error: 'Only admins can create tournaments' }, 403);
-
-    // Verify every participant exists.
-    const { data: found, error: pErr } = await admin
-      .from('players')
-      .select('id')
-      .in('id', participantIds);
-    if (pErr || !found || found.length !== participantIds.length) {
-      return jsonResponse({ error: 'One or more participants were not found' }, 400);
-    }
-
-    // Generate the bracket (byes auto-advance top seeds).
-    let nodes;
-    try {
-      nodes = generateSingleElim(participantIds);
-    } catch (e) {
-      return jsonResponse({ error: e instanceof Error ? e.message : 'Invalid bracket' }, 400);
-    }
-    const size = nextPowerOfTwo(participantIds.length);
-
-    const payload = {
-      tournament: {
-        name,
-        format: 'single_elim',
-        tier,
-        best_of: bestOf,
-        size,
-        created_by: creator.id,
-      },
-      participants: participantIds.map((player_id, i) => ({ player_id, seed: i + 1 })),
-      nodes: nodes.map((n) => ({
-        round: n.round,
-        slot: n.slot,
-        player_a: n.playerA,
-        player_b: n.playerB,
-        winner_id: n.winner,
-        status: n.status,
-      })),
-    };
-
-    const { data: tournamentId, error: applyErr } = await admin.rpc('create_tournament', { payload });
-    if (applyErr) return jsonResponse({ error: applyErr.message }, 500);
-
-    return jsonResponse({ tournamentId, size });
+    return jsonResponse({ tournamentId });
   } catch (e) {
-    return jsonResponse({ error: e instanceof Error ? e.message : 'Unexpected error' }, 500);
+    return jsonResponse({ error: errorMessage(e) }, 500);
   }
 });

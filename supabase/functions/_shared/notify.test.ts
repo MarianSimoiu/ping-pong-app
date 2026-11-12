@@ -2,7 +2,7 @@
 import { assert, assertEquals, assertMatch } from 'jsr:@std/assert@1';
 import type { SupabaseClient } from 'jsr:@supabase/supabase-js@2';
 
-import { afterResponse, notifyPlayers, vapidKeys } from './notify.ts';
+import { afterResponse, notifyEach, notifyPlayers, vapidKeys } from './notify.ts';
 
 type Row = Record<string, unknown>;
 
@@ -118,6 +118,29 @@ Deno.test('a failing push service or database never throws', async () => {
     push.restore();
   }
   assertEquals(db.tables.push_subscriptions.length, 1, 'a network error is not a reason to forget the device');
+});
+
+Deno.test('each player gets their own message, from one device lookup', async () => {
+  const db = fakeDb({
+    push_subscriptions: [
+      device('alin-phone', 'alin', 'fcm.googleapis.com'),
+      device('alin-laptop', 'alin', 'updates.push.services.mozilla.com'),
+      device('ana-phone', 'ana', 'web.push.apple.com'),
+      device('ben-phone', 'ben', 'fcm.googleapis.com'),
+    ],
+  });
+  const push = fakePushServices(() => 201);
+  try {
+    await notifyEach(db.client, [
+      { playerId: 'alin', message: { ...message, body: 'Round 1: you play Ana. Good luck!' } },
+      { playerId: 'ana', message: { ...message, body: 'Round 1: you play Alin. Good luck!' } },
+    ]);
+  } finally {
+    push.restore();
+  }
+  assertEquals(push.sent.map((s) => new URL(s.url).pathname).sort(), ['/push/alin-laptop', '/push/alin-phone', '/push/ana-phone']);
+  const alinBytes = push.sent.filter((s) => s.url.includes('alin')).map((s) => s.bytes);
+  assertEquals(alinBytes[0], alinBytes[1], 'both of Alin\'s devices get the same message');
 });
 
 Deno.test('work runs after the response when the runtime allows it', async () => {

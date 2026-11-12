@@ -63,6 +63,9 @@ RPC and the `season_standings(best_n)` ranking function. `0005_match_confirmatio
 adds a `status` column to `matches` and the confirmation RPCs (below).
 `0009_admins.sql` adds `admins`, the players allowed to create tournaments
 (read-only to the app; managed in the SQL Editor — see docs/DEPLOYMENT.md).
+`0012_tournament_registration.sql` adds registration, pots and the kickoff
+(below), and `0013_tournament_kickoff_schedule.sql` the every-minute kickoff
+check.
 
 ### Match confirmation
 
@@ -77,14 +80,42 @@ matches are exempt: `apply_rated_match` writes them directly as `confirmed`.
 ### Tournaments (Phase 4)
 
 Single-elimination brackets whose matches feed the **same** rating engine as
-casual play (`context = 'tournament'`). Bracket generation is pure, tested TS
-(`_shared/bracket.ts`); byes auto-advance top seeds. Two Edge Functions:
-`create-tournament` (generates the bracket, persists it via `create_tournament`)
-and `submit-tournament-match` (records a ready node's result through the shared
-rating engine, then `apply_tournament_result` completes the node and advances the
-winner — or finishes the tournament on the final). The rating orchestration lives
-in `_shared/engine.ts`, shared by both `submit-match` and
-`submit-tournament-match`.
+casual play (`context = 'tournament'`). A tournament goes through:
+
+1. **Registration** (`status = 'registration'`). An admin creates it with a
+   name, format and kickoff time (`create-tournament` → `open_tournament`);
+   the players who can register get a notification. A trigger refuses any
+   tournament whose creator isn't in `admins`, whoever inserts it. Until the
+   kickoff, players on the leaderboard (3+ confirmed matches) register or
+   withdraw (`tournament-registration` → `register_for_tournament` /
+   `withdraw_from_tournament`, which hold the rules). The
+   `tournament_live_pots` view splits the registered players into pots by
+   current rating (4 from 8 players, else 2; ties to whoever registered
+   first), so every player sees their pot change live.
+2. **Kickoff.** At the kickoff time, `pg_cron` (`0013`) calls
+   `tournament-kickoff`, deployed without the user-token check because the
+   database calls it; the app also calls it when it shows a tournament past
+   its kickoff, and an admin can press "Start now" (`manage-tournament`).
+   `_shared/kickoff.ts` reads the pots, `_shared/draw.ts` shuffles each pot
+   (Web Crypto) and seeds them in order (Pot 1 first), and the standard
+   bracket (`_shared/bracket.ts`, byes to the top seeds, no size limit) then
+   pairs Pot 1 with Pot 4 and Pot 2 with Pot 3 in round 1. `kickoff_tournament`
+   stores the frozen pots, seeds and bracket and starts it only once, and only
+   if the field didn't change during the draw (otherwise the draw is made
+   again). Each player is notified of their first opponent. With fewer than
+   4 players nothing happens: registration is closed and the admin moves the
+   kickoff or cancels (`manage-tournament` → `reschedule_tournament` /
+   `cancel_tournament`, registered players are notified).
+3. **Play** (`active` → `completed`). `submit-tournament-match` records a
+   ready node's result through the shared rating engine, then
+   `apply_tournament_result` completes the node and advances the winner — or
+   finishes the tournament on the final, which awards season points. The
+   rating orchestration lives in `_shared/engine.ts`, shared by both
+   `submit-match` and `submit-tournament-match`.
+
+Tournaments from before registration existed have no kickoff time or pots
+and show as before. The app only reads the tournament tables; every change is
+an RPC called by an Edge Function with the service role.
 
 ### Doubles (2v2)
 
@@ -113,7 +144,9 @@ Function stores the device in `push_subscriptions`
 off on that device. `submit-match`, `confirm-match`, `submit-doubles-match`
 and `confirm-doubles-match` then notify the players involved
 (`_shared/notify.ts`, texts in `_shared/messages.ts`): a match to confirm, or
-a match they recorded confirmed (with the rating change) or declined. Sending
+a match they recorded confirmed (with the rating change) or declined. The
+tournament functions notify too: a new tournament open for registration, the
+draw (each player's first opponent), a moved kickoff, a cancellation. Sending
 is standard Web Push (`_shared/webpush.ts`: RFC 8291 encryption and VAPID,
 Web Crypto only), signed with a key pair the server creates on first use and
 keeps in `push_keys`. A subscription the push service reports as gone is

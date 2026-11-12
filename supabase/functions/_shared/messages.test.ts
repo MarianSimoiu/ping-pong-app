@@ -9,6 +9,10 @@ import {
   singlesConfirmed,
   singlesDeclined,
   singlesToConfirm,
+  tournamentCancelled,
+  tournamentDrawn,
+  tournamentOpened,
+  tournamentRescheduled,
 } from './messages.ts';
 
 Deno.test('games won per side, from stored scores', () => {
@@ -87,4 +91,36 @@ Deno.test('doubles: to confirm, confirmed (both sides), declined', () => {
     doublesDeclined({ matchId: 'd1', decliner: 'Cris', opponents: ['Cris', 'Dana'], youWon: true, yourGames: 2, theirGames: 1 }),
     { title: 'Cris declined your doubles match', body: "Your 2–1 win vs Cris & Dana won't count.", url: '/doubles', tag: 'doubles-d1' },
   );
+});
+
+Deno.test('tournaments: opened, drawn (match, bye then opponent, bye then winner of), moved, cancelled', () => {
+  const t = { tournamentId: 't1', tournament: 'Winter Cup' };
+  assertEquals(tournamentOpened(t), {
+    title: 'New tournament: Winter Cup',
+    body: 'Registration is open until kickoff. Tap to sign up.',
+    url: '/tournaments/t1',
+    tag: 'tournament-t1',
+  });
+  assertEquals(tournamentDrawn({ ...t, round: 1, opponent: 'Alin', winnerOf: null }), {
+    title: 'Winter Cup: the draw is out',
+    body: 'Round 1: you play Alin. Good luck!',
+    url: '/tournaments/t1',
+    tag: 'tournament-t1',
+  });
+  assertEquals(
+    tournamentDrawn({ ...t, round: 2, opponent: 'Ana', winnerOf: null }).body,
+    'You have a bye in round 1, then you play Ana.',
+  );
+  assertEquals(
+    tournamentDrawn({ ...t, round: 2, opponent: null, winnerOf: ['Ben', 'Cris'] }).body,
+    'You have a bye in round 1, then you play the winner of Ben v Cris.',
+  );
+  assertEquals(tournamentDrawn({ ...t, round: 2, opponent: null, winnerOf: null }).body, 'Tap to see your place in the bracket.');
+  assertEquals(tournamentRescheduled(t), {
+    title: 'Winter Cup: kickoff moved',
+    body: "You're still registered. Tap to see the new time.",
+    url: '/tournaments/t1',
+    tag: 'tournament-t1',
+  });
+  assertEquals(tournamentCancelled(t).title, 'Winter Cup is cancelled');
 });

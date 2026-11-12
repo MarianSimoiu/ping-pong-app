@@ -39,6 +39,9 @@ supabase functions serve   # serves the Edge Functions locally
    supabase functions deploy submit-match
    supabase functions deploy confirm-match
    supabase functions deploy create-tournament
+   supabase functions deploy tournament-registration
+   supabase functions deploy manage-tournament
+   supabase functions deploy tournament-kickoff --no-verify-jwt
    supabase functions deploy submit-tournament-match
    supabase functions deploy submit-doubles-match
    supabase functions deploy confirm-doubles-match
@@ -47,7 +50,9 @@ supabase functions serve   # serves the Edge Functions locally
 
    Or skip the local CLI entirely: the **Deploy Supabase** GitHub workflow
    (`.github/workflows/supabase-deploy.yml`) runs the same `db push` and
-   `functions deploy` on every merge that touches `supabase/`, and can be run
+   `functions deploy` (then `tournament-kickoff` again with `--no-verify-jwt`,
+   since the database calls it without a user's token) on every merge that
+   touches `supabase/`, and can be run
    by hand from the Actions tab. It needs two repository secrets
    (Settings → Secrets and variables → Actions):
    - `SUPABASE_ACCESS_TOKEN`: Supabase dashboard → Account → Access Tokens
@@ -100,12 +105,17 @@ Otherwise the link lands on the wrong page and the reset can't finish.
 | `0009_admins.sql` | `admins` (who can create tournaments) |
 | `0010_doubles.sql` | 2v2: `teams` (one per pair, with its own rating), `doubles_matches`, `doubles_games`, `team_rating_events`, `team_records`, and the pending/confirm/decline RPCs |
 | `0011_push_notifications.sql` | `push_subscriptions` (one per device with notifications on) and `push_keys` (the server's own key pair), both invisible to the app |
+| `0012_tournament_registration.sql` | registration until a kickoff time (`tournaments.kickoff_at`, statuses `registration`/`cancelled`), pots (`tournament_live_pots` view; frozen `pot`/`seed`/`rating_at_draw` on participants), the register/withdraw/kickoff/reschedule/cancel RPCs, and a trigger that refuses any tournament not created by an admin |
+| `0013_tournament_kickoff_schedule.sql` | every minute, `pg_cron` checks for a tournament due to start and calls `tournament-kickoff` through `pg_net` (see below) |
 
 ### Admins
 
 Only players listed in the `admins` table can create tournaments: the
-Tournaments tab shows **+ New** only to them, and the `create-tournament`
-function rejects everyone else. Nobody can add themselves from the app. To
+Tournaments tab shows **+ New** only to them, the `create-tournament`
+function rejects everyone else, and since `0012` the database itself refuses
+a tournament whose creator isn't an admin, however it's inserted (even from
+the SQL Editor). Admins also start, move and cancel tournaments
+(`manage-tournament`). Nobody can add themselves from the app. To
 make someone an admin, run this in the Supabase **SQL Editor** with the email
 they sign in with:
 
@@ -118,6 +128,20 @@ where u.email = 'their-sign-in@email.com';
 
 To remove an admin, delete their row the same way:
 `delete from public.admins where player_id = (select p.id from public.players p join auth.users u on u.id = p.user_id where u.email = 'their-sign-in@email.com');`
+
+### Tournament kickoff
+
+A tournament starts at its kickoff time on its own: `0013` turns on Supabase's
+`pg_cron` and `pg_net` extensions and schedules a check every minute that
+calls the `tournament-kickoff` function when a tournament is due with at least
+4 players (the function makes the draw and notifies everyone). The app also
+asks for the draw when someone has the tournament open at kickoff. If the
+migration couldn't turn the extensions on, it only warns ("Tournaments won't
+start on their own…"): turn on **pg_cron** and **pg_net** under Database →
+Extensions, then run the `do $$ … $$;` block at the end of
+`0013_tournament_kickoff_schedule.sql` in the SQL Editor. To check it's
+scheduled: `select jobname, schedule from cron.job;` should list
+`tournament-kickoff`.
 
 ---
 
