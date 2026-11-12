@@ -108,6 +108,9 @@ export function LeaderboardScreen({ navigation }: LeaderboardStackScreenProps<'L
                     <Avatar uri={item.avatarUrl} name={item.displayName} size={28} playerId={item.playerId} />
                     <Text style={styles.rowName} numberOfLines={1}>
                       {item.displayName}
+                      {badges[item.playerId]?.titleLabel ? (
+                        <Text style={styles.rowTitle}> · {badges[item.playerId].titleLabel}</Text>
+                      ) : null}
                     </Text>
                   </View>
                   <Text style={styles.rowMeta}>
@@ -256,6 +259,7 @@ function createStyles(colors: Colors) {
     rowMain: { flex: 1, marginLeft: spacing.sm },
     nameLine: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
     rowName: { color: colors.text, fontSize: 16, fontWeight: '600', flexShrink: 1 },
+    rowTitle: { color: colors.textMuted, fontSize: 13, fontWeight: '500', fontStyle: 'italic' },
     rowMeta: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
     rowValue: { color: colors.primary, fontSize: 20, fontWeight: '800' },
     center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },

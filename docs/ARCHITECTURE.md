@@ -150,6 +150,26 @@ leaderboard and "inactive" after 30 days without a match) through
 next line on profiles. `TierCelebration` shows "Promoted to Gold" once per
 device when the player's tier went up since they last saw it.
 
+### Titles and trophies
+
+`0015_titles.sql` adds achievements (the `achievements` catalog: Regular,
+Iron Paddle, Social Butterfly, Giant Slayer, Comeback Kid, Bagel Baker, Deuce
+Master, On Fire, Doubles Dynamo, Finalist, Champion). Views work them out from
+the match history, so older matches count and nothing can be faked:
+`achievement_progress` (progress and when each was first completed),
+`tournament_honours` (who played each completed final) and `earned_titles`
+(every title a player can show: an achievement, or "Champion · <tournament>"
+per tournament won). A player picks one with `players.title`; a trigger
+refuses a title that isn't earned, and `player_badges` only shows it while it
+still is. `player_badges` also gives the number of tournaments won (a gold
+laurel around the avatar) and the season-points leader (a crown).
+`announceRewards` pushes new titles once each (`achievement_notices`; titles
+earned before 0015 count as announced), after singles, tournament and doubles
+results. In the app: the title next to names on the leaderboard and under them
+on profiles, a trophy cabinet on profiles (`TrophyCabinet`: progress, honours,
+and on your own profile the title to show), and `TitleCelebration` ("2 new
+titles") once per device, never in the same visit as another popup.
+
 ### Push notifications
 
 Players switch notifications on per device in Profile, or from the

@@ -15,6 +15,7 @@ import { roundRating } from '../_shared/engine.ts';
 import { repeatFactor } from '../_shared/glicko2.ts';
 import { doublesConfirmed, doublesDeclined, gamesWon } from '../_shared/messages.ts';
 import { afterResponse, notifyPlayers } from '../_shared/notify.ts';
+import { announceRewards } from '../_shared/rewards.ts';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -164,6 +165,8 @@ Deno.serve(async (req) => {
           theirGames: games.a,
           ...change(update.bBefore, update.bAfter),
         })),
+        // New titles for any of the four (e.g. Doubles Dynamo).
+        announceRewards(admin, [opponents.player_low, opponents.player_high, ...recordingTeam]),
       ]),
     );
 

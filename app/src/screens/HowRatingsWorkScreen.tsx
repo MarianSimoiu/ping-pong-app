@@ -1,9 +1,10 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { STREAK_MIN, UPSET_DELTA_THRESHOLD } from '@/lib/commentary';
 import { useBadges } from '@/context/BadgesContext';
+import { fetchCatalog, type Achievement } from '@/lib/achievements';
 import { MIN_MATCHES_FOR_LEADERBOARD } from '@/lib/constants';
 import { LEGEND_EMOJI, TIER_EMOJI, TIER_NAMES, type Tier } from '@/lib/tiers';
 import { radius, spacing, useTheme, type Colors } from '@/theme';
@@ -31,6 +32,12 @@ const DROP_MARGIN = 25;
 export function HowRatingsWorkScreen() {
   const styles = useStyles();
   const { lines } = useBadges();
+  const [catalog, setCatalog] = useState<Achievement[]>([]);
+  useEffect(() => {
+    fetchCatalog()
+      .then(setCatalog)
+      .catch(() => {});
+  }, []);
   const lineOf = (tier: Tier) => Math.round(lines.find((l) => l.tier === tier)?.minRating ?? 0);
   const tierRows: [string, string][] = [
     [`${TIER_EMOJI.bronze} Bronze`, `under ${lineOf('silver')}`],
@@ -157,6 +164,23 @@ export function HowRatingsWorkScreen() {
             Doubles matches don't change your singles rating and don't earn season points, which come
             only from tournaments.
           </Bullet>
+        </Section>
+
+        <Section title="Titles and trophies">
+          <P>
+            Achievements are worked out from your matches (old ones count too). Each one you earn is
+            a title: pick one in Profile to show under your name.
+          </P>
+          {catalog.map((a) => (
+            <Bullet key={a.code}>
+              {a.emoji} <B>{a.name}</B>: {a.description.charAt(0).toLowerCase() + a.description.slice(1)}.
+            </Bullet>
+          ))}
+          <P>
+            🏆 Tournament champions get a gold laurel around their photo and a title for each
+            tournament they win. 👑 Whoever leads the season points wears a crown while they hold
+            the lead.
+          </P>
         </Section>
 
         <Section title="Tournaments and season points">

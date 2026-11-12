@@ -108,6 +108,7 @@ Otherwise the link lands on the wrong page and the reset can't finish.
 | `0012_tournament_registration.sql` | registration until a kickoff time (`tournaments.kickoff_at`, statuses `registration`/`cancelled`), pots (`tournament_live_pots` view; frozen `pot`/`seed`/`rating_at_draw` on participants), the register/withdraw/kickoff/reschedule/cancel RPCs, and a trigger that refuses any tournament not created by an admin |
 | `0013_tournament_kickoff_schedule.sql` | every minute, `pg_cron` checks for a tournament due to start and calls `tournament-kickoff` through `pg_net` (see below) |
 | `0014_tiers.sql` | tiers (Bronze to Diamond) from the skill rating: `tier_lines` (set from the ratings when it ran), `player_tiers` kept up to date by a trigger, `tier_changes` (used to announce promotions), and the `player_badges` view the app reads for avatar rings (with Legend and inactive) |
+| `0015_titles.sql` | titles and trophies: the `achievements` catalog, the `achievement_progress`, `tournament_honours` and `earned_titles` views (worked out from match history), `players.title` (only an earned title can be set), `achievement_notices` (each unlock is pushed once), and `player_badges` gains the champion count, the season-points leader and the shown title |
 
 ### Admins
 

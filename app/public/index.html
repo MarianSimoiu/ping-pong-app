@@ -78,12 +78,13 @@
         -webkit-user-select: text;
         user-select: text;
       }
-      /* The install, notification and tier popups (BottomSheet.tsx) move focus onto
+      /* The install, notification, tier and title popups (BottomSheet.tsx) move focus onto
          their panel when they open, so keyboard and screen-reader users start
          inside it. The panel isn't a control, so no focus ring around it. */
       #install-sheet:focus,
       #push-sheet:focus,
-      #tier-sheet:focus {
+      #tier-sheet:focus,
+      #title-sheet:focus {
         outline: none;
       }
       /* The kickoff picker (DateTimeField.tsx): iOS Safari centers a date

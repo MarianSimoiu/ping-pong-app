@@ -8,7 +8,9 @@ import type { PlayerBadge, TierLine } from '@/lib/tiers';
 export async function fetchBadges(): Promise<{ badges: Record<string, PlayerBadge>; lines: TierLine[] }> {
   if (DEMO) return demo.demoBadges();
   const [bRes, lRes] = await Promise.all([
-    supabase.from('player_badges').select('player_id, tier, best_tier, legend, inactive'),
+    supabase
+      .from('player_badges')
+      .select('player_id, tier, best_tier, legend, inactive, champion_count, season_leader, title, title_label'),
     supabase.from('tier_lines').select('tier, min_rating'),
   ]);
   if (bRes.error) throw bRes.error;
@@ -21,6 +23,10 @@ export async function fetchBadges(): Promise<{ badges: Record<string, PlayerBadg
       bestTier: r.best_tier,
       legend: r.legend,
       inactive: r.inactive,
+      championCount: r.champion_count ?? 0,
+      seasonLeader: !!r.season_leader,
+      title: r.title ?? null,
+      titleLabel: r.title_label ?? null,
     };
   }
   const lines = ((lRes.data ?? []) as any[]).map((l) => ({ tier: l.tier, minRating: l.min_rating }));

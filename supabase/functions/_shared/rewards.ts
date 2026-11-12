@@ -1,11 +1,14 @@
 // Tells players what a match earned them: a promotion to a higher tier
 // (tier_changes, recorded by the database when ratings change, migration
-// 0014). The match functions call announceRewards after a rated result.
-// Drops are recorded too but not announced.
+// 0014) and new titles (achievements and tournament honours, worked out by
+// the database from the match history, migration 0015; achievement_notices
+// remembers which were announced). The match functions call announceRewards
+// after a rated or confirmed result. Tier drops are recorded but not
+// announced.
 
 import type { SupabaseClient } from 'jsr:@supabase/supabase-js@2';
 
-import { type PushMessage, tierPromotion } from './messages.ts';
+import { type PushMessage, tierPromotion, titlesUnlocked, type Unlock } from './messages.ts';
 import { notifyEach } from './notify.ts';
 import { nextTier, type Tier, tierRank } from './tiers.ts';
 
@@ -17,8 +20,16 @@ export async function announceRewards(
   playerIds: string[],
   send: (admin: SupabaseClient, notes: Note[]) => Promise<void> = notifyEach,
 ): Promise<void> {
+  if (playerIds.length === 0) return;
+  await Promise.all([announcePromotions(admin, playerIds, send), announceTitles(admin, playerIds, send)]);
+}
+
+async function announcePromotions(
+  admin: SupabaseClient,
+  playerIds: string[],
+  send: (admin: SupabaseClient, notes: Note[]) => Promise<void>,
+): Promise<void> {
   try {
-    if (playerIds.length === 0) return;
     const { data: changes, error } = await admin
       .from('tier_changes')
       .select('id, player_id, from_tier, to_tier, changed_at')
@@ -51,5 +62,65 @@ export async function announceRewards(
     if (notes.length > 0) await send(admin, notes);
   } catch (e) {
     console.warn('Rewards announcement failed', e);
+  }
+}
+
+async function announceTitles(
+  admin: SupabaseClient,
+  playerIds: string[],
+  send: (admin: SupabaseClient, notes: Note[]) => Promise<void>,
+): Promise<void> {
+  try {
+    const [progress, honours, catalog] = await Promise.all([
+      admin
+        .from('achievement_progress')
+        .select('player_id, code, earned_at')
+        .in('player_id', playerIds)
+        .not('earned_at', 'is', null),
+      admin.from('tournament_honours').select('player_id, tournament_id, tournament_name, won').in('player_id', playerIds),
+      admin.from('achievements').select('code, name, emoji, description'),
+    ]);
+    if (progress.error) throw progress.error;
+    if (honours.error) throw honours.error;
+    if (catalog.error) throw catalog.error;
+
+    // Everything earned, keyed like achievement_notices.
+    const earned = new Map<string, { player_id: string; code: string; ref: string; tournament?: string }>();
+    const add = (player_id: string, code: string, ref = '', tournament?: string) =>
+      earned.set(`${player_id}|${code}|${ref}`, { player_id, code, ref, tournament });
+    for (const a of progress.data ?? []) add(a.player_id, a.code);
+    for (const h of honours.data ?? []) {
+      add(h.player_id, 'finalist');
+      if (h.won) add(h.player_id, 'champion', h.tournament_id, h.tournament_name);
+    }
+    if (earned.size === 0) return;
+
+    // Claim them: only the rows this call inserts are new, so each unlock is
+    // announced once even if two results land together.
+    const { data: claimed, error } = await admin
+      .from('achievement_notices')
+      .upsert(
+        [...earned.values()].map(({ player_id, code, ref }) => ({ player_id, code, ref })),
+        { onConflict: 'player_id,code,ref', ignoreDuplicates: true },
+      )
+      .select('player_id, code, ref');
+    if (error) throw error;
+    if (!claimed || claimed.length === 0) return;
+
+    const info = new Map((catalog.data ?? []).map((c) => [c.code, c]));
+    const perPlayer = new Map<string, Unlock[]>();
+    for (const c of claimed) {
+      const meta = info.get(c.code);
+      if (!meta) continue;
+      const tournament = earned.get(`${c.player_id}|${c.code}|${c.ref}`)?.tournament;
+      const unlock: Unlock = tournament
+        ? { name: `Champion · ${tournament}`, emoji: meta.emoji, description: meta.description, tournament }
+        : { name: meta.name, emoji: meta.emoji, description: meta.description };
+      perPlayer.set(c.player_id, [...(perPlayer.get(c.player_id) ?? []), unlock]);
+    }
+    const notes = [...perPlayer].map(([playerId, unlocks]) => ({ playerId, message: titlesUnlocked(unlocks) }));
+    if (notes.length > 0) await send(admin, notes);
+  } catch (e) {
+    console.warn('Titles announcement failed', e);
   }
 }

@@ -7,6 +7,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AwaitingOpponentList } from '@/components/AwaitingOpponentList';
 import { Avatar } from '@/components/Avatar';
 import { TierCard } from '@/components/TierCard';
+import { TrophyCabinet } from '@/components/TrophyCabinet';
+import { useBadge } from '@/context/BadgesContext';
 import { useAuth } from '@/context/AuthContext';
 import { uploadAvatar } from '@/lib/avatar';
 import { openInstall, useInstall } from '@/lib/install';
@@ -35,6 +37,7 @@ export function ProfileScreen({ navigation }: ProfileStackScreenProps<'Account'>
   const install = useInstall();
   const [busy, setBusy] = useState(false);
   const [me, setMe] = useState<Me | null>(null);
+  const myBadge = useBadge(me?.id);
   const [submittedPending, setSubmittedPending] = useState<SubmittedPendingMatch[]>([]);
   const [push, setPush] = useState<PushStatus | null>(null);
   const [pushBusy, setPushBusy] = useState(false);
@@ -138,6 +141,7 @@ export function ProfileScreen({ navigation }: ProfileStackScreenProps<'Account'>
 
         <View style={styles.avatarSection}>
           <Avatar uri={me?.avatarUrl} name={me?.displayName ?? '?'} size={88} playerId={me?.id} />
+          {myBadge?.titleLabel && <Text style={styles.titleLabel}>{myBadge.titleLabel}</Text>}
           <Pressable style={styles.photoButton} onPress={handleChangePhoto}>
             <Text style={styles.photoButtonText}>
               {me?.avatarUrl ? 'Change photo' : 'Add photo'}
@@ -146,6 +150,7 @@ export function ProfileScreen({ navigation }: ProfileStackScreenProps<'Account'>
         </View>
 
         {me && <TierCard playerId={me.id} rating={me.rating} matchesPlayed={me.matchesPlayed} isMe />}
+        {me && <TrophyCabinet playerId={me.id} isMe />}
 
         <View style={styles.card}>
           <Text style={styles.label}>Signed in as</Text>
@@ -226,6 +231,7 @@ function createStyles(colors: Colors) {
     content: { flexGrow: 1, padding: spacing.lg },
     title: { fontSize: 24, fontWeight: '700', color: colors.text, marginBottom: spacing.lg },
     avatarSection: { alignItems: 'center', marginBottom: spacing.lg },
+    titleLabel: { color: colors.textMuted, fontSize: 14, fontStyle: 'italic', marginTop: spacing.xs },
     photoButton: { marginTop: spacing.sm },
     photoButtonText: { color: colors.primary, fontSize: 14, fontWeight: '600' },
     card: {

@@ -1,4 +1,4 @@
-import { DarkTheme, NavigationContainer } from '@react-navigation/native';
+import { createNavigationContainerRef, DarkTheme, NavigationContainer } from '@react-navigation/native';
 import React, { useMemo } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 
@@ -9,6 +9,10 @@ import { useTheme } from '@/theme';
 
 import { linking } from './linking';
 import { TabNavigator } from './TabNavigator';
+import type { TabParamList } from './types';
+
+// For the popups drawn outside the screens (e.g. "New titles" opening Profile).
+export const navigationRef = createNavigationContainerRef<TabParamList>();
 
 export function RootNavigator() {
   const { session, initializing, recovering } = useAuth();
@@ -41,7 +45,7 @@ export function RootNavigator() {
   }
 
   return (
-    <NavigationContainer theme={navTheme} linking={linking}>
+    <NavigationContainer ref={navigationRef} theme={navTheme} linking={linking}>
       {!session ? <SignInScreen /> : recovering ? <NewPasswordScreen /> : <TabNavigator />}
     </NavigationContainer>
   );

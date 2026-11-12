@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 
+import { useGradientId } from '@/components/Avatar';
 import { BottomSheet, SheetButton, SheetHeader } from '@/components/BottomSheet';
 import { useAuth } from '@/context/AuthContext';
 import { useBadges } from '@/context/BadgesContext';
@@ -98,16 +99,17 @@ function Emblem({ tier }: { tier: Tier }) {
   const size = 64;
   const stroke = 4;
   const [from, to] = RING_COLORS[tier === 'unranked' ? 'inactive' : tier];
+  const gradientId = useGradientId('emblem');
   return (
     <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
       <Svg width={size} height={size} style={StyleSheet.absoluteFill}>
         <Defs>
-          <LinearGradient id={`emblem-${tier}`} x1="0" y1="0" x2="1" y2="1">
+          <LinearGradient id={gradientId} x1="0" y1="0" x2="1" y2="1">
             <Stop offset="0" stopColor={from} />
             <Stop offset="1" stopColor={to} />
           </LinearGradient>
         </Defs>
-        <Circle cx={size / 2} cy={size / 2} r={(size - stroke) / 2} stroke={`url(#emblem-${tier})`} strokeWidth={stroke} fill="none" />
+        <Circle cx={size / 2} cy={size / 2} r={(size - stroke) / 2} stroke={`url(#${gradientId})`} strokeWidth={stroke} fill="none" />
       </Svg>
       <Text style={{ fontSize: 30 }}>{TIER_EMOJI[tier]}</Text>
     </View>
