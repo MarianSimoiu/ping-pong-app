@@ -5,7 +5,8 @@ import { BottomSheet, SheetButton, SheetHeader } from '@/components/BottomSheet'
 import { useAuth } from '@/context/AuthContext';
 import { installPopupThisVisit } from '@/lib/install';
 import { showAlert } from '@/lib/platformAlert';
-import { getPushStatus, pushPromptSnoozed, snoozePushPrompt, turnOnPush } from '@/lib/push';
+import { tierPopupThisVisit } from '@/components/TierCelebration';
+import { getPushStatus, markPushPromptShown, pushPromptSnoozed, snoozePushPrompt, turnOnPush } from '@/lib/push';
 import { radius, useTheme, type Colors } from '@/theme';
 
 // Let the app settle before the popup slides in (the install popup, when due,
@@ -15,7 +16,8 @@ const OPEN_DELAY_MS = 4000;
 // "Turn on notifications?" (web only): a few seconds after the app opens, for
 // a signed-in player whose notifications are off on this device. Not shown
 // while snoozed ("Not now": 3 days), once they're on, when they're blocked or
-// unsupported (Profile explains those), or in a visit with the install popup.
+// unsupported (Profile explains those), or in a visit with the install or
+// tier popup.
 // The Notifications switch in Profile does the same thing.
 export function PushPromptSheet() {
   const { colors } = useTheme();
@@ -29,9 +31,11 @@ export function PushPromptSheet() {
     if (!userId || recovering) return;
     let cancelled = false;
     const timer = setTimeout(async () => {
-      if (installPopupThisVisit() || pushPromptSnoozed()) return;
+      if (installPopupThisVisit() || tierPopupThisVisit() || pushPromptSnoozed()) return;
       const status = await getPushStatus().catch(() => 'unsupported');
-      if (!cancelled && status === 'off') setOpen(true);
+      if (cancelled || status !== 'off' || tierPopupThisVisit()) return;
+      markPushPromptShown();
+      setOpen(true);
     }, OPEN_DELAY_MS);
     return () => {
       cancelled = true;

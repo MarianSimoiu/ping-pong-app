@@ -106,7 +106,7 @@ export function PotsList({
                 return (
                   <View key={p.playerId} style={[styles.player, isMe && styles.playerMe]}>
                     {pot !== null && <Text style={styles.rank}>#{p.rank}</Text>}
-                    <Avatar uri={p.avatarUrl} name={p.name} size={28} />
+                    <Avatar uri={p.avatarUrl} name={p.name} size={30} playerId={p.playerId} />
                     <Text style={[styles.name, isMe && styles.nameMe]} numberOfLines={1}>
                       {withYou(p.name, isMe)}
                     </Text>

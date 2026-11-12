@@ -71,6 +71,7 @@ export type SubmitMatchResult = { matchId: string; status: 'pending' };
 // A pending casual match awaiting the current user's confirmation.
 export type PendingMatch = {
   matchId: string;
+  submitterId: string;
   submitterName: string;
   submitterAvatarUrl: string | null;
   iWon: boolean;
@@ -85,6 +86,7 @@ export type PendingMatch = {
 // confirmation — the mirror image of PendingMatch.
 export type SubmittedPendingMatch = {
   matchId: string;
+  opponentId: string;
   opponentName: string;
   opponentAvatarUrl: string | null;
   iWon: boolean;

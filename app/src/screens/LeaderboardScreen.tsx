@@ -11,6 +11,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/Avatar';
+import { useBadges } from '@/context/BadgesContext';
+import { tierLabel } from '@/lib/tiers';
 import { TeamAvatars } from '@/components/TeamAvatars';
 import { MIN_MATCHES_FOR_LEADERBOARD } from '@/lib/constants';
 import { fetchTeamLeaderboard, teamName, type RankedTeam } from '@/lib/doubles';
@@ -32,6 +34,7 @@ const rankLabel = (rank: number): string => MEDALS[rank - 1] ?? String(rank);
 export function LeaderboardScreen({ navigation }: LeaderboardStackScreenProps<'Leaderboard'>) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const { badges } = useBadges();
   const [tab, setTab] = useState<Tab>('skill');
   const [skill, setSkill] = useState<LeaderboardEntry[]>([]);
   const [season, setSeason] = useState<SeasonEntry[]>([]);
@@ -102,12 +105,15 @@ export function LeaderboardScreen({ navigation }: LeaderboardStackScreenProps<'L
                 <Text style={styles.rank}>{rankLabel(item.rank)}</Text>
                 <View style={styles.rowMain}>
                   <View style={styles.nameLine}>
-                    <Avatar uri={item.avatarUrl} name={item.displayName} size={20} />
+                    <Avatar uri={item.avatarUrl} name={item.displayName} size={28} playerId={item.playerId} />
                     <Text style={styles.rowName} numberOfLines={1}>
                       {item.displayName}
                     </Text>
                   </View>
                   <Text style={styles.rowMeta}>
+                    {badges[item.playerId] && badges[item.playerId].tier !== 'unranked'
+                      ? `${tierLabel(badges[item.playerId])} · `
+                      : ''}
                     ± {Math.round(item.rd)} · {item.matchesPlayed} matches · {item.wins}-{item.losses}
                   </Text>
                 </View>
@@ -132,7 +138,7 @@ export function LeaderboardScreen({ navigation }: LeaderboardStackScreenProps<'L
                 <Text style={styles.rank}>{rankLabel(item.rank)}</Text>
                 <View style={styles.rowMain}>
                   <View style={styles.nameLine}>
-                    <Avatar uri={item.avatarUrl} name={item.displayName} size={20} />
+                    <Avatar uri={item.avatarUrl} name={item.displayName} size={28} playerId={item.playerId} />
                     <Text style={styles.rowName} numberOfLines={1}>
                       {item.displayName}
                     </Text>

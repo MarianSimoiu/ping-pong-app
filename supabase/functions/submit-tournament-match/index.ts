@@ -9,6 +9,8 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 
 import { corsHeaders, jsonResponse } from '../_shared/cors.ts';
 import { resolveMatch, type RawGame } from '../_shared/match.ts';
+import { afterResponse } from '../_shared/notify.ts';
+import { announceRewards } from '../_shared/rewards.ts';
 import { computeRatingUpdate, roundRating, type RatingRow } from '../_shared/engine.ts';
 import {
   WINDOW_DAYS,
@@ -114,6 +116,8 @@ Deno.serve(async (req) => {
 
     const { data: matchId, error: applyErr } = await admin.rpc('apply_tournament_result', { payload });
     if (applyErr) return jsonResponse({ error: applyErr.message }, 500);
+    // A tier promotion for either player.
+    await afterResponse(announceRewards(admin, [node.player_a, node.player_b]));
 
     // If that result finished the tournament, award WTA-style season points.
     let seasonPointsAwarded = false;

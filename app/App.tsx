@@ -5,7 +5,9 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { InstallSheet } from '@/components/InstallSheet';
 import { PushPromptSheet } from '@/components/PushPromptSheet';
+import { TierCelebration } from '@/components/TierCelebration';
 import { AuthProvider } from '@/context/AuthContext';
+import { BadgesProvider } from '@/context/BadgesContext';
 import { RootNavigator } from '@/navigation/RootNavigator';
 import { ThemeProvider, useTheme } from '@/theme';
 
@@ -19,6 +21,7 @@ function AppChrome() {
         <>
           <InstallSheet />
           <PushPromptSheet />
+          <TierCelebration />
         </>
       )}
     </>
@@ -29,9 +32,11 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
-        <ThemeProvider>
-          <AppChrome />
-        </ThemeProvider>
+        <BadgesProvider>
+          <ThemeProvider>
+            <AppChrome />
+          </ThemeProvider>
+        </BadgesProvider>
       </AuthProvider>
     </SafeAreaProvider>
   );

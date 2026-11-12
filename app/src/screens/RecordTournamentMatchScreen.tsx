@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { useBadges } from '@/context/BadgesContext';
 import type { RawGameInput } from '@/lib/matches';
 import { recordTournamentMatch } from '@/lib/tournaments';
 import type { TournamentsStackScreenProps } from '@/navigation/types';
@@ -24,6 +25,7 @@ export function RecordTournamentMatchScreen({
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { tournamentMatchId, playerAName, playerBName, bestOf } = route.params;
+  const { refresh: refreshBadges } = useBadges();
   const [rows, setRows] = useState<GameRow[]>([{ a: '', b: '' }]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -56,6 +58,7 @@ export function RecordTournamentMatchScreen({
     setSubmitting(true);
     try {
       await recordTournamentMatch({ tournamentMatchId, games });
+      refreshBadges(); // the result can move tiers
       navigation.goBack();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to record match');

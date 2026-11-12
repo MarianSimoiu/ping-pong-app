@@ -107,6 +107,7 @@ Otherwise the link lands on the wrong page and the reset can't finish.
 | `0011_push_notifications.sql` | `push_subscriptions` (one per device with notifications on) and `push_keys` (the server's own key pair), both invisible to the app |
 | `0012_tournament_registration.sql` | registration until a kickoff time (`tournaments.kickoff_at`, statuses `registration`/`cancelled`), pots (`tournament_live_pots` view; frozen `pot`/`seed`/`rating_at_draw` on participants), the register/withdraw/kickoff/reschedule/cancel RPCs, and a trigger that refuses any tournament not created by an admin |
 | `0013_tournament_kickoff_schedule.sql` | every minute, `pg_cron` checks for a tournament due to start and calls `tournament-kickoff` through `pg_net` (see below) |
+| `0014_tiers.sql` | tiers (Bronze to Diamond) from the skill rating: `tier_lines` (set from the ratings when it ran), `player_tiers` kept up to date by a trigger, `tier_changes` (used to announce promotions), and the `player_badges` view the app reads for avatar rings (with Legend and inactive) |
 
 ### Admins
 
@@ -128,6 +129,18 @@ where u.email = 'their-sign-in@email.com';
 
 To remove an admin, delete their row the same way:
 `delete from public.admins where player_id = (select p.id from public.players p join auth.users u on u.id = p.user_id where u.email = 'their-sign-in@email.com');`
+
+### Tier lines
+
+The tiers' rating lines were set from the players' ratings when `0014` ran
+(about 20% Bronze, 30% Silver, 25% Gold, 15% Platinum, 10% Diamond). To see or
+move them, in the SQL Editor:
+
+```sql
+select * from public.tier_lines order by min_rating;
+update public.tier_lines set min_rating = 1650 where tier = 'diamond';
+select public.refresh_player_tiers();  -- re-tier everyone from the new lines
+```
 
 ### Tournament kickoff
 

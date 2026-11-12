@@ -161,6 +161,7 @@ export async function fetchRecord(playerId: string): Promise<{ wins: number; los
 
 export type MatchHistoryItem = {
   id: string;
+  opponentId: string;
   opponentName: string;
   opponentAvatarUrl: string | null;
   result: 'win' | 'loss';
@@ -177,7 +178,7 @@ export async function fetchMatchHistory(playerId: string, limit = 25): Promise<M
   const { data, error } = await supabase
     .from('rating_events')
     .select(
-      'id, result, delta, rating_after, created_at, ' +
+      'id, opponent_id, result, delta, rating_after, created_at, ' +
         'opponent:players!rating_events_opponent_id_fkey(display_name, avatar_url), ' +
         'match:matches(player_a, games:match_games(game_no, score_a, score_b))',
     )
@@ -198,6 +199,7 @@ export async function fetchMatchHistory(playerId: string, limit = 25): Promise<M
       }));
     return {
       id: r.id,
+      opponentId: r.opponent_id,
       opponentName: opponent?.display_name ?? 'Unknown',
       opponentAvatarUrl: opponent?.avatar_url ?? null,
       result: r.result,

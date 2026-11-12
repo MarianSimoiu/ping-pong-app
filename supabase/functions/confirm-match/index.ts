@@ -13,6 +13,7 @@ import { repeatFactor } from '../_shared/glicko2.ts';
 import { computeRatingUpdate, roundRating, type RatingRow } from '../_shared/engine.ts';
 import { gamesWon, singlesConfirmed, singlesDeclined } from '../_shared/messages.ts';
 import { afterResponse, notifyPlayers } from '../_shared/notify.ts';
+import { announceRewards } from '../_shared/rewards.ts';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -121,6 +122,8 @@ Deno.serve(async (req) => {
         rating: Math.round(submitterAfter.rating),
       })),
     );
+    // A tier promotion for either player.
+    await afterResponse(announceRewards(admin, [match.player_a, match.player_b]));
 
     // The caller is always the confirming (non-submitting) participant, but
     // may be either side of the match — surface their own before/after and
