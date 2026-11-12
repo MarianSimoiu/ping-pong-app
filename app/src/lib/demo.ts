@@ -362,13 +362,14 @@ function livePots(t: TStore): TournamentParticipant[] {
     .map((r) => ({ at: r.at, p: byId(r.playerId)! }))
     .sort((a, b) => b.p.rating - a.p.rating || a.at - b.at);
   const k = regs.length >= 8 ? 4 : regs.length >= 2 ? 2 : 1;
-  return regs.map(({ p }, i) => ({
+  return regs.map(({ p, at }, i) => ({
     playerId: p.id,
     name: p.name,
     avatarUrl: p.avatarUrl ?? null,
     seed: null,
     pot: ntile(i, regs.length, k),
     rating: p.rating,
+    registeredAt: new Date(at).toISOString(),
   }));
 }
 
@@ -594,6 +595,7 @@ function sampleTournament(): TStore {
       name: byId(playerId)?.name ?? '—',
       avatarUrl: null,
       rating: byId(playerId)?.rating ?? null,
+      registeredAt: null,
     })),
     nodes,
   };
