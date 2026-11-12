@@ -32,6 +32,7 @@ export type TournamentParticipant = {
   seed: number | null; // given by the draw
   pot: number | null; // live during registration, frozen by the draw; none for older tournaments
   rating: number | null; // current during registration, at the draw after
+  registeredAt: string | null; // breaks rating ties in the pots: earlier goes higher
 };
 
 export type TournamentNode = {
@@ -116,13 +117,13 @@ export async function fetchTournamentDetail(id: string): Promise<TournamentDetai
     supabase.from('tournaments').select(SUMMARY_COLUMNS).eq('id', id).single(),
     supabase
       .from('tournament_participants')
-      .select('seed, pot, rating_at_draw, player:players(id, display_name, avatar_url)')
+      .select('seed, pot, rating_at_draw, registered_at, player:players(id, display_name, avatar_url)')
       .eq('tournament_id', id)
       .order('seed', { ascending: true }),
     // Only has rows while the tournament is open for registration.
     supabase
       .from('tournament_live_pots')
-      .select('player_id, display_name, avatar_url, rating, pot')
+      .select('player_id, display_name, avatar_url, rating, pot, registered_at')
       .eq('tournament_id', id)
       .order('pot', { ascending: true })
       .order('rating', { ascending: false }),
@@ -147,6 +148,7 @@ export async function fetchTournamentDetail(id: string): Promise<TournamentDetai
           seed: null,
           pot: row.pot,
           rating: row.rating,
+          registeredAt: row.registered_at,
         }))
       : (pRes.data ?? []).map((row: any) => {
           const player = Array.isArray(row.player) ? row.player[0] : row.player;
@@ -157,6 +159,7 @@ export async function fetchTournamentDetail(id: string): Promise<TournamentDetai
             seed: row.seed,
             pot: row.pot,
             rating: row.rating_at_draw,
+            registeredAt: row.registered_at,
           };
         });
   const nameById: Record<string, string> = {};

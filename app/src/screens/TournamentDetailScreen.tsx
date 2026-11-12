@@ -5,12 +5,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Countdown } from '@/components/Countdown';
 import { DateTimeField } from '@/components/DateTimeField';
-import { PotsList, withYou } from '@/components/PotsList';
+import { PotRules, PotsList, withYou } from '@/components/PotsList';
 import { useAuth } from '@/context/AuthContext';
 import { pickChampionLine } from '@/lib/commentary';
 import { MIN_MATCHES_FOR_LEADERBOARD } from '@/lib/constants';
 import { defaultKickoff, fromLocalInputValue, toLocalInputValue, useNow } from '@/lib/countdown';
 import { formatKickoff } from '@/lib/format';
+import { groupByPot } from '@/lib/pots';
 import { confirmAction } from '@/lib/platformAlert';
 import { fetchIsAdmin, fetchMyProfile } from '@/lib/players';
 import {
@@ -67,6 +68,8 @@ function myPath(nodes: TournamentNode[], meId: string): MyPath | null {
 const isBye = (n: TournamentNode) => n.round === 1 && n.status === 'completed' && (!n.playerA || !n.playerB);
 
 type Me = { id: string; matchesPlayed: number };
+
+const POTS_REFRESH_MS = 30_000;
 type Busy = 'register' | 'withdraw' | 'start' | 'reschedule' | 'cancel' | null;
 
 export function TournamentDetailScreen({ route, navigation }: TournamentsStackScreenProps<'TournamentDetail'>) {
@@ -113,6 +116,16 @@ export function TournamentDetailScreen({ route, navigation }: TournamentsStackSc
 
   const isOpen = detail?.tournament.status === 'registration';
   const now = useNow(isOpen ? 1000 : null);
+
+  // While registration is open the pots move as people join, withdraw or play
+  // rated matches: keep the page current while it's on screen.
+  useFocusEffect(
+    useCallback(() => {
+      if (!isOpen) return;
+      const refresh = setInterval(load, POTS_REFRESH_MS);
+      return () => clearInterval(refresh);
+    }, [isOpen, load]),
+  );
   const pastKickoff = !!detail && isPastKickoff(detail.tournament, now);
   const drawDue = pastKickoff && (detail?.participants.length ?? 0) >= MIN_TOURNAMENT_PLAYERS;
 
@@ -168,6 +181,11 @@ export function TournamentDetailScreen({ route, navigation }: TournamentsStackSc
   const count = participants.length;
   const meId = me?.id ?? null;
   const myEntry = meId ? participants.find((p) => p.playerId === meId) : undefined;
+  const myRank = meId
+    ? groupByPot(participants)
+        .flatMap((g) => g.players)
+        .find((p) => p.playerId === meId)?.rank ?? null
+    : null;
   const nameOf = (id: string | null, fallback: string) => (id ? nameById[id] ?? 'Unknown' : fallback);
   const players = (n: number) => `${n} ${n === 1 ? 'player' : 'players'}`;
 
@@ -303,12 +321,19 @@ export function TournamentDetailScreen({ route, navigation }: TournamentsStackSc
           <Text style={styles.cardTitle}>✓ You're registered</Text>
           {myEntry.pot !== null && (
             <Text style={styles.potLine}>
-              You're in <Text style={styles.potStrong}>Pot {myEntry.pot}</Text> for now
+              {myRank !== null ? (
+                <>
+                  You're <Text style={styles.potStrong}>#{myRank}</Text> of {count} →{' '}
+                </>
+              ) : (
+                "You're in "
+              )}
+              <Text style={styles.potStrong}>Pot {myEntry.pot}</Text> for now
             </Text>
           )}
           <Text style={styles.cardText}>
-            Pots follow ratings and change as players join; they freeze at kickoff. You'll get a notification with
-            your first opponent.
+            Your pot can change until kickoff as players join, withdraw or play rated matches (see the pots below).
+            You'll get a notification with your first opponent.
           </Text>
           {button('Withdraw', withdraw, 'withdraw', 'secondary')}
         </View>
@@ -380,21 +405,12 @@ export function TournamentDetailScreen({ route, navigation }: TournamentsStackSc
           </View>
         )}
 
-        <Text style={styles.sectionLabel}>Pots</Text>
-        <Text style={styles.sectionHint}>
-          Live, by current rating: {count >= 8 ? '4 pots' : '2 pots'}
-          {count >= 8 ? '' : ' until 8 players register, then 4'}.
-        </Text>
-        {count === 0 ? (
-          <Text style={styles.empty}>No one has registered yet.</Text>
-        ) : (
-          <PotsList participants={participants} meId={meId} />
-        )}
-        <Text style={styles.note}>
-          At kickoff the pots freeze and the draw is made: in round 1, Pot 1 plays Pot 4 and Pot 2 plays Pot 3 (with
-          two pots, Pot 1 plays Pot 2). Who meets whom within that is random. If the field doesn't fill the bracket,
-          the top seeds skip round 1.
-        </Text>
+        <View style={styles.sectionRow}>
+          <Text style={[styles.sectionLabel, styles.sectionLabelInRow]}>Pots</Text>
+          <Text style={styles.live}>● Live · refreshes every 30 s</Text>
+        </View>
+        <PotRules count={count} />
+        {count > 0 && <PotsList participants={participants} meId={meId} mode="live" />}
       </>
     );
   }
@@ -497,7 +513,7 @@ export function TournamentDetailScreen({ route, navigation }: TournamentsStackSc
         {hasPots && (
           <>
             <Text style={styles.sectionLabel}>Pots at the draw</Text>
-            <PotsList participants={participants} meId={meId} />
+            <PotsList participants={participants} meId={meId} mode="frozen" />
           </>
         )}
       </>
@@ -514,7 +530,7 @@ export function TournamentDetailScreen({ route, navigation }: TournamentsStackSc
         {count > 0 && (
           <>
             <Text style={styles.sectionLabel}>Had registered</Text>
-            <PotsList participants={participants} meId={meId} />
+            <PotsList participants={participants} meId={meId} mode="plain" />
           </>
         )}
       </>
@@ -616,8 +632,15 @@ function createStyles(colors: Colors) {
       marginBottom: spacing.sm,
     },
     sectionHint: { color: colors.textMuted, fontSize: 13, marginTop: -4, marginBottom: spacing.sm },
-    empty: { color: colors.textMuted, fontSize: 14 },
-    note: { color: colors.textMuted, fontSize: 12, lineHeight: 18, marginTop: spacing.md },
+    sectionRow: {
+      flexDirection: 'row',
+      alignItems: 'baseline',
+      justifyContent: 'space-between',
+      marginTop: spacing.md,
+      marginBottom: spacing.sm,
+    },
+    sectionLabelInRow: { marginTop: 0, marginBottom: 0 },
+    live: { color: colors.success, fontSize: 12, fontWeight: '600' },
     champion: {
       backgroundColor: colors.surfaceAlt,
       borderRadius: radius.lg,

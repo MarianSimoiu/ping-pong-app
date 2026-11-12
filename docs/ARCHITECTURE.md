@@ -91,7 +91,11 @@ casual play (`context = 'tournament'`). A tournament goes through:
    `withdraw_from_tournament`, which hold the rules). The
    `tournament_live_pots` view splits the registered players into pots by
    current rating (4 from 8 players, else 2; ties to whoever registered
-   first), so every player sees their pot change live.
+   first), so every player sees their pot change live. The tournament page
+   shows everyone the pots with the rules: how they're made, and for each pot
+   the ranks and ratings it covers and what its round 1 would be if the draw
+   were made now (`app/src/lib/pots.ts`, kept in step with the draw by
+   `_shared/app-pots.test.ts`); it refreshes every 30 s while open.
 2. **Kickoff.** At the kickoff time, `pg_cron` (`0013`) calls
    `tournament-kickoff`, deployed without the user-token check because the
    database calls it; the app also calls it when it shows a tournament past
