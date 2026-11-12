@@ -78,7 +78,10 @@ for a Google security alert in that inbox.
 
 - Admin "Delete match" button. Until then, wrong matches are deleted with
   [`supabase/scripts/remove_matches.sql`](../supabase/scripts/remove_matches.sql)
-  in the SQL Editor (it recalculates ratings; instructions at the top).
+  in the SQL Editor (it recalculates ratings; instructions at the top), and a
+  whole tournament with
+  [`supabase/scripts/remove_tournament.sql`](../supabase/scripts/remove_tournament.sql)
+  (its matches, season points and the ratings they moved).
 - Pending matches that expire, or remind the opponent.
 - A short privacy note (email, name, photo, matches are stored), and deleting
   accounts on request.
