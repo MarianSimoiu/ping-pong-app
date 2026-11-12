@@ -169,7 +169,8 @@ export function HowRatingsWorkScreen() {
         <Section title="Titles and trophies">
           <P>
             Achievements are worked out from your matches (old ones count too). Each one you earn is
-            a title: pick one in Profile to show under your name.
+            a title: pick one in Profile to show under your name. Times of day are Romanian time,
+            and the lunch, night and one-day titles count singles and doubles.
           </P>
           {catalog.map((a) => (
             <Bullet key={a.code}>

@@ -109,6 +109,18 @@ Otherwise the link lands on the wrong page and the reset can't finish.
 | `0013_tournament_kickoff_schedule.sql` | every minute, `pg_cron` checks for a tournament due to start and calls `tournament-kickoff` through `pg_net` (see below) |
 | `0014_tiers.sql` | tiers (Bronze to Diamond) from the skill rating: `tier_lines` (set from the ratings when it ran), `player_tiers` kept up to date by a trigger, `tier_changes` (used to announce promotions), and the `player_badges` view the app reads for avatar rings (with Legend and inactive) |
 | `0015_titles.sql` | titles and trophies: the `achievements` catalog, the `achievement_progress`, `tournament_honours` and `earned_titles` views (worked out from match history), `players.title` (only an earned title can be set), `achievement_notices` (each unlock is pushed once), and `player_badges` gains the champion count, the season-points leader and the shown title |
+| `0016_more_titles.sql` | eight more titles (Lunch Break Legend, Night Owl, Touch Grass, Coin Flip, Dark Horse, Seed Killer, Ride or Die, Partner Hopper) in the catalog and `achievement_progress`, and `club_time_zone()` (see below). Not marked as announced: players who already qualify hear about it with their next match |
+
+### Club time zone
+
+The time-of-day titles (Lunch Break Legend: 12:00–14:00, Night Owl: from
+20:00, Touch Grass: one day) read a match's time in `club_time_zone()`,
+`Europe/Bucharest`. For another zone, run in the SQL Editor:
+
+```sql
+create or replace function public.club_time_zone() returns text
+language sql immutable as $$ select 'Europe/London'::text $$;
+```
 
 ### Admins
 
