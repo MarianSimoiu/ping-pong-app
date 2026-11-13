@@ -5,11 +5,25 @@
 
 import type { DoublesPendingMatch, RankedTeam, Team } from '@/lib/doubles';
 import type { LeaderboardEntry, HistoryPoint, MatchHistoryItem, SeasonEntry } from '@/lib/leaderboard';
+import {
+  addDays,
+  CLUB_CLOSES,
+  CLUB_OPENS,
+  clubClock,
+  clubDay,
+  clubMoment,
+  formatDay,
+  isWeekend,
+  nextWeekday,
+  slotMinutes,
+  type TableTime,
+} from '@/lib/schedule';
 import type {
   TournamentDetail,
   TournamentListItem,
   TournamentNode,
   TournamentParticipant,
+  TournamentRound,
   TournamentSummary,
 } from '@/lib/tournaments';
 import type { Achievement, Trophies } from '@/lib/achievements';
@@ -124,6 +138,7 @@ type TStore = {
   // Once drawn: everyone with their seed and frozen pot.
   participants: TournamentParticipant[];
   nodes: TournamentNode[];
+  rounds: TournamentRound[]; // the days each round is played, once drawn
 };
 const tournaments: TStore[] = [finishedTournament(), sampleTournament(), openTournament()];
 
@@ -526,9 +541,11 @@ export function demoTournamentDetail(id: string): TournamentDetail {
   return {
     tournament: { ...t.summary },
     participants,
-    nodes: t.nodes,
+    nodes: t.nodes.map((n) => ({ ...n })),
     nameById,
     totalRounds: t.summary.size ? Math.log2(t.summary.size) : 0,
+    rounds: t.rounds.map((r) => ({ ...r })),
+    table: demoTable(),
   };
 }
 
@@ -549,6 +566,7 @@ export function demoCreateTournament(input: { name: string; bestOf: number; kick
     registrations: [],
     participants: [],
     nodes: [],
+    rounds: [],
   });
   return { tournamentId: id };
 }
@@ -587,6 +605,8 @@ function draw(t: TStore): void {
   t.nodes = nodes;
   t.summary.size = size;
   t.summary.status = 'active';
+  t.rounds = [];
+  scheduleMatches(t);
 }
 
 export function demoStartNow(id: string): void {
@@ -620,23 +640,193 @@ export function demoRecordTournamentMatch(input: {
   tournamentMatchId: string;
   games: Array<{ score_a: number; score_b: number }>;
 }): { winnerId: string } {
-  const t = tournaments.find((x) => x.nodes.some((n) => n.id === input.tournamentMatchId))!;
-  const node = t.nodes.find((n) => n.id === input.tournamentMatchId)!;
+  const { t, node } = nodeOf(input.tournamentMatchId);
   const aWins = input.games.filter((g) => g.score_a > g.score_b).length;
   const bWins = input.games.length - aWins;
   const winner = aWins >= bWins ? node.playerA! : node.playerB!;
-  node.winnerId = winner;
-  node.status = 'completed';
+  advance(t, node, winner);
+  return { winnerId: winner };
+}
+
+// The match is over: the winner goes on (and the next match gets its time),
+// or the final finishes the tournament.
+function advance(t: TStore, node: TournamentNode, winner: string): void {
+  Object.assign(node, { winnerId: winner, status: 'completed', proposedAt: null, proposedBy: null });
   const rounds = Math.log2(t.summary.size!);
   if (node.round < rounds) {
     const parent = t.nodes.find((n) => n.round === node.round + 1 && n.slot === Math.floor(node.slot / 2))!;
     if (node.slot % 2 === 0) parent.playerA = winner;
     else parent.playerB = winner;
     if (parent.playerA && parent.playerB) parent.status = 'ready';
+    scheduleMatches(t);
   } else {
     t.summary.status = 'completed';
   }
-  return { winnerId: winner };
+}
+
+// --- when matches are played -------------------------------------------------
+// Mirrors 0018: one round per weekday from the draw, each match the first free
+// slot on the one table (11:00-18:00), players propose another time up to a
+// day after the planned one and the other answers, admins move matches, set
+// round dates and give walkovers. You're an admin here; nobody answers your
+// proposals.
+
+const nodeOf = (id: string) => {
+  for (const t of tournaments) {
+    const node = t.nodes.find((n) => n.id === id);
+    if (node) return { t, node };
+  }
+  throw new Error('Match not found');
+};
+
+// Every match waiting on the table, in any tournament.
+function demoTable(): TableTime[] {
+  return tournaments.flatMap((t) =>
+    t.nodes
+      .filter((n) => n.status === 'ready' && n.scheduledAt)
+      .map((n) => {
+        const start = new Date(n.scheduledAt!).getTime();
+        return { matchId: n.id, start, end: start + slotMinutes(t.summary.bestOf) * 60_000 };
+      }),
+  );
+}
+
+const clash = (matchId: string, at: number, len: number) =>
+  demoTable().find((x) => x.matchId !== matchId && x.start < at + len && at < x.end);
+
+function ensureRounds(t: TStore): void {
+  if (!t.summary.size) return;
+  let day = t.rounds.reduce((last, r) => (r.endsOn > last ? r.endsOn : last), '');
+  if (!day) day = clubDay(Date.now());
+  for (let r = 1; r <= Math.log2(t.summary.size); r++) {
+    if (t.rounds.some((x) => x.round === r)) continue;
+    day = nextWeekday(day);
+    t.rounds.push({ round: r, startsOn: day, endsOn: day });
+  }
+  t.rounds.sort((a, b) => a.round - b.round);
+}
+
+function scheduleMatches(t: TStore): void {
+  if (t.summary.status !== 'active' || !t.summary.size) return;
+  ensureRounds(t);
+  const len = slotMinutes(t.summary.bestOf) * 60_000;
+  const now = Date.now();
+  const today = clubDay(now);
+  const waiting = t.nodes
+    .filter((n) => n.status === 'ready' && !n.scheduledAt && n.playerA && n.playerB)
+    .sort((a, b) => a.round - b.round || a.slot - b.slot);
+  for (const n of waiting) {
+    const r = t.rounds.find((x) => x.round === n.round)!;
+    let day = r.startsOn > today ? r.startsOn : today;
+    for (let tries = 0; tries < 400 && !n.scheduledAt; tries++, day = addDays(day, 1)) {
+      if (day > r.endsOn && isWeekend(day)) continue;
+      const closes = clubMoment(day, CLUB_CLOSES).getTime();
+      for (let at = clubMoment(day, CLUB_OPENS).getTime(); at + len <= closes; at += 15 * 60_000) {
+        if (at >= now + 15 * 60_000 && !clash(n.id, at, len)) {
+          Object.assign(n, { scheduledAt: new Date(at).toISOString(), plannedOn: day, proposedAt: null, proposedBy: null });
+          break;
+        }
+      }
+    }
+  }
+}
+
+// Throws the reason `at` can't be the match's time, as the database does.
+function checkTime(t: TStore, node: TournamentNode, at: string, byAdmin: boolean): void {
+  const ms = new Date(at).getTime();
+  const len = slotMinutes(t.summary.bestOf) * 60_000;
+  if (!(ms >= Date.now() + 5 * 60_000)) throw new Error('Pick a time in the future');
+  if (!byAdmin) {
+    const day = clubDay(ms);
+    if (clubClock(ms) < CLUB_OPENS || clubClock(ms + len) > CLUB_CLOSES || clubDay(ms + len) !== day) {
+      throw new Error(`Matches are played between ${CLUB_OPENS} and ${CLUB_CLOSES}`);
+    }
+    const latest = addDays(node.plannedOn ?? clubDay(Date.now()), 1);
+    if (day > latest) throw new Error(`It can be moved to ${formatDay(latest)} at the latest`);
+  }
+  const other = clash(node.id, ms, len);
+  if (other) {
+    const o = nodeOf(other.matchId).node;
+    const name = (id: string | null) => byId(id ?? '')?.name ?? '?';
+    throw new Error(
+      `The table is taken then: ${name(o.playerA)} v ${name(o.playerB)} (${clubClock(other.start)}-${clubClock(other.end)})`,
+    );
+  }
+}
+
+const isMine = (n: TournamentNode) => n.playerA === DEMO_ME || n.playerB === DEMO_ME;
+
+export function demoProposeMatchTime(id: string, at: string): void {
+  const { t, node } = nodeOf(id);
+  if (!isMine(node)) throw new Error('Only the two players can propose another time');
+  if (node.status !== 'ready') throw new Error("This match isn't waiting to be played");
+  if (node.scheduledAt && new Date(node.scheduledAt).getTime() === new Date(at).getTime()) {
+    throw new Error("That's already its time");
+  }
+  checkTime(t, node, at, false);
+  Object.assign(node, { proposedAt: new Date(at).toISOString(), proposedBy: DEMO_ME });
+}
+
+export function demoAnswerMatchTime(id: string, action: 'accept' | 'decline' | 'withdraw'): void {
+  const { t, node } = nodeOf(id);
+  if (!isMine(node)) throw new Error('Only the two players can answer');
+  if (node.status !== 'ready' || !node.proposedAt) throw new Error("There's no other time to answer");
+  if (action === 'withdraw' && node.proposedBy !== DEMO_ME) {
+    throw new Error('Only the player who proposed it can take it back');
+  }
+  if (action !== 'withdraw' && node.proposedBy === DEMO_ME) throw new Error('The other player has to answer it');
+  if (action === 'accept') {
+    checkTime(t, node, node.proposedAt, false);
+    node.scheduledAt = node.proposedAt;
+  }
+  Object.assign(node, { proposedAt: null, proposedBy: null });
+}
+
+export function demoMoveMatch(id: string, at: string): void {
+  const { t, node } = nodeOf(id);
+  if (node.status !== 'ready' || !node.playerA || !node.playerB) {
+    throw new Error('Only a match waiting to be played can be moved');
+  }
+  checkTime(t, node, at, true);
+  Object.assign(node, { scheduledAt: new Date(at).toISOString(), plannedOn: clubDay(at), proposedAt: null, proposedBy: null });
+}
+
+export function demoSetRoundDates(input: {
+  tournamentId: string;
+  round: number;
+  startsOn: string;
+  endsOn: string;
+}): { moved: number } {
+  const t = find(input.tournamentId);
+  if (t.summary.status !== 'active') throw new Error('Only a tournament in progress has round dates');
+  if (input.endsOn < input.startsOn) throw new Error("The last day can't be before the first");
+  const today = clubDay(Date.now());
+  if (input.endsOn < today) throw new Error("The round can't end in the past");
+  ensureRounds(t);
+  const r = t.rounds.find((x) => x.round === input.round);
+  if (!r) throw new Error(`No round ${input.round} in this tournament`);
+  Object.assign(r, { startsOn: input.startsOn, endsOn: input.endsOn });
+  const from = input.startsOn > today ? input.startsOn : today;
+  let moved = 0;
+  for (const n of t.nodes) {
+    if (n.round !== input.round || n.status !== 'ready' || !n.scheduledAt) continue;
+    const day = clubDay(n.scheduledAt);
+    if (day >= from && day <= input.endsOn) continue;
+    Object.assign(n, { scheduledAt: null, plannedOn: null, proposedAt: null, proposedBy: null });
+    moved++;
+  }
+  scheduleMatches(t);
+  return { moved };
+}
+
+export function demoGiveWalkover(id: string, winnerId: string): void {
+  const { t, node } = nodeOf(id);
+  if (node.status !== 'ready' || !node.playerA || !node.playerB) {
+    throw new Error('Only a match waiting to be played can be given as a walkover');
+  }
+  if (winnerId !== node.playerA && winnerId !== node.playerB) throw new Error('The winner has to be one of the two players');
+  node.walkover = true;
+  advance(t, node, winnerId);
 }
 
 // --- helpers -----------------------------------------------------------------
@@ -662,7 +852,20 @@ function buildBracket(ids: string[]): { nodes: TournamentNode[]; size: number } 
   const nodes: TournamentNode[] = [];
   for (let r = 1; r <= rounds; r++) {
     for (let s = 0; s < size / 2 ** r; s++) {
-      nodes.push({ id: `n-${stamp}-${r}-${s}`, round: r, slot: s, playerA: null, playerB: null, winnerId: null, status: 'pending' });
+      nodes.push({
+        id: `n-${stamp}-${r}-${s}`,
+        round: r,
+        slot: s,
+        playerA: null,
+        playerB: null,
+        winnerId: null,
+        status: 'pending',
+        scheduledAt: null,
+        plannedOn: null,
+        proposedAt: null,
+        proposedBy: null,
+        walkover: false,
+      });
     }
   }
   const at = (r: number, s: number) => nodes.find((n) => n.round === r && n.slot === s)!;
@@ -728,19 +931,41 @@ function finishedTournament(): TStore {
       registeredAt: null,
     })),
     nodes,
+    rounds: [], // from before rounds had dates
   };
 }
 
-// A tournament from before registration existed: hand-picked, no pots, one
-// semifinal played (Ana beat Dana); yours against Ben is up next.
+// In progress, 8 players. Quarterfinals yesterday: you beat Cris, Ana beat
+// Gabi, Dana went through on a walkover, and Ben v Fei wasn't played (overdue:
+// the organizer decides). Semifinals today and tomorrow: yours against Ana is
+// tomorrow at 11:00, and Ana asks to move it to 16:00.
 function sampleTournament(): TStore {
-  const ids = ['p2', 'p3', DEMO_ME, 'p5'];
+  // In seed order (Pot 1 first): seeds 1 v 8, 4 v 5, 2 v 7, 3 v 6 meet first.
+  const ids = ['p2', 'p3', 'p5', 'p4', DEMO_ME, 'p6', 'p7', 'p8'];
   const { nodes, size } = buildBracket(ids);
-  const sf0 = nodes.find((n) => n.round === 1 && n.slot === 0)!;
-  sf0.winnerId = sf0.playerA;
-  sf0.status = 'completed';
-  const final = nodes.find((n) => n.round === 2 && n.slot === 0)!;
-  final.playerA = sf0.playerA;
+  const today = clubDay(Date.now());
+  const [yesterday, tomorrow] = [addDays(today, -1), addDays(today, 1)];
+  const at = (day: string, hhmm: string) => clubMoment(day, hhmm).toISOString();
+  const node = (round: number, slot: number) => nodes.find((n) => n.round === round && n.slot === slot)!;
+  const played = (round: number, slot: number, winner: string, extra: Partial<TournamentNode> = {}) => {
+    const n = node(round, slot);
+    Object.assign(n, { winnerId: winner, status: 'completed', ...extra });
+    const parent = node(round + 1, Math.floor(slot / 2));
+    if (slot % 2 === 0) parent.playerA = winner;
+    else parent.playerB = winner;
+    if (parent.playerA && parent.playerB) parent.status = 'ready';
+  };
+  played(1, 0, 'p2', { scheduledAt: at(yesterday, '11:00'), plannedOn: yesterday }); // Ana v Gabi
+  played(1, 1, DEMO_ME, { scheduledAt: at(yesterday, '11:30'), plannedOn: yesterday }); // Cris v you
+  Object.assign(node(1, 2), { scheduledAt: at(yesterday, '16:00'), plannedOn: yesterday }); // Ben v Fei: not played
+  played(1, 3, 'p5', { walkover: true }); // Dana v Emil
+  Object.assign(node(2, 0), {
+    scheduledAt: at(tomorrow, '11:00'),
+    plannedOn: tomorrow,
+    proposedAt: at(tomorrow, '16:00'),
+    proposedBy: 'p2',
+  });
+  const pots = [1, 1, 2, 2, 3, 3, 4, 4];
   return {
     summary: {
       id: 'demo-t1',
@@ -749,21 +974,26 @@ function sampleTournament(): TStore {
       size,
       bestOf: 3,
       tier: 1,
-      createdAt: new Date(Date.now() - 2 * 864e5).toISOString(),
-      kickoffAt: null,
+      createdAt: new Date(Date.now() - 4 * 864e5).toISOString(),
+      kickoffAt: new Date(Date.now() - 2 * 864e5).toISOString(),
       createdBy: DEMO_ME,
     },
     registrations: [],
     participants: ids.map((playerId, i) => ({
       playerId,
       seed: i + 1,
-      pot: null,
+      pot: pots[i],
       name: byId(playerId)?.name ?? '—',
       avatarUrl: null,
       rating: byId(playerId)?.rating ?? null,
       registeredAt: null,
     })),
     nodes,
+    rounds: [
+      { round: 1, startsOn: yesterday, endsOn: yesterday },
+      { round: 2, startsOn: today, endsOn: tomorrow },
+      { round: 3, startsOn: nextWeekday(tomorrow), endsOn: nextWeekday(tomorrow) },
+    ],
   };
 }
 
@@ -788,5 +1018,6 @@ function openTournament(): TStore {
     registrations: others.map((playerId, i) => ({ playerId, at: Date.now() - (others.length - i) * 36e5 })),
     participants: [],
     nodes: [],
+    rounds: [],
   };
 }

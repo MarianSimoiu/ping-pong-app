@@ -6,7 +6,8 @@ import { radius, spacing, useTheme, type Colors } from '@/theme';
 
 // A panel that pops up from the bottom of the screen over a dimmed backdrop,
 // closed by tapping outside it or pressing Escape. Used by the install and
-// notification popups (InstallSheet, PushPromptSheet).
+// notification popups (InstallSheet, PushPromptSheet) and a tournament
+// match's time and organizer actions (MatchSheets).
 export function BottomSheet({
   visible,
   onDismiss,
@@ -74,20 +75,23 @@ export function SheetButton({
   onPress,
   secondary,
   busy,
+  disabled,
 }: {
   label: string;
   onPress: () => void;
   secondary?: boolean;
   busy?: boolean;
+  disabled?: boolean;
 }) {
   const { colors } = useTheme();
   const styles = useStyles();
   return (
     <Pressable
-      style={[secondary ? styles.secondaryButton : styles.button, busy && styles.busy]}
+      style={[secondary ? styles.secondaryButton : styles.button, busy && styles.busy, disabled && styles.disabled]}
       onPress={onPress}
-      disabled={busy}
+      disabled={busy || disabled}
       accessibilityRole="button"
+      accessibilityState={{ disabled: !!(busy || disabled) }}
     >
       {busy ? (
         <ActivityIndicator color={secondary ? colors.textMuted : colors.primaryText} />
@@ -130,5 +134,6 @@ function createStyles(colors: Colors) {
     secondaryButton: { paddingVertical: spacing.sm, alignItems: 'center' },
     secondaryButtonText: { color: colors.textMuted, fontSize: 15, fontWeight: '600' },
     busy: { opacity: 0.7 },
+    disabled: { opacity: 0.45 },
   });
 }

@@ -3,7 +3,9 @@
 // Records the result of a ready bracket node. Scores are entered from player_a's
 // perspective (the bracket fixes who is A and B). Runs the SAME Glicko-2 update
 // as casual play (repeat-opponent factor is always 1 for tournaments), then
-// completes the node and advances the winner via apply_tournament_result.
+// completes the node and advances the winner via apply_tournament_result. The
+// winner's next match gets its time in the database (0018); both its players
+// are told.
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
@@ -11,15 +13,9 @@ import { corsHeaders, jsonResponse } from '../_shared/cors.ts';
 import { resolveMatch, type RawGame } from '../_shared/match.ts';
 import { afterResponse } from '../_shared/notify.ts';
 import { announceRewards } from '../_shared/rewards.ts';
+import { announceSchedules } from '../_shared/schedule.ts';
+import { awardSeasonPoints } from '../_shared/season.ts';
 import { computeRatingUpdate, roundRating, type RatingRow } from '../_shared/engine.ts';
-import {
-  WINDOW_DAYS,
-  computePlacements,
-  placementLabel,
-  placementPoints,
-} from '../_shared/points.ts';
-
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 type Body = { tournamentMatchId?: string; games?: RawGame[] };
 
@@ -66,10 +62,17 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'This match is not ready to be played yet' }, 400);
     }
 
-    // Only the two players or the organizer may record the result.
+    // Only the two players, the organizer or an admin (who decides matches
+    // not played on their day) may record the result.
     const allowed = [node.player_a, node.player_b, tournament.created_by];
     if (!allowed.includes(caller.id)) {
-      return jsonResponse({ error: 'Only the players or the organizer can record this match' }, 403);
+      const { data: adminRow, error: adminErr } = await admin
+        .from('admins')
+        .select('player_id')
+        .eq('player_id', caller.id)
+        .maybeSingle();
+      if (adminErr) return jsonResponse({ error: adminErr.message }, 500);
+      if (!adminRow) return jsonResponse({ error: 'Only the players or an organizer can record this match' }, 403);
     }
 
     let outcome;
@@ -116,43 +119,12 @@ Deno.serve(async (req) => {
 
     const { data: matchId, error: applyErr } = await admin.rpc('apply_tournament_result', { payload });
     if (applyErr) return jsonResponse({ error: applyErr.message }, 500);
-    // A tier promotion for either player.
+    // A tier promotion for either player; the winner's next match time.
     await afterResponse(announceRewards(admin, [node.player_a, node.player_b]));
+    await afterResponse(announceSchedules(admin, tournament.id));
 
     // If that result finished the tournament, award WTA-style season points.
-    let seasonPointsAwarded = false;
-    const { data: finished } = await admin
-      .from('tournaments')
-      .select('status, tier, size')
-      .eq('id', tournament.id)
-      .single();
-    if (finished?.status === 'completed') {
-      const { data: allNodes } = await admin
-        .from('tournament_matches')
-        .select('round, slot, player_a, player_b, winner_id, status')
-        .eq('tournament_id', tournament.id);
-      const totalRoundsN = Math.log2(finished.size);
-      const bracketNodes = (allNodes ?? []).map((n: any) => ({
-        round: n.round,
-        slot: n.slot,
-        playerA: n.player_a,
-        playerB: n.player_b,
-        winner: n.winner_id,
-        status: n.status,
-      }));
-      const placements = computePlacements(bracketNodes, totalRoundsN);
-      const expiresAt = new Date(Date.now() + WINDOW_DAYS * DAY_MS).toISOString();
-      const awards = placements.map((p) => ({
-        player_id: p.playerId,
-        placement: placementLabel(p.lostRound, totalRoundsN),
-        points: placementPoints(p.lostRound, totalRoundsN, finished.tier),
-        expires_at: expiresAt,
-      }));
-      const { error: awardErr } = await admin.rpc('award_season_points', {
-        payload: { tournament_id: tournament.id, awards },
-      });
-      seasonPointsAwarded = !awardErr;
-    }
+    const seasonPointsAwarded = await awardSeasonPoints(admin, tournament.id);
 
     return jsonResponse({
       seasonPointsAwarded,

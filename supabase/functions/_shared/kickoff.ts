@@ -80,7 +80,8 @@ export async function startTournament(
 type Note = { playerId: string; message: PushMessage };
 
 // Tells every player of a tournament that was just drawn who they play
-// first. Never throws: the draw stands either way.
+// first, and when (the database gave the ready matches times, 0018). Never
+// throws: the draw stands either way.
 export async function announceDraw(
   admin: SupabaseClient,
   tournamentId: string,
@@ -90,7 +91,10 @@ export async function announceDraw(
     const [tRes, pRes, nRes] = await Promise.all([
       admin.from('tournaments').select('name').eq('id', tournamentId).single(),
       admin.from('tournament_participants').select('player_id, player:players(display_name)').eq('tournament_id', tournamentId),
-      admin.from('tournament_matches').select('round, slot, player_a, player_b, winner_id, status').eq('tournament_id', tournamentId),
+      admin
+        .from('tournament_matches')
+        .select('round, slot, player_a, player_b, winner_id, status, scheduled_at')
+        .eq('tournament_id', tournamentId),
     ]);
     if (tRes.error) throw tRes.error;
     if (pRes.error) throw pRes.error;
@@ -111,6 +115,12 @@ export async function announceDraw(
       status: n.status,
     }));
 
+    // When a player's first match is, if both its players are known.
+    const timeOf = (playerId: string, round: number): string | null =>
+      (nRes.data ?? []).find(
+        (n) => n.round === round && n.player_a && n.player_b && (n.player_a === playerId || n.player_b === playerId),
+      )?.scheduled_at ?? null;
+
     await send(
       admin,
       [...names.keys()].map((playerId) => {
@@ -123,10 +133,17 @@ export async function announceDraw(
             round: first?.round ?? 1,
             opponent: first?.opponent ? nameOf(first.opponent) : null,
             winnerOf: first?.winnerOf ? [nameOf(first.winnerOf[0]), nameOf(first.winnerOf[1])] : null,
+            at: first?.opponent ? timeOf(playerId, first.round) : null,
           }),
         };
       }),
     );
+    // Those times are told now: not again by announceSchedules.
+    await admin
+      .from('tournament_matches')
+      .update({ schedule_announced: true })
+      .eq('tournament_id', tournamentId)
+      .eq('status', 'ready');
   } catch (e) {
     console.warn('Draw announcement failed', e);
   }

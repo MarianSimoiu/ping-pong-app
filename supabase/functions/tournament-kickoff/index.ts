@@ -1,9 +1,11 @@
 // Edge Function: tournament-kickoff
 //
 // Starts every tournament whose kickoff time has come and that has at least
-// 4 players: makes the draw and tells each player who they play first. The
-// database calls it every minute while one is due (migration 0013), and the
-// app calls it when it shows a tournament past its kickoff.
+// 4 players: makes the draw and tells each player who they play first, and
+// when. Also tells the admins about matches not played by the day after
+// their date (0018). The database calls it every minute while either is due
+// (migrations 0013, 0018), and the app calls it when it shows a tournament
+// past its kickoff.
 //
 // It takes no input and only does what is already due, so it is safe for
 // anyone to call: it's deployed without the user-token check
@@ -15,6 +17,7 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { corsHeaders, jsonResponse } from '../_shared/cors.ts';
 import { announceDraw, startTournament } from '../_shared/kickoff.ts';
 import { afterResponse } from '../_shared/notify.ts';
+import { announceOverdue } from '../_shared/schedule.ts';
 import { errorMessage } from '../_shared/tournaments.ts';
 
 Deno.serve(async (req) => {
@@ -44,6 +47,7 @@ Deno.serve(async (req) => {
     }
 
     if (started.length > 0) await afterResponse(Promise.all(started.map((id) => announceDraw(admin, id))));
+    await afterResponse(announceOverdue(admin));
     return jsonResponse({ started, waiting });
   } catch (e) {
     return jsonResponse({ error: errorMessage(e) }, 500);

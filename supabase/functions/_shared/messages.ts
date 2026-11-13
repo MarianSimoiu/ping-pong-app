@@ -1,3 +1,4 @@
+import { clubTime } from './rounds.ts';
 import { TIER_EMOJI, TIER_NAMES, type Tier } from './tiers.ts';
 
 // The text of every push notification, in one place. The match Edge Functions
@@ -124,11 +125,13 @@ export function tournamentDrawn(o: {
   round: number;
   opponent: string | null;
   winnerOf: [string, string] | null;
+  at?: string | null; // that match's time, once it has one
 }): PushMessage {
   const next = o.opponent ? o.opponent : o.winnerOf ? `the winner of ${o.winnerOf[0]} v ${o.winnerOf[1]}` : null;
+  const when = o.at ? ` on ${clubTime(o.at)}` : '';
   let body: string;
-  if (o.round === 1 && next) body = `Round 1: you play ${next}. Good luck!`;
-  else if (next) body = `You have a bye in round 1, then you play ${next}.`;
+  if (o.round === 1 && next) body = `Round 1: you play ${next}${when}. Good luck!`;
+  else if (next) body = `You have a bye in round 1, then you play ${next}${when}.`;
   else body = 'Tap to see your place in the bracket.';
   return {
     title: `${o.tournament}: the draw is out`,
@@ -136,6 +139,99 @@ export function tournamentDrawn(o: {
     url: tournamentPage(o.tournamentId),
     tag: `tournament-${o.tournamentId}`,
   };
+}
+
+// --- Match times (migration 0018). `match` reads like "semifinal" (rounds.ts).
+
+// To both players when their match gets a time, or a new one.
+export function matchScheduled(o: {
+  tournamentId: string;
+  tournament: string;
+  match: string;
+  opponent: string;
+  at: string;
+  moved: boolean;
+}): PushMessage {
+  return {
+    title: o.moved ? `${o.tournament}: your ${o.match} moved` : `${o.tournament}: your ${o.match}`,
+    body: o.moved
+      ? `You play ${o.opponent} on ${clubTime(o.at)} now.`
+      : `You play ${o.opponent} on ${clubTime(o.at)}. Can't make it? Propose another time in the app.`,
+    url: tournamentPage(o.tournamentId),
+    tag: `match-time-${o.tournamentId}`,
+  };
+}
+
+// To the other player when one proposes another time.
+export function matchTimeProposed(o: {
+  tournamentId: string;
+  tournament: string;
+  match: string;
+  proposer: string;
+  at: string;
+}): PushMessage {
+  return {
+    title: `${o.proposer} wants to move your ${o.match}`,
+    body: `To ${clubTime(o.at)}. Open ${o.tournament} to accept or decline.`,
+    url: tournamentPage(o.tournamentId),
+    tag: `match-time-${o.tournamentId}`,
+  };
+}
+
+// To the player who proposed, when the other keeps the time.
+export function matchTimeDeclined(o: {
+  tournamentId: string;
+  tournament: string;
+  match: string;
+  opponent: string;
+  at: string;
+}): PushMessage {
+  return {
+    title: `${o.opponent} kept your ${o.match} time`,
+    body: `Still ${clubTime(o.at)}. You can propose another time in ${o.tournament}.`,
+    url: tournamentPage(o.tournamentId),
+    tag: `match-time-${o.tournamentId}`,
+  };
+}
+
+// To the admins, the day after a match should have been played.
+export function matchOverdue(o: {
+  tournamentId: string;
+  tournament: string;
+  match: string;
+  playerA: string;
+  playerB: string;
+  at: string;
+}): PushMessage {
+  return {
+    title: `${o.tournament}: a match wasn't played`,
+    body: `${o.playerA} v ${o.playerB} (${o.match}) was due ${clubTime(o.at)}. Record the result or give a walkover.`,
+    url: tournamentPage(o.tournamentId),
+    tag: `overdue-${o.tournamentId}`,
+  };
+}
+
+// To both players when an admin gives a walkover.
+export function walkoverGiven(o: {
+  tournamentId: string;
+  tournament: string;
+  match: string;
+  youWon: boolean;
+  opponent: string;
+}): PushMessage {
+  return o.youWon
+    ? {
+        title: `${o.tournament}: you go through`,
+        body: `The organizer gave you your ${o.match} against ${o.opponent} as a walkover.`,
+        url: tournamentPage(o.tournamentId),
+        tag: `tournament-${o.tournamentId}`,
+      }
+    : {
+        title: `${o.tournament}: walkover to ${o.opponent}`,
+        body: `The organizer gave ${o.opponent} your ${o.match} as a walkover.`,
+        url: tournamentPage(o.tournamentId),
+        tag: `tournament-${o.tournamentId}`,
+      };
 }
 
 // To the registered players when an admin moves the kickoff.

@@ -18,6 +18,7 @@ function fakeDb(tables: Record<string, Row[]>, rpc: (payload: Row) => RpcResult)
       const rows = () => (tables[table] ?? []).filter((r) => filters.every(([c, v]) => r[c] === v));
       const query = {
         select: () => query,
+        update: () => query,
         eq: (column: string, value: unknown) => (filters.push([column, value]), query),
         maybeSingle: () => Promise.resolve({ data: rows()[0] ?? null, error: null }),
         single: () => Promise.resolve({ data: rows()[0], error: rows()[0] ? null : { message: 'none' } }),
@@ -163,11 +164,11 @@ Deno.test('the draw announcement tells each player who they play first, by name'
       tournament_participants: participants,
       tournament_matches: [
         node(1, 0, 'Ana', null, 'completed', 'Ana'),
-        node(1, 1, 'Dan', 'Eva', 'ready'),
+        { ...node(1, 1, 'Dan', 'Eva', 'ready'), scheduled_at: '2026-11-16T09:00:00Z' },
         node(1, 2, 'Ben', null, 'completed', 'Ben'),
         node(1, 3, 'Cris', null, 'completed', 'Cris'),
         node(2, 0, 'Ana', null, 'pending'),
-        node(2, 1, 'Ben', 'Cris', 'ready'),
+        { ...node(2, 1, 'Ben', 'Cris', 'ready'), scheduled_at: '2026-11-17T09:30:00Z' },
         node(3, 0, null, null, 'pending'),
       ],
     },
@@ -178,8 +179,8 @@ Deno.test('the draw announcement tells each player who they play first, by name'
   const body = (id: string) => sent.find((n) => n.playerId === id)?.message.body;
   assertEquals(sent.length, 5);
   assertEquals(body('Ana'), 'You have a bye in round 1, then you play the winner of Dan v Eva.');
-  assertEquals(body('Ben'), 'You have a bye in round 1, then you play Cris.');
-  assertEquals(body('Dan'), 'Round 1: you play Eva. Good luck!');
+  assertEquals(body('Ben'), 'You have a bye in round 1, then you play Cris on Tue 17 Nov, 11:30.');
+  assertEquals(body('Dan'), 'Round 1: you play Eva on Mon 16 Nov, 11:00. Good luck!');
   assert(sent.every((n) => n.message.title === 'Winter Cup: the draw is out' && n.message.url === '/tournaments/t1'));
 
   // A database failure is logged, never thrown.
