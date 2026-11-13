@@ -389,8 +389,8 @@ export function demoBadges(): { badges: Record<string, PlayerBadge>; lines: Tier
 }
 
 // --- titles ------------------------------------------------------------------
-// The same catalog as migration 0015; progress made up per player, plus the
-// finished Autumn Open (Ana beat Ben in the final).
+// The same catalog as the migrations (0015-0019); progress made up per player,
+// plus the finished Autumn Open (Ana beat Ben in the final).
 
 const DEMO_CATALOG: Achievement[] = [
   { code: 'regular', name: 'Regular', description: 'Play 25 matches', emoji: '🏓', target: 25, sort: 10 },
@@ -408,6 +408,7 @@ const DEMO_CATALOG: Achievement[] = [
   { code: 'dark_horse', name: 'Dark Horse', description: 'Win your way into a tournament semifinal from the bottom pot', emoji: '🐴', target: 1, sort: 104 },
   { code: 'seed_killer', name: 'Beast Killer', description: 'Knock the #1 seed out of a tournament', emoji: '🐉', target: 1, sort: 106 },
   { code: 'champion', name: 'Champion', description: 'Win a tournament', emoji: '🏆', target: 1, sort: 110 },
+  { code: 'unkillable_demon_king', name: 'Unkillable Demon King', description: 'Win a tournament without losing a single game', emoji: '👹', target: 1, sort: 112 },
   { code: 'lunch_break_legend', name: 'Lunch Break Legend', description: 'Win 10 matches between 12:00 and 14:00', emoji: '🥪', target: 10, sort: 120 },
   { code: 'night_owl', name: 'Night Owl', description: 'Play a match after 20:00', emoji: '🦉', target: 1, sort: 130 },
   { code: 'touch_grass', name: 'Touch Grass', description: 'Play 10 matches in one day', emoji: '🌱', target: 10, sort: 140 },
@@ -437,6 +438,7 @@ const DEMO_PROGRESS: Record<string, Record<string, { progress: number; earnedAt:
     on_fire: { progress: 5, earnedAt: daysAgo(15) },
     lunch_break_legend: { progress: 10, earnedAt: daysAgo(9) },
     night_owl: { progress: 1, earnedAt: daysAgo(33) },
+    unkillable_demon_king: { progress: 1, earnedAt: daysAgo(25) }, // the Autumn Open without dropping a game
   },
   p3: {
     regular: { progress: 25, earnedAt: daysAgo(30) },
@@ -447,7 +449,7 @@ const DEMO_PROGRESS: Record<string, Record<string, { progress: number; earnedAt:
 };
 const AUTUMN = { tournamentId: 'demo-t0', tournamentName: 'Autumn Open', at: daysAgo(25) };
 const DEMO_HONOURS: Record<string, { won: boolean }> = { p2: { won: true }, p3: { won: false } };
-const DEMO_TITLES: Record<string, string> = { p2: 'champion:demo-t0', p3: 'finalist' };
+const DEMO_TITLES: Record<string, string> = { p2: 'unkillable_demon_king', p3: 'finalist' };
 let myTitle: string | null = null;
 
 function titleLabel(title: string): string {

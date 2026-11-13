@@ -113,6 +113,7 @@ Otherwise the link lands on the wrong page and the reset can't finish.
 | `0016_more_titles.sql` | eight more titles (Lunch Break Legend, Night Owl, Touch Grass, Coin Flip, Dark Horse, Seed Killer, Ride or Die, Partner Hopper) in the catalog and `achievement_progress`, and `club_time_zone()` (see below). Not marked as announced: players who already qualify hear about it with their next match |
 | `0017_title_tweaks.sql` | Giant Slayer takes a 300+ point gap (`giant_slayer_gap()`; was 150): a shown Giant Slayer earned from a smaller gap is cleared, and announced again when earned for real. Seed Killer is renamed Beast Killer 🐉 |
 | `0018_match_schedule.sql` | when tournament matches are played (see below): `tournament_rounds` (each round's days), match times on `tournament_matches` (`scheduled_at`, `planned_on`, a pending `proposed_at`/`proposed_by`, `walkover`), automatic times on the one table, the propose/answer/move/round-dates/walkover RPCs, and the every-minute job also reports matches not played on their day. Tournaments already in progress get their dates and times when it runs. Walkovers don't count for Dark Horse or Beast Killer |
+| `0019_unkillable_demon_king.sql` | the Unkillable Demon King 👹 title: win a tournament without losing a single game (walkovers count neither way; at least one match played). Tournaments already played count; not marked as announced, so a player who already qualifies hears about it with their next match |
 
 ### Club time zone
 
