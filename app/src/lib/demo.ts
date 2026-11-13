@@ -166,7 +166,15 @@ export function demoLeaderboard(): LeaderboardEntry[] {
       rd: p.rd,
       matchesPlayed: p.matches,
       ...demoRecord(p.id),
+      unanswered: demoUnanswered(p.id),
     }));
+}
+
+// Matches waiting on a player's answer: yours are the ones on Home (singles)
+// and in Doubles; Cris is sitting on three, Fei on one.
+const DEMO_UNANSWERED: Record<string, number> = { p4: 3, p7: 1 };
+function demoUnanswered(id: string): number {
+  return id === DEMO_ME ? pending.length + doublesToConfirm.length : (DEMO_UNANSWERED[id] ?? 0);
 }
 
 export function demoSeasonStandings(): SeasonEntry[] {

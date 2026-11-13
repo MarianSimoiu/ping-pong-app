@@ -77,6 +77,12 @@ engine and applied by `confirm_match`) or **decline** (`reject_match` marks it
 `rejected`). The repeat-opponent guard counts only `confirmed` matches. Tournament
 matches are exempt: `apply_rated_match` writes them directly as `confirmed`.
 
+The `unanswered_matches` view (`0022_unanswered_matches.sql`) counts what's
+waiting on each player's answer: pending singles they're in but didn't record,
+and pending doubles the other team recorded (for both opponents, until one of
+them answers). The leaderboard shows it under the player's name ("⏳ 3
+unanswered matches"); if the view can't be read, the board shows without it.
+
 ### Tournaments (Phase 4)
 
 Single-elimination brackets whose matches feed the **same** rating engine as

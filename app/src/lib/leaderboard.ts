@@ -14,6 +14,8 @@ export type LeaderboardEntry = {
   matchesPlayed: number;
   wins: number;
   losses: number;
+  // Matches waiting on this player to confirm or decline (singles and doubles).
+  unanswered: number;
 };
 
 // Ranked skill leaderboard: players past the min-matches gate, best rating first.
@@ -38,25 +40,31 @@ export async function fetchLeaderboard(): Promise<LeaderboardEntry[]> {
       matchesPlayed: row.matches_played,
       wins: 0,
       losses: 0,
+      unanswered: 0,
     };
   });
   if (entries.length === 0) return entries;
 
-  // One extra query for everyone's win/loss record, counted in the database
-  // (player_records view): one row per player, so no row cap to run into.
-  const { data: records, error: recordsError } = await supabase
-    .from('player_records')
-    .select('player_id, wins, losses')
-    .in('player_id', entries.map((e) => e.playerId));
+  // Two extra queries, both counted in the database (one row per player, so
+  // no row cap to run into): everyone's win/loss record (player_records), and
+  // how many matches wait on their answer (unanswered_matches). The second
+  // only adds a line to the board, so if it fails the board shows without it.
+  const ids = entries.map((e) => e.playerId);
+  const [{ data: records, error: recordsError }, { data: waiting }] = await Promise.all([
+    supabase.from('player_records').select('player_id, wins, losses').in('player_id', ids),
+    supabase.from('unanswered_matches').select('player_id, matches').in('player_id', ids),
+  ]);
   if (recordsError) throw recordsError;
 
   const byPlayer = new Map((records ?? []).map((r: any) => [r.player_id as string, r]));
+  const waitingFor = new Map((waiting ?? []).map((w: any) => [w.player_id as string, w.matches as number]));
   for (const entry of entries) {
     const record = byPlayer.get(entry.playerId);
     if (record) {
       entry.wins = record.wins;
       entry.losses = record.losses;
     }
+    entry.unanswered = waitingFor.get(entry.playerId) ?? 0;
   }
 
   return entries;

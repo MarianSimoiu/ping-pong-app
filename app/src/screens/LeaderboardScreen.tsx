@@ -107,6 +107,7 @@ export function LeaderboardScreen({ navigation }: LeaderboardStackScreenProps<'L
                 name={item.displayName}
                 title={badges[item.playerId]?.titleLabel}
                 meta={record(item.matchesPlayed, item.wins, item.losses)}
+                flag={unanswered(item.unanswered)}
                 value={String(Math.round(item.rating))}
                 valueNote={`±${Math.round(item.rd)}`}
                 side={<TierPill badge={badges[item.playerId]} />}
@@ -169,15 +170,21 @@ export function LeaderboardScreen({ navigation }: LeaderboardStackScreenProps<'L
 const record = (matches: number, wins: number, losses: number): string =>
   `${matches} ${matches === 1 ? 'match' : 'matches'} · ${wins}–${losses}`;
 
+// "⏳ 3 unanswered matches": recorded against the player, still waiting for
+// them to confirm or decline. Nothing when there are none.
+const unanswered = (n: number): string | null =>
+  n > 0 ? `⏳ ${n} unanswered ${n === 1 ? 'match' : 'matches'}` : null;
+
 // One card on the board. Left: the rank, then the avatar and name, the title
-// on its own line (so a long name can't push it out), and a line of detail.
-// Right: the rating (with its ±) over the tier.
+// on its own line (so a long name can't push it out), a line of detail, and
+// any flag (unanswered matches). Right: the rating (with its ±) over the tier.
 function Row({
   rank,
   avatar,
   name,
   title,
   meta,
+  flag,
   value,
   valueNote,
   side,
@@ -188,6 +195,7 @@ function Row({
   name: string;
   title?: string | null;
   meta: string;
+  flag?: string | null;
   value: string;
   valueNote?: string;
   side?: React.ReactNode;
@@ -215,6 +223,11 @@ function Row({
         <Text style={styles.rowMeta} numberOfLines={1}>
           {meta}
         </Text>
+        {flag ? (
+          <Text style={styles.rowFlag} numberOfLines={1}>
+            {flag}
+          </Text>
+        ) : null}
       </View>
       <View style={styles.rowSide}>
         <View style={styles.valueLine}>
@@ -311,6 +324,7 @@ function createStyles(colors: Colors) {
     rowName: { color: colors.text, fontSize: 17, fontWeight: '600', flexShrink: 1 },
     rowTitle: { color: colors.accent, fontSize: 13, fontWeight: '600', fontStyle: 'italic', marginTop: 4 },
     rowMeta: { color: colors.textMuted, fontSize: 13, marginTop: 3 },
+    rowFlag: { color: colors.danger, fontSize: 13, fontWeight: '600', marginTop: 3 },
     rowSide: { alignItems: 'flex-end', marginLeft: spacing.sm },
     valueLine: { flexDirection: 'row', alignItems: 'baseline' },
     rowValue: { color: colors.primary, fontSize: 20, fontWeight: '800' },
