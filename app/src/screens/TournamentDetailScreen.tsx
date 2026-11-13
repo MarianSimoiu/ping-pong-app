@@ -7,7 +7,7 @@ import { Countdown } from '@/components/Countdown';
 import { DateTimeField } from '@/components/DateTimeField';
 import { ManageMatchSheet, ProposeTimeSheet } from '@/components/MatchSheets';
 import { PotRules, PotsList, withYou } from '@/components/PotsList';
-import { inscription, MedalBadge, Sunburst, Trophy, TrophyBadge } from '@/components/TournamentArt';
+import { inscription, Medal, MedalBadge, Sunburst, Trophy, TrophyBadge } from '@/components/TournamentArt';
 import { useAuth } from '@/context/AuthContext';
 import { pickChampionLine } from '@/lib/commentary';
 import { defaultKickoff, fromLocalInputValue, toLocalInputValue, useNow } from '@/lib/countdown';
@@ -217,6 +217,9 @@ export function TournamentDetailScreen({ route, navigation }: TournamentsStackSc
   }
 
   const { tournament, participants, nodes, nameById, totalRounds, rounds: roundDays, table } = detail;
+  // "AUTUMN OPEN 2026" on its trophy and medals: the year it ended, or (before
+  // that) the year of its kickoff.
+  const lettering = inscription(tournament.name, tournament.endedAt ?? tournament.kickoffAt ?? tournament.createdAt);
   const count = participants.length;
   const meId = me?.id ?? null;
   const myEntry = meId ? participants.find((p) => p.playerId === meId) : undefined;
@@ -448,6 +451,7 @@ export function TournamentDetailScreen({ route, navigation }: TournamentsStackSc
 
     return (
       <>
+        {renderPrizes()}
         <View style={styles.hero}>
           <Text style={styles.heroLabel}>{pastKickoff ? 'Kickoff time has come' : 'Kickoff in'}</Text>
           {!pastKickoff && tournament.kickoffAt && <Countdown to={tournament.kickoffAt} now={now} />}
@@ -709,6 +713,40 @@ export function TournamentDetailScreen({ route, navigation }: TournamentsStackSc
     );
   }
 
+  // Until it's over: what's up for grabs, lettered as the real ones will be
+  // (the champion's trophy, silver for the runner-up, bronze for both
+  // semifinal losers), set out like a podium.
+  function renderPrizes() {
+    return (
+      <View style={[styles.hero2, styles.prizes]}>
+        <View style={styles.prizesBurst} pointerEvents="none">
+          <Sunburst size={340} color={scheme === 'dark' ? '#3A2A1C' : '#FCE6C3'} />
+        </View>
+        <Text style={[styles.heroKicker, styles.prizesKicker]}>Up for grabs</Text>
+        <View style={styles.prizeRow}>
+          <View style={styles.prizeSide}>
+            <View style={styles.prizeArt}>
+              <Medal place={2} size={62} text={lettering} label={`The ${tournament.name} silver medal`} />
+            </View>
+            <Text style={styles.prizeLabel}>Runner-up</Text>
+          </View>
+          <View style={styles.prizeMain}>
+            <View style={styles.prizeArt}>
+              <Trophy size={124} text={lettering} label={`The ${tournament.name} trophy`} />
+            </View>
+            <Text style={[styles.prizeLabel, styles.prizeLabelMain]}>Champion</Text>
+          </View>
+          <View style={styles.prizeSide}>
+            <View style={styles.prizeArt}>
+              <Medal place={3} size={62} text={lettering} label={`The ${tournament.name} bronze medal`} />
+            </View>
+            <Text style={styles.prizeLabel}>Both semifinal losers</Text>
+          </View>
+        </View>
+      </View>
+    );
+  }
+
   // Over: the champion with the trophy, then the podium (the runner-up's
   // silver medal, and bronze for both semifinal losers, as the server's
   // tournament_podium has it).
@@ -731,11 +769,7 @@ export function TournamentDetailScreen({ route, navigation }: TournamentsStackSc
           <View style={styles.heroBurst} pointerEvents="none">
             <Sunburst size={400} color={scheme === 'dark' ? '#3A2A1C' : '#FCE6C3'} />
           </View>
-          <Trophy
-            size={170}
-            text={inscription(tournament.name, tournament.endedAt ?? tournament.createdAt)}
-            label={`The ${tournament.name} trophy`}
-          />
+          <Trophy size={170} text={lettering} label={`The ${tournament.name} trophy`} />
           <Text style={styles.heroKicker}>Champion</Text>
           <Text style={styles.heroName}>{names([final.winnerId])}</Text>
           {championLine && <Text style={styles.heroLine}>{championLine}</Text>}
@@ -764,7 +798,7 @@ export function TournamentDetailScreen({ route, navigation }: TournamentsStackSc
     const hasPots = participants.some((p) => p.pot !== null);
     return (
       <>
-        {tournament.status === 'completed' && renderPodium()}
+        {tournament.status === 'completed' ? renderPodium() : renderPrizes()}
         {tournament.status === 'active' && renderMyPath()}
         {actionError && !editingRound && <Text style={styles.actionError}>{actionError}</Text>}
         {renderOverdue()}
@@ -1071,6 +1105,23 @@ function createStyles(colors: Colors, dark = false) {
     },
     heroName: { color: colors.text, fontSize: 28, fontWeight: '800', textAlign: 'center' },
     heroLine: { color: dark ? colors.textMuted : '#765F61', fontSize: 14, textAlign: 'center', marginTop: 2 },
+    prizes: { marginBottom: spacing.md },
+    // Centered on the trophy: kicker (about 28 px from the top) plus half the trophy's 155.
+    prizesBurst: { position: 'absolute', top: -64, left: '50%', marginLeft: -170 },
+    prizesKicker: { marginTop: 0, marginBottom: spacing.xs },
+    prizeRow: { flexDirection: 'row', alignItems: 'flex-start', alignSelf: 'stretch', justifyContent: 'center' },
+    prizeSide: { flex: 1, alignItems: 'center' },
+    prizeMain: { width: 136, alignItems: 'center' },
+    // As tall as the trophy, so the medals stand on the same line as its base.
+    prizeArt: { height: 155, justifyContent: 'flex-end', alignItems: 'center' },
+    prizeLabel: {
+      color: dark ? colors.textMuted : '#765F61',
+      fontSize: 12,
+      fontWeight: '700',
+      textAlign: 'center',
+      marginTop: spacing.xs,
+    },
+    prizeLabelMain: { color: colors.text },
     podium: {
       backgroundColor: colors.surface,
       borderRadius: radius.md,
