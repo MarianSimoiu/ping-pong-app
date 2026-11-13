@@ -43,6 +43,7 @@ supabase functions serve   # serves the Edge Functions locally
    supabase functions deploy manage-tournament
    supabase functions deploy tournament-kickoff --no-verify-jwt
    supabase functions deploy submit-tournament-match
+   supabase functions deploy match-schedule
    supabase functions deploy submit-doubles-match
    supabase functions deploy confirm-doubles-match
    supabase functions deploy push-subscription
@@ -111,17 +112,48 @@ Otherwise the link lands on the wrong page and the reset can't finish.
 | `0015_titles.sql` | titles and trophies: the `achievements` catalog, the `achievement_progress`, `tournament_honours` and `earned_titles` views (worked out from match history), `players.title` (only an earned title can be set), `achievement_notices` (each unlock is pushed once), and `player_badges` gains the champion count, the season-points leader and the shown title |
 | `0016_more_titles.sql` | eight more titles (Lunch Break Legend, Night Owl, Touch Grass, Coin Flip, Dark Horse, Seed Killer, Ride or Die, Partner Hopper) in the catalog and `achievement_progress`, and `club_time_zone()` (see below). Not marked as announced: players who already qualify hear about it with their next match |
 | `0017_title_tweaks.sql` | Giant Slayer takes a 300+ point gap (`giant_slayer_gap()`; was 150): a shown Giant Slayer earned from a smaller gap is cleared, and announced again when earned for real. Seed Killer is renamed Beast Killer 🐉 |
+| `0018_match_schedule.sql` | when tournament matches are played (see below): `tournament_rounds` (each round's days), match times on `tournament_matches` (`scheduled_at`, `planned_on`, a pending `proposed_at`/`proposed_by`, `walkover`), automatic times on the one table, the propose/answer/move/round-dates/walkover RPCs, and the every-minute job also reports matches not played on their day. Tournaments already in progress get their dates and times when it runs. Walkovers don't count for Dark Horse or Beast Killer |
 
 ### Club time zone
 
 The time-of-day titles (Lunch Break Legend: 12:00–14:00, Night Owl: from
-20:00, Touch Grass: one day) read a match's time in `club_time_zone()`,
-`Europe/Bucharest`. For another zone, run in the SQL Editor:
+20:00, Touch Grass: one day) and tournament match times read the time in
+`club_time_zone()`, `Europe/Bucharest`. For another zone, run in the SQL
+Editor (and change `CLUB_TIME_ZONE` in `app/src/lib/schedule.ts` and
+`supabase/functions/_shared/rounds.ts` to match):
 
 ```sql
 create or replace function public.club_time_zone() returns text
 language sql immutable as $$ select 'Europe/London'::text $$;
 ```
+
+### Tournament match times
+
+From `0018`, tournament matches have times, on one table, between 11:00 and
+18:00 club time (`club_opens()`, `club_closes()`), never overlapping: a match
+takes 30 minutes at best of 3, 45 at best of 5 (`match_slot()`).
+
+- **Round days.** At the draw each round gets a day: one round per weekday,
+  starting the weekday after the draw. An admin changes a round's days on the
+  tournament page (Edit next to the round); its matches outside the new days
+  get new times in them.
+- **Match times.** As soon as both players of a match are known (the draw, a
+  result, a walkover), it gets the first free slot on its round's days, and
+  both players are notified.
+- **Players** can propose another time: 11:00 to 18:00, from today up to one
+  day after the day it was set for. The opponent accepts (the match moves) or
+  keeps the time; until then it stays as it was.
+- **Admins** can move any match waiting to be played (the app offers the next
+  3 weeks, 11:00 to 18:00; the database takes any future time), or give a
+  walkover (one player goes through; no match recorded, no rating change).
+- **Not played on its day:** the day after, the match shows as overdue and
+  every admin gets a notification (once): record the result, move it, or give
+  a walkover.
+
+The same every-minute job as the kickoff (below) checks for overdue matches,
+so nothing else needs setting up. To change the hours, replace
+`club_opens()`/`club_closes()` the same way as `club_time_zone()` above (and
+`CLUB_OPENS`/`CLUB_CLOSES` in `app/src/lib/schedule.ts`).
 
 ### Admins
 
@@ -130,7 +162,8 @@ Tournaments tab shows **+ New** only to them, the `create-tournament`
 function rejects everyone else, and since `0012` the database itself refuses
 a tournament whose creator isn't an admin, however it's inserted (even from
 the SQL Editor). Admins also start, move and cancel tournaments
-(`manage-tournament`). Nobody can add themselves from the app. To
+(`manage-tournament`), and set round days, move matches and give walkovers
+(`match-schedule`). Nobody can add themselves from the app. To
 make someone an admin, run this in the Supabase **SQL Editor** with the email
 they sign in with:
 

@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Countdown } from '@/components/Countdown';
 import { DateTimeField } from '@/components/DateTimeField';
+import { ManageMatchSheet, ProposeTimeSheet } from '@/components/MatchSheets';
 import { PotRules, PotsList, withYou } from '@/components/PotsList';
 import { useAuth } from '@/context/AuthContext';
 import { pickChampionLine } from '@/lib/commentary';
@@ -15,6 +16,15 @@ import { groupByPot } from '@/lib/pots';
 import { confirmAction } from '@/lib/platformAlert';
 import { fetchIsAdmin, fetchMyProfile } from '@/lib/players';
 import {
+  clubDay,
+  formatDayRange,
+  formatMatchTime,
+  isOverdue,
+  pickableDays,
+  proposalDays,
+} from '@/lib/schedule';
+import {
+  answerMatchTime,
   cancelTournament,
   fetchTournamentDetail,
   isPastKickoff,
@@ -22,6 +32,7 @@ import {
   registerForTournament,
   requestKickoff,
   rescheduleTournament,
+  setRoundDates,
   startTournamentNow,
   withdrawFromTournament,
   type TournamentDetail,
@@ -30,11 +41,14 @@ import {
 import type { TournamentsStackScreenProps } from '@/navigation/types';
 import { radius, spacing, useTheme, type Colors } from '@/theme';
 
+// As the server's notifications name them (_shared/rounds.ts).
 function roundLabel(round: number, totalRounds: number): string {
   const fromEnd = totalRounds - round;
   if (fromEnd === 0) return 'Final';
   if (fromEnd === 1) return 'Semifinals';
   if (fromEnd === 2) return 'Quarterfinals';
+  if (fromEnd === 3) return 'Round of 16';
+  if (fromEnd === 4) return 'Round of 32';
   return `Round ${round}`;
 }
 
@@ -70,7 +84,20 @@ const isBye = (n: TournamentNode) => n.round === 1 && n.status === 'completed' &
 type Me = { id: string; matchesPlayed: number };
 
 const POTS_REFRESH_MS = 30_000;
-type Busy = 'register' | 'withdraw' | 'start' | 'reschedule' | 'cancel' | null;
+// While it's being played: new times, proposals and results from others.
+const BRACKET_REFRESH_MS = 60_000;
+type Busy =
+  | 'register'
+  | 'withdraw'
+  | 'start'
+  | 'reschedule'
+  | 'cancel'
+  | 'accept'
+  | 'decline'
+  | 'takeBack'
+  | 'dates'
+  | null;
+type Sheet = { kind: 'propose' | 'manage'; nodeId: string } | null;
 
 export function TournamentDetailScreen({ route, navigation }: TournamentsStackScreenProps<'TournamentDetail'>) {
   const { colors } = useTheme();
@@ -87,6 +114,10 @@ export function TournamentDetailScreen({ route, navigation }: TournamentsStackSc
   const [actionError, setActionError] = useState<string | null>(null);
   const [rescheduling, setRescheduling] = useState(false);
   const [newKickoff, setNewKickoff] = useState('');
+  const [sheet, setSheet] = useState<Sheet>(null);
+  // An admin changing a round's days, and what came of the last change.
+  const [editingRound, setEditingRound] = useState<{ round: number; startsOn: string; endsOn: string } | null>(null);
+  const [roundNotice, setRoundNotice] = useState<{ round: number; text: string } | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -125,6 +156,14 @@ export function TournamentDetailScreen({ route, navigation }: TournamentsStackSc
       const refresh = setInterval(load, POTS_REFRESH_MS);
       return () => clearInterval(refresh);
     }, [isOpen, load]),
+  );
+  const isActive = detail?.tournament.status === 'active';
+  useFocusEffect(
+    useCallback(() => {
+      if (!isActive) return;
+      const refresh = setInterval(load, BRACKET_REFRESH_MS);
+      return () => clearInterval(refresh);
+    }, [isActive, load]),
   );
   const pastKickoff = !!detail && isPastKickoff(detail.tournament, now);
   const drawDue = pastKickoff && (detail?.participants.length ?? 0) >= MIN_TOURNAMENT_PLAYERS;
@@ -177,7 +216,7 @@ export function TournamentDetailScreen({ route, navigation }: TournamentsStackSc
     );
   }
 
-  const { tournament, participants, nodes, nameById, totalRounds } = detail;
+  const { tournament, participants, nodes, nameById, totalRounds, rounds: roundDays, table } = detail;
   const count = participants.length;
   const meId = me?.id ?? null;
   const myEntry = meId ? participants.find((p) => p.playerId === meId) : undefined;
@@ -255,9 +294,63 @@ export function TournamentDetailScreen({ route, navigation }: TournamentsStackSc
     });
   }
 
-  // The players of a match and its organizer can record it (as the server allows).
+  // The players of a match, its organizer and admins can record it (as the
+  // server allows).
   const canRecord = (node: TournamentNode) =>
-    !!meId && (node.playerA === meId || node.playerB === meId || tournament.createdBy === meId);
+    !!meId && (node.playerA === meId || node.playerB === meId || tournament.createdBy === meId || isAdmin);
+  // Admins can also move a match waiting to be played or give a walkover.
+  const canManage = (node: TournamentNode) =>
+    isAdmin && tournament.status === 'active' && node.status === 'ready' && !!node.playerA && !!node.playerB;
+
+  function onMatchPress(node: TournamentNode) {
+    if (canManage(node)) {
+      setActionError(null);
+      setSheet({ kind: 'manage', nodeId: node.id });
+    } else if (node.status === 'ready' && canRecord(node)) {
+      onNodePress(node);
+    }
+  }
+
+  const clock = Date.now();
+  const roundDates = (round: number) => roundDays.find((r) => r.round === round) ?? null;
+  const sheetNode = sheet ? nodes.find((n) => n.id === sheet.nodeId) ?? null : null;
+  const closeSheet = () => setSheet(null);
+  const sheetDone = () => {
+    setSheet(null);
+    load();
+  };
+
+  function openRoundDates(round: number) {
+    const dates = roundDates(round);
+    const today = clubDay(clock);
+    setRoundNotice(null);
+    setActionError(null);
+    setEditingRound({ round, startsOn: dates?.startsOn ?? today, endsOn: dates?.endsOn ?? today });
+  }
+
+  function saveRoundDates() {
+    if (!editingRound) return;
+    const { round, startsOn, endsOn } = editingRound;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(startsOn) || !/^\d{4}-\d{2}-\d{2}$/.test(endsOn)) {
+      setActionError('Pick the first and last day');
+      return;
+    }
+    if (endsOn < startsOn) {
+      setActionError("The last day can't be before the first");
+      return;
+    }
+    run('dates', async () => {
+      const { moved } = await setRoundDates({ tournamentId, round, startsOn, endsOn });
+      setEditingRound(null);
+      setRoundNotice({
+        round,
+        text:
+          moved === 0
+            ? 'Saved. Every match already fits these days.'
+            : `Saved. ${moved === 1 ? '1 match has' : `${moved} matches have`} a new time in these days; the players are told.`,
+      });
+    });
+  }
 
   const button = (
     label: string,
@@ -433,22 +526,190 @@ export function TournamentDetailScreen({ route, navigation }: TournamentsStackSc
     }
     const round = roundLabel(path.node.round, totalRounds);
     if (path.kind === 'play') {
+      const node = path.node;
+      const opponent = nameOf(path.opponent, '');
+      const ready = node.status === 'ready';
+      const overdue = isOverdue(node, clock);
+      const askedByThem = ready && !!node.proposedAt && node.proposedBy === path.opponent;
+      const askedByMe = ready && !!node.proposedAt && node.proposedBy === meId;
+      const canPropose =
+        ready &&
+        !!node.scheduledAt &&
+        !node.proposedAt &&
+        !overdue &&
+        pickableDays(proposalDays(node.plannedOn, clock), tournament.bestOf, clock).length > 0;
       return (
         <View style={[styles.card, styles.cardHighlight]}>
           <Text style={styles.cardKicker}>Your match · {round}</Text>
-          <Text style={styles.versus}>vs {nameOf(path.opponent, '')}</Text>
-          {path.node.status === 'ready' && button('Record result', () => onNodePress(path.node), null)}
+          <Text style={styles.versus}>vs {opponent}</Text>
+          {ready && node.scheduledAt && (
+            <Text style={[styles.when, overdue && styles.whenOverdue]}>🗓 {formatMatchTime(node.scheduledAt, clock)}</Text>
+          )}
+          {overdue && (
+            <Text style={styles.cardText}>
+              It wasn't played on its day. Play it and record the result soon: the organizer has been told and decides
+              what happens next.
+            </Text>
+          )}
+          {askedByThem && (
+            <View style={styles.proposal}>
+              <Text style={styles.proposalText}>
+                {opponent} asks to move it to <Text style={styles.strong}>{formatMatchTime(node.proposedAt!, clock)}</Text>.
+              </Text>
+              <View style={styles.buttonRow}>
+                <View style={{ flex: 1 }}>
+                  {button('Accept', () => run('accept', () => answerMatchTime(node.id, 'accept')), 'accept')}
+                </View>
+                <View style={{ flex: 1 }}>
+                  {button(
+                    'Keep the time',
+                    () => run('decline', () => answerMatchTime(node.id, 'decline')),
+                    'decline',
+                    'secondary',
+                  )}
+                </View>
+              </View>
+            </View>
+          )}
+          {askedByMe && (
+            <View style={styles.proposal}>
+              <Text style={styles.proposalText}>
+                You asked to move it to <Text style={styles.strong}>{formatMatchTime(node.proposedAt!, clock)}</Text>.
+                Waiting for {opponent} to accept.
+              </Text>
+              {button(
+                'Take it back',
+                () => run('takeBack', () => answerMatchTime(node.id, 'withdraw')),
+                'takeBack',
+                'secondary',
+              )}
+            </View>
+          )}
+          {canPropose &&
+            button(
+              'Propose another time',
+              () => {
+                setActionError(null);
+                setSheet({ kind: 'propose', nodeId: node.id });
+              },
+              null,
+              'secondary',
+            )}
+          {ready && button('Record result', () => onNodePress(node), null)}
         </View>
       );
     }
+    const dates = roundDates(path.node.round);
     return (
       <View style={styles.card}>
-        <Text style={styles.cardKicker}>Up next · {round}</Text>
+        <Text style={styles.cardKicker}>
+          Up next · {round}
+          {dates ? ` · ${formatDayRange(dates.startsOn, dates.endsOn)}` : ''}
+        </Text>
         <Text style={styles.cardText}>
           {path.winnerOf
             ? `You play the winner of ${nameOf(path.winnerOf[0], '')} v ${nameOf(path.winnerOf[1], '')}.`
-            : 'Your opponent is decided by an earlier match.'}
+            : 'Your opponent is decided by an earlier match.'}{' '}
+          Your match gets its time as soon as they've played.
         </Text>
+      </View>
+    );
+  }
+
+  // Admins: the matches not played on their day, to decide.
+  function renderOverdue() {
+    if (!isAdmin || tournament.status !== 'active') return null;
+    const late = nodes.filter((n) => isOverdue(n, clock));
+    if (late.length === 0) return null;
+    return (
+      <View style={[styles.card, styles.cardWarning]}>
+        <Text style={styles.cardKicker}>Organizer</Text>
+        <Text style={styles.cardTitle}>
+          ⚠ {late.length === 1 ? "1 match wasn't played on its day" : `${late.length} matches weren't played on their day`}
+        </Text>
+        <Text style={styles.cardText}>Record the result, move it to another time, or give a walkover.</Text>
+        {late.map((n) => (
+          <Pressable
+            key={n.id}
+            accessibilityRole="button"
+            style={styles.lateRow}
+            onPress={() => onMatchPress(n)}
+          >
+            <View style={{ flex: 1 }}>
+              <Text style={styles.lateName}>
+                {nameOf(n.playerA, '?')} v {nameOf(n.playerB, '?')}
+              </Text>
+              <Text style={styles.lateMeta}>
+                {roundLabel(n.round, totalRounds)} · due {formatMatchTime(n.scheduledAt!, clock)}
+              </Text>
+            </View>
+            <Text style={styles.record}>Decide ›</Text>
+          </Pressable>
+        ))}
+      </View>
+    );
+  }
+
+  function renderRoundHeader(round: number) {
+    const dates = roundDates(round);
+    const name = roundLabel(round, totalRounds);
+    const editable = isAdmin && tournament.status === 'active' && !!dates && editingRound?.round !== round;
+    return (
+      <View style={styles.roundHeader}>
+        <Text style={[styles.sectionLabel, styles.sectionLabelInRow, { flex: 1 }]}>{name}</Text>
+        {dates && <Text style={styles.roundDates}>{formatDayRange(dates.startsOn, dates.endsOn)}</Text>}
+        {editable && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Change the days of the ${name.toLowerCase()}`}
+            onPress={() => openRoundDates(round)}
+            hitSlop={8}
+            disabled={busy !== null}
+          >
+            <Text style={styles.editLink}>Edit</Text>
+          </Pressable>
+        )}
+      </View>
+    );
+  }
+
+  function renderRoundEditor(round: number) {
+    if (!editingRound || editingRound.round !== round) return null;
+    const today = clubDay(clock);
+    return (
+      <View style={styles.card}>
+        <Text style={styles.cardNote}>
+          Days for the {roundLabel(round, totalRounds).toLowerCase()}. Its matches outside them get new times in them
+          (11:00 to 18:00), and the players are told.
+        </Text>
+        <View style={styles.buttonRow}>
+          <View style={styles.dateField}>
+            <Text style={styles.fieldLabel}>First day</Text>
+            <DateTimeField
+              mode="date"
+              label="First day"
+              value={editingRound.startsOn}
+              onChange={(v) => setEditingRound({ ...editingRound, startsOn: v })}
+            />
+          </View>
+          <View style={styles.dateField}>
+            <Text style={styles.fieldLabel}>Last day</Text>
+            <DateTimeField
+              mode="date"
+              label="Last day"
+              value={editingRound.endsOn}
+              min={today}
+              onChange={(v) => setEditingRound({ ...editingRound, endsOn: v })}
+            />
+          </View>
+        </View>
+        {actionError && <Text style={styles.actionError}>{actionError}</Text>}
+        <View style={styles.buttonRow}>
+          <View style={{ flex: 1 }}>{button('Save', saveRoundDates, 'dates')}</View>
+          <View style={{ flex: 1 }}>
+            {button('Back', () => (setEditingRound(null), setActionError(null)), null, 'secondary')}
+          </View>
+        </View>
       </View>
     );
   }
@@ -466,27 +727,40 @@ export function TournamentDetailScreen({ route, navigation }: TournamentsStackSc
           </View>
         )}
         {tournament.status === 'active' && renderMyPath()}
+        {actionError && !editingRound && <Text style={styles.actionError}>{actionError}</Text>}
+        {renderOverdue()}
+        {tournament.status === 'active' && roundDays.length > 0 && (
+          <Text style={styles.scheduleHint}>
+            🗓 One table, 11:00 to 18:00 Bucharest time. Each match gets the first free slot on its round's days as
+            soon as both players are known; the two players can agree another time, up to a day later.
+          </Text>
+        )}
 
         {rounds.map((round) => {
           const shown = nodes.filter((n) => n.round === round && !isBye(n));
           return (
             <View key={round}>
-              <Text style={styles.sectionLabel}>{roundLabel(round, totalRounds)}</Text>
+              {renderRoundHeader(round)}
               {round === 1 && byes > 0 && (
                 <Text style={styles.sectionHint}>
                   {byes === 1 ? '1 player has' : `${byes} players have`} a bye into round 2.
                 </Text>
               )}
+              {renderRoundEditor(round)}
+              {roundNotice?.round === round && <Text style={styles.notice}>{roundNotice.text}</Text>}
               {shown.map((node) => {
                 const isReady = node.status === 'ready';
                 const mine = !!meId && (node.playerA === meId || node.playerB === meId);
+                const manageable = canManage(node);
                 const recordable = isReady && canRecord(node);
+                const overdue = isOverdue(node, clock);
                 return (
                   <Pressable
                     key={node.id}
+                    accessibilityRole={manageable || recordable ? 'button' : undefined}
                     style={[styles.match, isReady && styles.matchReady, mine && styles.matchMine]}
-                    onPress={() => onNodePress(node)}
-                    disabled={!recordable}
+                    onPress={() => onMatchPress(node)}
+                    disabled={!manageable && !recordable}
                   >
                     <View style={{ flex: 1 }}>
                       <PlayerLine
@@ -500,8 +774,26 @@ export function TournamentDetailScreen({ route, navigation }: TournamentsStackSc
                         isWinner={!!node.winnerId && node.winnerId === node.playerB}
                         isMe={!!meId && node.playerB === meId}
                       />
+                      {isReady && node.scheduledAt && (
+                        <View style={styles.metaRow}>
+                          <Text style={[styles.meta, overdue && styles.metaOverdue]}>
+                            🗓 {formatMatchTime(node.scheduledAt, clock)}
+                          </Text>
+                          {overdue && <Text style={[styles.tag, styles.tagDanger]}>Overdue</Text>}
+                          {node.proposedAt && <Text style={styles.tag}>New time asked</Text>}
+                        </View>
+                      )}
+                      {node.walkover && (
+                        <View style={styles.metaRow}>
+                          <Text style={styles.tag}>Walkover</Text>
+                        </View>
+                      )}
                     </View>
-                    {recordable && <Text style={styles.record}>Record ›</Text>}
+                    {manageable ? (
+                      <Text style={styles.record}>Manage ›</Text>
+                    ) : (
+                      recordable && <Text style={styles.record}>Record ›</Text>
+                    )}
                     {node.status === 'completed' && <Text style={styles.done}>✓</Text>}
                   </Pressable>
                 );
@@ -546,6 +838,32 @@ export function TournamentDetailScreen({ route, navigation }: TournamentsStackSc
             ? renderCancelled()
             : renderBracket()}
       </ScrollView>
+      {sheet?.kind === 'propose' && sheetNode?.status === 'ready' && (
+        <ProposeTimeSheet
+          node={sheetNode}
+          bestOf={tournament.bestOf}
+          table={table}
+          opponent={nameOf(sheetNode.playerA === meId ? sheetNode.playerB : sheetNode.playerA, 'Your opponent')}
+          onDismiss={closeSheet}
+          onDone={sheetDone}
+        />
+      )}
+      {sheet?.kind === 'manage' && sheetNode && canManage(sheetNode) && (
+        <ManageMatchSheet
+          node={sheetNode}
+          tournamentName={tournament.name}
+          bestOf={tournament.bestOf}
+          roundName={roundLabel(sheetNode.round, totalRounds)}
+          table={table}
+          nameOf={(id) => nameOf(id, '?')}
+          onRecord={() => {
+            setSheet(null);
+            onNodePress(sheetNode);
+          }}
+          onDismiss={closeSheet}
+          onDone={sheetDone}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -592,6 +910,7 @@ function createStyles(colors: Colors) {
       marginBottom: spacing.md,
     },
     cardHighlight: { borderColor: colors.primary },
+    cardWarning: { borderColor: colors.danger },
     centerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
     cardTitle: { color: colors.text, fontSize: 17, fontWeight: '700' },
     cardKicker: {
@@ -602,6 +921,55 @@ function createStyles(colors: Colors) {
       letterSpacing: 0.5,
     },
     versus: { color: colors.text, fontSize: 22, fontWeight: '800' },
+    when: { color: colors.text, fontSize: 16, fontWeight: '700' },
+    whenOverdue: { color: colors.danger },
+    proposal: {
+      backgroundColor: colors.surfaceAlt,
+      borderRadius: radius.sm,
+      padding: spacing.md - 4,
+      gap: spacing.sm,
+    },
+    proposalText: { color: colors.text, fontSize: 15, lineHeight: 21 },
+    strong: { fontWeight: '700' },
+    lateRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+      paddingTop: spacing.sm,
+    },
+    lateName: { color: colors.text, fontSize: 15, fontWeight: '600' },
+    lateMeta: { color: colors.textMuted, fontSize: 13, marginTop: 2 },
+    scheduleHint: { color: colors.textMuted, fontSize: 13, lineHeight: 19, marginBottom: spacing.xs },
+    roundHeader: {
+      flexDirection: 'row',
+      alignItems: 'baseline',
+      gap: spacing.sm,
+      marginTop: spacing.md,
+      marginBottom: spacing.sm,
+    },
+    roundDates: { color: colors.text, fontSize: 13, fontWeight: '600' },
+    editLink: { color: colors.primary, fontSize: 13, fontWeight: '700' },
+    dateField: { flex: 1, gap: spacing.xs },
+    fieldLabel: { color: colors.textMuted, fontSize: 12, fontWeight: '600' },
+    notice: { color: colors.success, fontSize: 13, fontWeight: '600', marginBottom: spacing.sm },
+    metaRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: spacing.xs, marginTop: spacing.sm },
+    meta: { color: colors.textMuted, fontSize: 13, fontWeight: '600', marginRight: spacing.xs },
+    metaOverdue: { color: colors.danger },
+    tag: {
+      color: colors.textMuted,
+      fontSize: 11,
+      fontWeight: '700',
+      textTransform: 'uppercase',
+      letterSpacing: 0.4,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 999,
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+      overflow: 'hidden',
+    },
+    tagDanger: { color: colors.danger, borderColor: colors.danger },
     cardText: { color: colors.textMuted, fontSize: 14, lineHeight: 20 },
     cardNote: { color: colors.textMuted, fontSize: 13 },
     potLine: { color: colors.text, fontSize: 16 },

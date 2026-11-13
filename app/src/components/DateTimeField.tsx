@@ -4,7 +4,8 @@ import { Platform, StyleSheet, TextInput } from 'react-native';
 import { radius, spacing, useTheme, type Colors } from '@/theme';
 
 // A date-and-time field (the tournament kickoff). `value` is local time as
-// "2026-11-15T18:00" (toLocalInputValue in lib/countdown.ts). On the web — the
+// "2026-11-15T18:00" (toLocalInputValue in lib/countdown.ts); with
+// mode="date", just the day: "2026-11-15" (a round's dates). On the web — the
 // app as people use it — it's the browser's own picker (a wheel on iPhone, a
 // calendar on desktop); elsewhere a plain "YYYY-MM-DD HH:MM" text field.
 export function DateTimeField({
@@ -12,18 +13,20 @@ export function DateTimeField({
   onChange,
   min,
   label,
+  mode = 'datetime',
 }: {
   value: string;
   onChange: (value: string) => void;
   min?: string;
   label: string;
+  mode?: 'datetime' | 'date';
 }) {
   const { colors, scheme } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   if (Platform.OS === 'web') {
     return React.createElement('input', {
-      type: 'datetime-local',
+      type: mode === 'date' ? 'date' : 'datetime-local',
       value,
       min,
       'aria-label': label,
@@ -53,7 +56,7 @@ export function DateTimeField({
     <TextInput
       style={styles.input}
       accessibilityLabel={label}
-      placeholder="2026-11-15 18:00"
+      placeholder={mode === 'date' ? '2026-11-15' : '2026-11-15 18:00'}
       placeholderTextColor={colors.textMuted}
       autoCapitalize="none"
       autoCorrect={false}

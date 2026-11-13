@@ -6,6 +6,10 @@ import {
   doublesDeclined,
   doublesToConfirm,
   gamesWon,
+  matchOverdue,
+  matchScheduled,
+  matchTimeDeclined,
+  matchTimeProposed,
   singlesConfirmed,
   singlesDeclined,
   singlesToConfirm,
@@ -13,6 +17,7 @@ import {
   tournamentDrawn,
   tournamentOpened,
   tournamentRescheduled,
+  walkoverGiven,
 } from './messages.ts';
 
 Deno.test('games won per side, from stored scores', () => {
@@ -123,4 +128,45 @@ Deno.test('tournaments: opened, drawn (match, bye then opponent, bye then winner
     tag: 'tournament-t1',
   });
   assertEquals(tournamentCancelled(t).title, 'Winter Cup is cancelled');
+});
+
+Deno.test('match times: in the draw message, scheduled, moved, proposed, declined, overdue, walkover', () => {
+  const t = { tournamentId: 't1', tournament: 'Winter Cup' };
+  const at = '2026-11-16T09:00:00Z'; // Monday 11:00 in Bucharest
+  assertEquals(
+    tournamentDrawn({ ...t, round: 1, opponent: 'Alin', winnerOf: null, at }).body,
+    'Round 1: you play Alin on Mon 16 Nov, 11:00. Good luck!',
+  );
+  assertEquals(
+    tournamentDrawn({ ...t, round: 2, opponent: 'Ana', winnerOf: null, at }).body,
+    'You have a bye in round 1, then you play Ana on Mon 16 Nov, 11:00.',
+  );
+  assertEquals(matchScheduled({ ...t, match: 'semifinal', opponent: 'Ana', at, moved: false }), {
+    title: 'Winter Cup: your semifinal',
+    body: "You play Ana on Mon 16 Nov, 11:00. Can't make it? Propose another time in the app.",
+    url: '/tournaments/t1',
+    tag: 'match-time-t1',
+  });
+  assertEquals(matchScheduled({ ...t, match: 'final', opponent: 'Ana', at, moved: true }).body, 'You play Ana on Mon 16 Nov, 11:00 now.');
+  assertEquals(matchTimeProposed({ ...t, match: 'quarterfinal', proposer: 'Ben', at }), {
+    title: 'Ben wants to move your quarterfinal',
+    body: 'To Mon 16 Nov, 11:00. Open Winter Cup to accept or decline.',
+    url: '/tournaments/t1',
+    tag: 'match-time-t1',
+  });
+  assertEquals(matchTimeDeclined({ ...t, match: 'quarterfinal', opponent: 'Ben', at }), {
+    title: 'Ben kept your quarterfinal time',
+    body: 'Still Mon 16 Nov, 11:00. You can propose another time in Winter Cup.',
+    url: '/tournaments/t1',
+    tag: 'match-time-t1',
+  });
+  assertEquals(
+    matchOverdue({ ...t, match: 'round of 16 match', playerA: 'Ana', playerB: 'Ben', at }).body,
+    'Ana v Ben (round of 16 match) was due Mon 16 Nov, 11:00. Record the result or give a walkover.',
+  );
+  assertEquals(walkoverGiven({ ...t, match: 'semifinal', youWon: true, opponent: 'Ben' }).title, 'Winter Cup: you go through');
+  assertEquals(
+    walkoverGiven({ ...t, match: 'semifinal', youWon: false, opponent: 'Ana' }).body,
+    'The organizer gave Ana your semifinal as a walkover.',
+  );
 });

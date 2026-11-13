@@ -64,8 +64,8 @@ adds a `status` column to `matches` and the confirmation RPCs (below).
 `0009_admins.sql` adds `admins`, the players allowed to create tournaments
 (read-only to the app; managed in the SQL Editor — see docs/DEPLOYMENT.md).
 `0012_tournament_registration.sql` adds registration, pots and the kickoff
-(below), and `0013_tournament_kickoff_schedule.sql` the every-minute kickoff
-check.
+(below), `0013_tournament_kickoff_schedule.sql` the every-minute kickoff
+check, and `0018_match_schedule.sql` round days and match times (below).
 
 ### Match confirmation
 
@@ -113,9 +113,33 @@ casual play (`context = 'tournament'`). A tournament goes through:
 3. **Play** (`active` → `completed`). `submit-tournament-match` records a
    ready node's result through the shared rating engine, then
    `apply_tournament_result` completes the node and advances the winner — or
-   finishes the tournament on the final, which awards season points. The
-   rating orchestration lives in `_shared/engine.ts`, shared by both
-   `submit-match` and `submit-tournament-match`.
+   finishes the tournament on the final, which awards season points
+   (`_shared/season.ts`). The rating orchestration lives in
+   `_shared/engine.ts`, shared by both `submit-match` and
+   `submit-tournament-match`.
+
+**When matches are played** (`0018_match_schedule.sql`). At the draw,
+`tournament_rounds` gives each round a day (one per weekday from the next
+one). Triggers on `tournaments` and `tournament_matches` give every match
+whose two players are known the first free slot on its round's days
+(`schedule_tournament_matches`): one table, 11:00–18:00 club time, matches
+never overlapping (30 minutes at best of 3, 45 at best of 5), so the draw,
+each result and each walkover schedule the next matches. `match-schedule`
+carries the rest, each step an RPC that checks the rules and says why it
+refuses: a player proposes another time (from today until a day after the
+planned day; `propose_match_time`), the opponent accepts or declines, or the
+proposer takes it back (`answer_match_time`); admins move a match
+(`move_tournament_match`), change a round's days (`set_round_dates`, whose
+matches outside the new days are scheduled again) and give walkovers
+(`give_walkover`: the winner advances, nothing rated). Players hear about
+every new or moved time (`announceSchedules` in `_shared/schedule.ts`, sent
+once each through `schedule_announced`). A match still not played the day
+after its date is overdue (`is_overdue`): the every-minute job then calls
+`tournament-kickoff`, which tells every admin once (`announceOverdue`). The
+app shows the times and round days on the bracket, the proposal flow on the
+player's match card, and the organizer's tools (`components/MatchSheets.tsx`),
+with the times picked from `lib/schedule.ts` (the same rules, in club time
+whatever the phone's zone).
 
 Tournaments from before registration existed have no kickoff time or pots
 and show as before. The app only reads the tournament tables; every change is
@@ -192,7 +216,9 @@ and `confirm-doubles-match` then notify the players involved
 (`_shared/notify.ts`, texts in `_shared/messages.ts`): a match to confirm, or
 a match they recorded confirmed (with the rating change) or declined. The
 tournament functions notify too: a new tournament open for registration, the
-draw (each player's first opponent), a moved kickoff, a cancellation. Sending
+draw (each player's first opponent and when), a moved kickoff, a
+cancellation, each match's time (and any change), a proposed time to answer
+or a declined one, a walkover, and admins a match not played on its day. Sending
 is standard Web Push (`_shared/webpush.ts`: RFC 8291 encryption and VAPID,
 Web Crypto only), signed with a key pair the server creates on first use and
 keeps in `push_keys`. A subscription the push service reports as gone is
@@ -218,6 +244,8 @@ lib/commentary.ts   Hype play-by-play line pools + pickers (match result, champi
 lib/avatar.ts       Uploads a picked photo to the `avatars` Storage bucket and
                     writes its public URL to players.avatar_url
 lib/                players, matches, leaderboard, tournaments data-access helpers
+lib/schedule.ts     Tournament match times in club time (Bucharest): the hours, slots
+                    and the times a player or admin can pick (the database's rules)
 context/AuthContext Session state + sign-in / sign-up / sign-out / password-reset helpers;
                     signs in from email links (lib/authLink.ts reads them from the URL)
 navigation/         Root switch (auth vs app), bottom tabs, and per-tab stacks
