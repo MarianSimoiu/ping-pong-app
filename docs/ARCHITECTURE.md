@@ -207,9 +207,12 @@ each completed tournament's champion (1), runner-up (2) and both semifinal
 losers (3; there's no third-place match). The app draws the champion's trophy
 and the silver and bronze medals (`components/TournamentArt.tsx`, SVG in a
 cartoon style, lettered with the tournament's name and year in Lilita One,
-bundled through `@expo-google-fonts/lilita-one`): on the tournament page (the
-trophy, then the podium), on finished tournaments in the Tournaments list, and
-on each player's Trophies tab.
+bundled through `@expo-google-fonts/lilita-one`). They show from the start:
+until a tournament is over, its page opens with what's up for grabs (the
+trophy between the two medals) and its row in the Tournaments list carries the
+trophy. Once it's over, the page shows the champion with the trophy, then the
+podium; the list row, who won it and when; and each player's Trophies tab,
+what they won.
 
 ### Push notifications
 

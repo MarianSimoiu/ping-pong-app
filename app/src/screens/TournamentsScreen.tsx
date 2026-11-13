@@ -87,17 +87,18 @@ export function TournamentsScreen({ navigation }: TournamentsStackScreenProps<'T
       .then(load);
   }, [tournaments, now, load]);
 
-  function meta(t: TournamentListItem): string {
+  // The lines under a tournament's name: open for registration, the countdown
+  // and then how many are in (two lines, beside the trophy); otherwise one.
+  function meta(t: TournamentListItem): string[] {
     if (t.status === 'registration' && t.kickoffAt) {
       const count = `${t.registeredCount ?? 0} registered`;
-      if (!isPastKickoff(t, now)) return `Kickoff in ${shortTimeLeft(t.kickoffAt, now)} · ${count}`;
-      return (t.registeredCount ?? 0) >= MIN_TOURNAMENT_PLAYERS
-        ? `Making the draw… · ${count}`
-        : `Waiting for the organizer · ${count}`;
+      if (!isPastKickoff(t, now)) return [`Kickoff in ${shortTimeLeft(t.kickoffAt, now)}`, count];
+      const enough = (t.registeredCount ?? 0) >= MIN_TOURNAMENT_PLAYERS;
+      return [enough ? 'Making the draw…' : 'Waiting for the organizer', count];
     }
-    if (t.status === 'cancelled') return `Best of ${t.bestOf}`;
+    if (t.status === 'cancelled') return [`Best of ${t.bestOf}`];
     const players = t.registeredCount !== null ? `${t.registeredCount} players` : `${t.size}-player`;
-    return `${players} · best of ${t.bestOf}`;
+    return [`${players} · best of ${t.bestOf}`];
   }
 
   return (
@@ -132,14 +133,21 @@ export function TournamentsScreen({ navigation }: TournamentsStackScreenProps<'T
           contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.xl }}
           renderItem={({ item }) => {
             const status = statusStyle(item.status, colors);
-            // Over, with a champion: its trophy instead of a status badge.
+            // Every tournament shows the trophy it's played for (not one called
+            // off). Once it's won: who won it and when, instead of a status badge.
+            const cup = item.status !== 'cancelled';
             const won = item.status === 'completed' && !!item.champion;
             return (
               <Pressable
-                style={[styles.row, won && styles.rowWon, item.status === 'cancelled' && styles.rowMuted]}
+                style={[
+                  styles.row,
+                  cup && styles.rowCup,
+                  won && styles.rowWon,
+                  item.status === 'cancelled' && styles.rowMuted,
+                ]}
                 onPress={() => navigation.navigate('TournamentDetail', { tournamentId: item.id, name: item.name })}
               >
-                {won && (
+                {cup && (
                   <View style={styles.cup}>
                     <TrophyBadge size={44} />
                   </View>
@@ -148,15 +156,17 @@ export function TournamentsScreen({ navigation }: TournamentsStackScreenProps<'T
                   <Text style={styles.rowName} numberOfLines={1}>
                     {item.name}
                   </Text>
-                  <Text style={styles.rowMeta} numberOfLines={1}>
-                    {won ? (
-                      <>
-                        Won by <Text style={styles.rowChampion}>{item.champion}</Text> · {meta(item)}
-                      </>
-                    ) : (
-                      meta(item)
-                    )}
-                  </Text>
+                  {won ? (
+                    <Text style={styles.rowMeta} numberOfLines={1}>
+                      Won by <Text style={styles.rowChampion}>{item.champion}</Text> · {meta(item).join(' · ')}
+                    </Text>
+                  ) : (
+                    meta(item).map((line, i) => (
+                      <Text key={i} style={styles.rowMeta} numberOfLines={2}>
+                        {line}
+                      </Text>
+                    ))
+                  )}
                   {won && item.endedAt && <Text style={styles.rowDate}>{monthYear(item.endedAt)}</Text>}
                 </View>
                 {!won && (
@@ -217,7 +227,8 @@ function createStyles(colors: Colors, dark: boolean) {
       gap: spacing.sm,
     },
     rowMuted: { opacity: 0.7 },
-    rowWon: { borderColor: colors.accent, borderWidth: 1.5, paddingLeft: spacing.sm + 4 },
+    rowCup: { paddingLeft: spacing.sm + 4 },
+    rowWon: { borderColor: colors.accent, borderWidth: 1.5 },
     cup: {
       width: 56,
       height: 66,
