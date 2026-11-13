@@ -117,6 +117,7 @@ Otherwise the link lands on the wrong page and the reset can't finish.
 | `0020_open_registration.sql` | anyone can register for a tournament (no more 3-match rule); in the pots and the draw, a player with no rated match yet counts as 1500 |
 | `0021_tournament_podium.sql` | the `tournament_podium` view: each completed tournament's champion, runner-up and both semifinal losers, for the trophy and the silver and bronze medals the app shows. Tournaments already played count |
 | `0022_unanswered_matches.sql` | the `unanswered_matches` view: how many pending matches wait on each player to confirm or decline (singles they didn't record; doubles the other team recorded, for both opponents), shown on the leaderboard |
+| `0023_giant_slayer_min_matches.sql` | Giant Slayer counts only a win over someone who had already played 10 rated singles matches (`giant_slayer_min_matches()`). Whoever had it only from beating newcomers loses it: cleared from under their name, and announced again when earned for real |
 
 ### Club time zone
 
