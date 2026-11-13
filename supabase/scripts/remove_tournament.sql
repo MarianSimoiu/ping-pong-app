@@ -6,7 +6,7 @@
 -- (supabase/functions/_shared/glicko2.ts and engine.ts).
 --
 -- Titles and tiers follow: the tournament's champion title (and laurel),
--- Finalist, Dark Horse, Seed Killer, or any title that came from its matches,
+-- Finalist, Dark Horse, Beast Killer, or any title that came from its matches,
 -- goes if it isn't earned some other way; a title shown under a name that's
 -- gone is cleared, and if it's earned again later it's announced again. Tiers
 -- move with the new ratings, without "promoted" notifications. The preview

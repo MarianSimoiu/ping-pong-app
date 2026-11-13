@@ -110,6 +110,7 @@ Otherwise the link lands on the wrong page and the reset can't finish.
 | `0014_tiers.sql` | tiers (Bronze to Diamond) from the skill rating: `tier_lines` (set from the ratings when it ran), `player_tiers` kept up to date by a trigger, `tier_changes` (used to announce promotions), and the `player_badges` view the app reads for avatar rings (with Legend and inactive) |
 | `0015_titles.sql` | titles and trophies: the `achievements` catalog, the `achievement_progress`, `tournament_honours` and `earned_titles` views (worked out from match history), `players.title` (only an earned title can be set), `achievement_notices` (each unlock is pushed once), and `player_badges` gains the champion count, the season-points leader and the shown title |
 | `0016_more_titles.sql` | eight more titles (Lunch Break Legend, Night Owl, Touch Grass, Coin Flip, Dark Horse, Seed Killer, Ride or Die, Partner Hopper) in the catalog and `achievement_progress`, and `club_time_zone()` (see below). Not marked as announced: players who already qualify hear about it with their next match |
+| `0017_title_tweaks.sql` | Giant Slayer takes a 300+ point gap (`giant_slayer_gap()`; was 150): a shown Giant Slayer earned from a smaller gap is cleared, and announced again when earned for real. Seed Killer is renamed Beast Killer 🐉 |
 
 ### Club time zone
 
