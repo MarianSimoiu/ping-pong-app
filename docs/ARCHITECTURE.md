@@ -191,7 +191,9 @@ Killer, Ride or Die and Partner Hopper, with times of day in
 `club_time_zone()`; `0017_title_tweaks.sql` sets Giant Slayer's gap to 300 in
 `giant_slayer_gap()` and renames Seed Killer to Beast Killer;
 `0019_unkillable_demon_king.sql` adds Unkillable Demon King, a tournament won
-without losing a game). Views work them out from
+without losing a game; `0023_giant_slayer_min_matches.sql` counts a Giant
+Slayer win only over an opponent with 10 rated matches already played, set in
+`giant_slayer_min_matches()`). Views work them out from
 the match history, so older matches count and nothing can be faked:
 `achievement_progress` (progress and when each was first completed),
 `tournament_honours` (who played each completed final) and `earned_titles`

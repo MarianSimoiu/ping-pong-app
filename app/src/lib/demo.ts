@@ -404,7 +404,7 @@ const DEMO_CATALOG: Achievement[] = [
   { code: 'regular', name: 'Regular', description: 'Play 25 matches', emoji: '🏓', target: 25, sort: 10 },
   { code: 'iron_paddle', name: 'Iron Paddle', description: 'Play 100 matches', emoji: '🛡️', target: 100, sort: 20 },
   { code: 'social_butterfly', name: 'Social Butterfly', description: 'Play 15 different opponents', emoji: '🦋', target: 15, sort: 30 },
-  { code: 'giant_slayer', name: 'Giant Slayer', description: 'Beat someone rated 300+ points above you', emoji: '🗡️', target: 1, sort: 40 },
+  { code: 'giant_slayer', name: 'Giant Slayer', description: 'Beat someone rated 300+ points above you who has played 10+ matches', emoji: '🗡️', target: 1, sort: 40 },
   { code: 'comeback_kid', name: 'Comeback Kid', description: 'Win a match after losing the first two games', emoji: '🔄', target: 1, sort: 50 },
   { code: 'bagel_baker', name: 'Bagel Baker', description: 'Win a game 11–0', emoji: '🥯', target: 1, sort: 60 },
   { code: 'deuce_master', name: 'Deuce Master', description: 'Win 10 games that went past 10–10', emoji: '🎯', target: 10, sort: 70 },
