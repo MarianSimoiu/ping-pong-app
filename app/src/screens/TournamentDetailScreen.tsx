@@ -7,6 +7,7 @@ import { Countdown } from '@/components/Countdown';
 import { DateTimeField } from '@/components/DateTimeField';
 import { ManageMatchSheet, ProposeTimeSheet } from '@/components/MatchSheets';
 import { PotRules, PotsList, withYou } from '@/components/PotsList';
+import { inscription, MedalBadge, Sunburst, Trophy, TrophyBadge } from '@/components/TournamentArt';
 import { useAuth } from '@/context/AuthContext';
 import { pickChampionLine } from '@/lib/commentary';
 import { defaultKickoff, fromLocalInputValue, toLocalInputValue, useNow } from '@/lib/countdown';
@@ -99,8 +100,8 @@ type Busy =
 type Sheet = { kind: 'propose' | 'manage'; nodeId: string } | null;
 
 export function TournamentDetailScreen({ route, navigation }: TournamentsStackScreenProps<'TournamentDetail'>) {
-  const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, scheme } = useTheme();
+  const styles = useMemo(() => createStyles(colors, scheme === 'dark'), [colors, scheme]);
   const { session } = useAuth();
   const userId = session?.user.id ?? null;
   const { tournamentId } = route.params;
@@ -708,18 +709,62 @@ export function TournamentDetailScreen({ route, navigation }: TournamentsStackSc
     );
   }
 
+  // Over: the champion with the trophy, then the podium (the runner-up's
+  // silver medal, and bronze for both semifinal losers, as the server's
+  // tournament_podium has it).
+  function renderPodium() {
+    const final = nodes.find((n) => n.round === totalRounds);
+    if (!final?.winnerId) return null;
+    const runnerUp = final.playerA === final.winnerId ? final.playerB : final.playerA;
+    const thirds = nodes
+      .filter((n) => n.round === totalRounds - 1 && n.winnerId && n.playerA && n.playerB)
+      .map((n) => (n.playerA === n.winnerId ? n.playerB : n.playerA) as string);
+    const places: { place: 1 | 2 | 3; label: string; ids: string[] }[] = [
+      { place: 1, label: 'Champion', ids: [final.winnerId] },
+      ...(runnerUp ? [{ place: 2 as const, label: 'Runner-up', ids: [runnerUp] }] : []),
+      ...(thirds.length > 0 ? [{ place: 3 as const, label: 'Third place', ids: thirds }] : []),
+    ];
+    const names = (ids: string[]) => ids.map((id) => withYou(nameOf(id, '?'), id === meId)).join(' · ');
+    return (
+      <>
+        <View style={styles.hero2}>
+          <View style={styles.heroBurst} pointerEvents="none">
+            <Sunburst size={400} color={scheme === 'dark' ? '#3A2A1C' : '#FCE6C3'} />
+          </View>
+          <Trophy
+            size={170}
+            text={inscription(tournament.name, tournament.endedAt ?? tournament.createdAt)}
+            label={`The ${tournament.name} trophy`}
+          />
+          <Text style={styles.heroKicker}>Champion</Text>
+          <Text style={styles.heroName}>{names([final.winnerId])}</Text>
+          {championLine && <Text style={styles.heroLine}>{championLine}</Text>}
+        </View>
+        <Text style={styles.sectionLabel}>Podium</Text>
+        <View style={styles.podium}>
+          {places.map((p, i) => (
+            <View key={p.place} style={[styles.podiumRow, i > 0 && styles.podiumDivider]}>
+              <View style={styles.podiumArt}>
+                {p.place === 1 ? <TrophyBadge size={30} /> : <MedalBadge place={p.place} size={28} />}
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.podiumPlace}>{p.label}</Text>
+                <Text style={styles.podiumName}>{names(p.ids)}</Text>
+              </View>
+            </View>
+          ))}
+        </View>
+      </>
+    );
+  }
+
   function renderBracket() {
     const rounds = Array.from(new Set(nodes.map((n) => n.round))).sort((a, b) => a - b);
     const byes = nodes.filter(isBye).length;
     const hasPots = participants.some((p) => p.pot !== null);
     return (
       <>
-        {championLine && (
-          <View style={styles.champion}>
-            <Text style={styles.championEmoji}>🏆</Text>
-            <Text style={styles.championText}>{championLine}</Text>
-          </View>
-        )}
+        {tournament.status === 'completed' && renderPodium()}
         {tournament.status === 'active' && renderMyPath()}
         {actionError && !editingRound && <Text style={styles.actionError}>{actionError}</Text>}
         {renderOverdue()}
@@ -872,7 +917,7 @@ function PlayerLine({ name, isWinner, isMe }: { name: string; isWinner: boolean;
   );
 }
 
-function createStyles(colors: Colors) {
+function createStyles(colors: Colors, dark = false) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
     content: { padding: spacing.lg, paddingBottom: spacing.xl },
@@ -1003,17 +1048,41 @@ function createStyles(colors: Colors) {
     },
     sectionLabelInRow: { marginTop: 0, marginBottom: 0 },
     live: { color: colors.success, fontSize: 12, fontWeight: '600' },
-    champion: {
-      backgroundColor: colors.surfaceAlt,
-      borderRadius: radius.lg,
-      padding: spacing.lg,
-      alignItems: 'center',
-      marginBottom: spacing.md,
+    hero2: {
+      backgroundColor: dark ? '#2A2019' : '#FFF8EE',
+      borderColor: dark ? '#6B4A2E' : '#E7B98C',
       borderWidth: 1,
-      borderColor: colors.primary,
+      borderRadius: radius.lg,
+      paddingTop: spacing.sm,
+      paddingBottom: spacing.md,
+      paddingHorizontal: spacing.md,
+      alignItems: 'center',
+      overflow: 'hidden',
+      marginBottom: spacing.xs,
     },
-    championEmoji: { fontSize: 36 },
-    championText: { color: colors.text, fontSize: 18, fontWeight: '700', marginTop: spacing.xs, textAlign: 'center' },
+    heroBurst: { position: 'absolute', top: -96, left: '50%', marginLeft: -200 },
+    heroKicker: {
+      color: dark ? colors.textMuted : '#765F61',
+      fontSize: 12,
+      fontWeight: '700',
+      textTransform: 'uppercase',
+      letterSpacing: 0.6,
+      marginTop: spacing.xs,
+    },
+    heroName: { color: colors.text, fontSize: 28, fontWeight: '800', textAlign: 'center' },
+    heroLine: { color: dark ? colors.textMuted : '#765F61', fontSize: 14, textAlign: 'center', marginTop: 2 },
+    podium: {
+      backgroundColor: colors.surface,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: colors.border,
+      paddingHorizontal: spacing.md,
+    },
+    podiumRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md - 2, paddingVertical: 10 },
+    podiumDivider: { borderTopWidth: 1, borderTopColor: colors.border },
+    podiumArt: { width: 36, alignItems: 'center' },
+    podiumPlace: { color: colors.textMuted, fontSize: 12, fontWeight: '600' },
+    podiumName: { color: colors.text, fontSize: 16, fontWeight: '700' },
     match: {
       flexDirection: 'row',
       alignItems: 'center',

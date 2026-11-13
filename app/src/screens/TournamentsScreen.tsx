@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { TrophyBadge } from '@/components/TournamentArt';
 import { useAuth } from '@/context/AuthContext';
 import { shortTimeLeft, useNow } from '@/lib/countdown';
 import { fetchIsAdmin } from '@/lib/players';
@@ -25,6 +26,8 @@ const STATUS_LABEL: Record<TournamentStatus, string> = {
   cancelled: 'Cancelled',
 };
 
+const monthYear = (iso: string) => new Date(iso).toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+
 // Open ones first (soonest kickoff first), then those being played, then the rest, newest first.
 const ORDER: Record<TournamentStatus, number> = { registration: 0, active: 1, draft: 2, completed: 2, cancelled: 2 };
 function byInterest(a: TournamentListItem, b: TournamentListItem): number {
@@ -34,8 +37,8 @@ function byInterest(a: TournamentListItem, b: TournamentListItem): number {
 }
 
 export function TournamentsScreen({ navigation }: TournamentsStackScreenProps<'TournamentsList'>) {
-  const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, scheme } = useTheme();
+  const styles = useMemo(() => createStyles(colors, scheme === 'dark'), [colors, scheme]);
   const { session } = useAuth();
   const [tournaments, setTournaments] = useState<TournamentListItem[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -129,27 +132,43 @@ export function TournamentsScreen({ navigation }: TournamentsStackScreenProps<'T
           contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.xl }}
           renderItem={({ item }) => {
             const status = statusStyle(item.status, colors);
+            // Over, with a champion: its trophy instead of a status badge.
+            const won = item.status === 'completed' && !!item.champion;
             return (
               <Pressable
-                style={[styles.row, item.status === 'cancelled' && styles.rowMuted]}
+                style={[styles.row, won && styles.rowWon, item.status === 'cancelled' && styles.rowMuted]}
                 onPress={() => navigation.navigate('TournamentDetail', { tournamentId: item.id, name: item.name })}
               >
+                {won && (
+                  <View style={styles.cup}>
+                    <TrophyBadge size={44} />
+                  </View>
+                )}
                 <View style={{ flex: 1 }}>
                   <Text style={styles.rowName} numberOfLines={1}>
                     {item.name}
                   </Text>
                   <Text style={styles.rowMeta} numberOfLines={1}>
-                    {meta(item)}
+                    {won ? (
+                      <>
+                        Won by <Text style={styles.rowChampion}>{item.champion}</Text> · {meta(item)}
+                      </>
+                    ) : (
+                      meta(item)
+                    )}
                   </Text>
+                  {won && item.endedAt && <Text style={styles.rowDate}>{monthYear(item.endedAt)}</Text>}
                 </View>
-                <View style={styles.badges}>
-                  <View style={[styles.badge, { backgroundColor: status.backgroundColor }]}>
-                    <Text style={[styles.badgeText, { color: status.color }]}>{STATUS_LABEL[item.status]}</Text>
+                {!won && (
+                  <View style={styles.badges}>
+                    <View style={[styles.badge, { backgroundColor: status.backgroundColor }]}>
+                      <Text style={[styles.badgeText, { color: status.color }]}>{STATUS_LABEL[item.status]}</Text>
+                    </View>
+                    {item.imIn && (
+                      <Text style={styles.youreIn}>{item.status === 'registration' ? '✓ Registered' : "✓ You're in"}</Text>
+                    )}
                   </View>
-                  {item.imIn && (
-                    <Text style={styles.youreIn}>{item.status === 'registration' ? '✓ Registered' : "✓ You're in"}</Text>
-                  )}
-                </View>
+                )}
               </Pressable>
             );
           }}
@@ -167,7 +186,7 @@ function statusStyle(status: TournamentStatus, colors: Colors) {
   return { backgroundColor: colors.border, color: colors.text };
 }
 
-function createStyles(colors: Colors) {
+function createStyles(colors: Colors, dark: boolean) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
     header: {
@@ -198,8 +217,20 @@ function createStyles(colors: Colors) {
       gap: spacing.sm,
     },
     rowMuted: { opacity: 0.7 },
+    rowWon: { borderColor: colors.accent, borderWidth: 1.5, paddingLeft: spacing.sm + 4 },
+    cup: {
+      width: 56,
+      height: 66,
+      borderRadius: radius.sm,
+      backgroundColor: dark ? '#3A2A1E' : '#FFF3E6',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 4,
+    },
     rowName: { color: colors.text, fontSize: 16, fontWeight: '600' },
     rowMeta: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
+    rowChampion: { color: colors.text, fontWeight: '700' },
+    rowDate: { color: colors.accent, fontSize: 12, fontWeight: '600', marginTop: 2 },
     badges: { alignItems: 'flex-end', gap: 4 },
     badge: { borderRadius: radius.sm, paddingHorizontal: spacing.sm, paddingVertical: 4 },
     badgeText: { color: colors.text, fontSize: 12, fontWeight: '600' },

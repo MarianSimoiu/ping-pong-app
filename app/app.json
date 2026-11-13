@@ -35,7 +35,8 @@
         {
           "photosPermission": "Allow $(PRODUCT_NAME) to access your photos to set a profile picture."
         }
-      ]
+      ],
+      "expo-font"
     ],
     "extra": {
       "eas": {

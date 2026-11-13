@@ -17,6 +17,7 @@ export type TournamentSummary = {
   tier: number;
   createdAt: string;
   kickoffAt: string | null; // null for tournaments from before registration existed
+  endedAt: string | null; // when the final was played
   createdBy: string;
 };
 
@@ -24,6 +25,7 @@ export type TournamentSummary = {
 export type TournamentListItem = TournamentSummary & {
   registeredCount: number | null; // players in it, for tournaments not over yet
   imIn: boolean; // the signed-in player is registered / in the draw
+  champion: string | null; // the winner's name, once it's over
 };
 
 export type TournamentParticipant = {
@@ -75,7 +77,7 @@ export function isPastKickoff(t: Pick<TournamentSummary, 'status' | 'kickoffAt'>
 // The minimum field for a draw (MIN_PLAYERS in the kickoff function).
 export const MIN_TOURNAMENT_PLAYERS = 4;
 
-const SUMMARY_COLUMNS = 'id, name, status, size, best_of, tier, created_at, kickoff_at, created_by';
+const SUMMARY_COLUMNS = 'id, name, status, size, best_of, tier, created_at, kickoff_at, end_date, created_by';
 
 function mapSummary(row: any): TournamentSummary {
   return {
@@ -87,6 +89,7 @@ function mapSummary(row: any): TournamentSummary {
     tier: row.tier,
     createdAt: row.created_at,
     kickoffAt: row.kickoff_at,
+    endedAt: row.end_date ?? null,
     createdBy: row.created_by,
   };
 }
@@ -117,10 +120,23 @@ export async function fetchTournaments(myUserId: string | null): Promise<Tournam
       if (myUserId && player?.user_id === myUserId) mine.add(e.tournament_id);
     }
   }
+  // The champions of the ones that are over (tournament_podium, 0021). Only a
+  // nicety for the list: without it, a finished tournament shows no winner.
+  const champions = new Map<string, string>();
+  const over = rows.filter((t: any) => t.status === 'completed').map((t: any) => t.id);
+  if (over.length > 0) {
+    const { data: winners } = await supabase
+      .from('tournament_podium')
+      .select('tournament_id, display_name')
+      .eq('place', 1)
+      .in('tournament_id', over);
+    for (const w of (winners ?? []) as any[]) champions.set(w.tournament_id, w.display_name);
+  }
   return rows.map((t: any) => ({
     ...mapSummary(t),
     registeredCount: current.includes(t.id) ? counts.get(t.id) ?? 0 : null,
     imIn: mine.has(t.id),
+    champion: champions.get(t.id) ?? null,
   }));
 }
 
