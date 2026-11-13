@@ -5,6 +5,13 @@
 -- afterwards. It uses the same Glicko-2 math as the app
 -- (supabase/functions/_shared/glicko2.ts and engine.ts).
 --
+-- Titles and tiers follow: the tournament's champion title (and laurel),
+-- Finalist, Dark Horse, Seed Killer, or any title that came from its matches,
+-- goes if it isn't earned some other way; a title shown under a name that's
+-- gone is cleared, and if it's earned again later it's announced again. Tiers
+-- move with the new ratings, without "promoted" notifications. The preview
+-- lists every title and tier that changes.
+--
 -- HOW TO RUN (Supabase dashboard -> SQL Editor). Nothing changes until step 3.
 --   1. Paste this whole script and Run it as it is. The result lists every
 --      tournament: its name, status, and when and by whom it was created.
@@ -137,6 +144,13 @@ declare
   ub record;
   r_a float8;
   r_b float8;
+  replayed boolean := false;  -- ratings were recalculated (some match had been rated)
+  sep constant text := chr(31);
+  titles_before text[];
+  titles_after text[];
+  shown_before text[];
+  tiers_before text[];
+  tiers_after text[];
 begin
   -- Which tournament: by name (any capitals) or by id.
   select count(*) into n_found from public.tournaments x
@@ -212,6 +226,14 @@ begin
    where sp.tournament_id = t.id
    order by sp.points desc;
 
+  -- Titles, shown titles and tiers as they are now, to compare with after.
+  select coalesce(array_agg(e.player_id::text || sep || e.title || sep || e.label), '{}')
+    into titles_before from public.earned_titles e;
+  select coalesce(array_agg(p.id::text || sep || p.title), '{}')
+    into shown_before from public.players p where p.title is not null;
+  select coalesce(array_agg(pt.player_id::text || sep || pt.tier), '{}')
+    into tiers_before from public.player_tiers pt;
+
   -- Recalculate ratings from just before the tournament's first match.
   select min(created_at) into t0 from public.rating_events where match_id = any(removed);
 
@@ -238,6 +260,15 @@ begin
          order by e.created_at desc
          limit 1
       ) prev on true;
+
+    -- The recalculated rating events, written below.
+    drop table if exists pg_temp.ev_new;
+    create temp table ev_new (
+      id uuid primary key, rating_before float8, rd_before float8, volatility_before float8,
+      rating_after float8, rd_after float8, volatility_after float8, delta float8,
+      repeat_factor float8, provisional boolean
+    );
+    replayed := true;
 
     -- Replay every other rated match since then, oldest first. A match with
     -- no touched player keeps its stored numbers; one with a touched player
@@ -290,18 +321,9 @@ begin
         r_a := sa.rating + (ua.new_r - sa.rating) * factor;
         r_b := sb.rating + (ub.new_r - sb.rating) * factor;
 
-        if not preview then
-          update public.rating_events
-             set rating_before = sa.rating, rd_before = rd_a, volatility_before = sa.vol,
-                 rating_after = r_a, rd_after = ua.new_rd, volatility_after = ua.new_vol,
-                 delta = r_a - sa.rating, repeat_factor = factor, provisional = sa.n < 3
-           where id = ea.id;
-          update public.rating_events
-             set rating_before = sb.rating, rd_before = rd_b, volatility_before = sb.vol,
-                 rating_after = r_b, rd_after = ub.new_rd, volatility_after = ub.new_vol,
-                 delta = r_b - sb.rating, repeat_factor = factor, provisional = sb.n < 3
-           where id = eb.id;
-        end if;
+        insert into ev_new values
+          (ea.id, sa.rating, rd_a, sa.vol, r_a, ua.new_rd, ua.new_vol, r_a - sa.rating, factor, sa.n < 3),
+          (eb.id, sb.rating, rd_b, sb.vol, r_b, ub.new_rd, ub.new_vol, r_b - sb.rating, factor, sb.n < 3);
 
         update rstate set rating = r_a, rd = ua.new_rd, vol = ua.new_vol, n = n + 1,
                           last_at = m.rated_at, touched = true
@@ -330,20 +352,80 @@ begin
       join public.players pl on pl.id = s.player_id
      where s.touched
      order by pl.display_name;
+  end if;
 
-    if not preview then
+  -- Apply it all. A preview undoes it at the end of this block, once it has
+  -- seen what titles and tiers become.
+  begin
+    if replayed then
+      update public.rating_events e
+         set rating_before = n.rating_before, rd_before = n.rd_before, volatility_before = n.volatility_before,
+             rating_after = n.rating_after, rd_after = n.rd_after, volatility_after = n.volatility_after,
+             delta = n.delta, repeat_factor = n.repeat_factor, provisional = n.provisional
+        from ev_new n
+       where e.id = n.id;
       update public.player_ratings pr
          set rating = s.rating, rd = s.rd, volatility = s.vol, matches_played = s.n,
              last_played_at = s.last_at, updated_at = now()
         from rstate s
        where s.player_id = pr.player_id and s.touched;
     end if;
-  end if;
 
-  if not preview then
     delete from public.tournaments where id = t.id;       -- also its participants, bracket and season points
     delete from public.matches where id = any(removed);   -- also their scores and rating events
-  end if;
+
+    -- New tiers from the new ratings aren't news: no "promoted" notification.
+    update public.tier_changes set notified = true where changed_at = now() and not notified;
+
+    -- Titles no longer earned: cleared from under names, and forgotten as
+    -- announced (so earning one again later is announced again).
+    drop table if exists pg_temp.still_earned;
+    create temp table still_earned as select player_id, title, label from public.earned_titles;
+    update public.players p set title = null
+     where p.title is not null
+       and not exists (select 1 from still_earned e where e.player_id = p.id and e.title = p.title);
+    delete from public.achievement_notices n
+     where not exists (select 1 from still_earned e
+                        where e.player_id = n.player_id
+                          and e.title = case when n.code = 'champion' then 'champion:' || n.ref else n.code end);
+
+    select coalesce(array_agg(e.player_id::text || sep || e.title || sep || e.label), '{}')
+      into titles_after from still_earned e;
+    select coalesce(array_agg(pt.player_id::text || sep || pt.tier), '{}')
+      into tiers_after from public.player_tiers pt;
+
+    if preview then
+      raise exception using errcode = 'PV001', message = 'preview: undo';
+    end if;
+  exception when sqlstate 'PV001' then
+    null;  -- a preview: everything in the block is undone; what it found is kept above
+  end;
+
+  insert into report (c_what, c_now, c_after)
+  select format('Title: %s', pl.display_name),
+         case when d.lost then d.label else '-' end,
+         case when not d.lost then d.label || ' (earned)'
+              when (d.player_id::text || sep || d.title) = any(shown_before) then 'removed (and from under their name)'
+              else 'removed' end
+    from (
+      select split_part(v, sep, 1)::uuid as player_id, split_part(v, sep, 2) as title,
+             split_part(v, sep, 3) as label, true as lost
+        from unnest(titles_before) v where not (v = any(titles_after))
+      union all
+      select split_part(v, sep, 1)::uuid, split_part(v, sep, 2), split_part(v, sep, 3), false
+        from unnest(titles_after) v where not (v = any(titles_before))
+    ) d
+    join public.players pl on pl.id = d.player_id
+   order by pl.display_name, d.lost desc, d.label;
+
+  insert into report (c_what, c_now, c_after)
+  select format('Tier: %s', pl.display_name), initcap(b.tier), initcap(a.tier)
+    from (select split_part(v, sep, 1)::uuid as player_id, split_part(v, sep, 2) as tier from unnest(tiers_before) v) b
+    join (select split_part(v, sep, 1)::uuid as player_id, split_part(v, sep, 2) as tier from unnest(tiers_after) v) a
+      on a.player_id = b.player_id
+    join public.players pl on pl.id = b.player_id
+   where a.tier <> b.tier
+   order by pl.display_name;
 
   return query select r.c_what, r.c_now, r.c_after from report r order by r.ord;
 end $$;
