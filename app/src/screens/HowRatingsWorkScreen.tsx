@@ -130,6 +130,11 @@ export function HowRatingsWorkScreen() {
             you're waiting on show under "Awaiting opponent's confirmation".
           </P>
           <P>
+            On the leaderboard, <B>⏳ unanswered matches</B> under a name are how many matches are
+            waiting for that player to confirm or decline. A doubles match counts for both
+            opponents until one of them answers.
+          </P>
+          <P>
             Turn on <B>Notifications</B> in Profile to be told when someone records a match against
             you, and when yours is confirmed or declined.
           </P>
