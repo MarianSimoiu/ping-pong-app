@@ -199,8 +199,17 @@ earned before 0015 count as announced), after singles, tournament and doubles
 results. In the app: the title next to names on the leaderboard and under them
 on profiles, a cabinet on profiles (`TrophyCabinet`) with two tabs — Titles
 (progress toward each, and on your own profile the title to show) and Trophies
-(every final played, won or lost, and the crown) — and `TitleCelebration` ("2
-new titles") once per device, never in the same visit as another popup.
+(every podium, and the crown) — and `TitleCelebration` ("2 new titles") once
+per device, never in the same visit as another popup.
+
+**Trophy and medals.** `0021_tournament_podium.sql` adds `tournament_podium`:
+each completed tournament's champion (1), runner-up (2) and both semifinal
+losers (3; there's no third-place match). The app draws the champion's trophy
+and the silver and bronze medals (`components/TournamentArt.tsx`, SVG in a
+cartoon style, lettered with the tournament's name and year in Lilita One,
+bundled through `@expo-google-fonts/lilita-one`): on the tournament page (the
+trophy, then the podium), on finished tournaments in the Tournaments list, and
+on each player's Trophies tab.
 
 ### Push notifications
 

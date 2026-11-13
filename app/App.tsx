@@ -1,3 +1,5 @@
+import { LilitaOne_400Regular } from '@expo-google-fonts/lilita-one';
+import { useFonts } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
 import React from 'react';
 import { Platform } from 'react-native';
@@ -31,6 +33,9 @@ function AppChrome() {
 }
 
 export default function App() {
+  // The lettering on trophies and medals (components/TournamentArt.tsx).
+  // Nothing waits for it: until it's in, they use a fallback font.
+  useFonts({ LilitaOne_400Regular });
   return (
     <SafeAreaProvider>
       <AuthProvider>

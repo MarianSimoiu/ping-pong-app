@@ -115,6 +115,7 @@ Otherwise the link lands on the wrong page and the reset can't finish.
 | `0018_match_schedule.sql` | when tournament matches are played (see below): `tournament_rounds` (each round's days), match times on `tournament_matches` (`scheduled_at`, `planned_on`, a pending `proposed_at`/`proposed_by`, `walkover`), automatic times on the one table, the propose/answer/move/round-dates/walkover RPCs, and the every-minute job also reports matches not played on their day. Tournaments already in progress get their dates and times when it runs. Walkovers don't count for Dark Horse or Beast Killer |
 | `0019_unkillable_demon_king.sql` | the Unkillable Demon King 👹 title: win a tournament without losing a single game (walkovers count neither way; at least one match played). Tournaments already played count; not marked as announced, so a player who already qualifies hears about it with their next match |
 | `0020_open_registration.sql` | anyone can register for a tournament (no more 3-match rule); in the pots and the draw, a player with no rated match yet counts as 1500 |
+| `0021_tournament_podium.sql` | the `tournament_podium` view: each completed tournament's champion, runner-up and both semifinal losers, for the trophy and the silver and bronze medals the app shows. Tournaments already played count |
 
 ### Club time zone
 

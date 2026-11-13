@@ -448,7 +448,8 @@ const DEMO_PROGRESS: Record<string, Record<string, { progress: number; earnedAt:
   },
 };
 const AUTUMN = { tournamentId: 'demo-t0', tournamentName: 'Autumn Open', at: daysAgo(25) };
-const DEMO_HONOURS: Record<string, { won: boolean }> = { p2: { won: true }, p3: { won: false } };
+// The Autumn Open's podium: Ana won the final against Ben; Dana and Cris lost the semifinals.
+const DEMO_HONOURS: Record<string, 1 | 2 | 3> = { p2: 1, p3: 2, p4: 3, p5: 3 };
 const DEMO_TITLES: Record<string, string> = { p2: 'unkillable_demon_king', p3: 'finalist' };
 let myTitle: string | null = null;
 
@@ -461,14 +462,14 @@ export function demoTrophies(playerId: string): Trophies {
   const progress = { ...(DEMO_PROGRESS[playerId] ?? {}) };
   const p = byId(playerId);
   if (p && !progress.regular) progress.regular = { progress: Math.min(p.matches, 25), earnedAt: null };
-  const honour = DEMO_HONOURS[playerId];
-  const honours = honour ? [{ ...AUTUMN, won: honour.won }] : [];
+  const place = DEMO_HONOURS[playerId];
+  const honours = place ? [{ ...AUTUMN, place, won: place === 1 }] : [];
   const titles = [
     ...Object.entries(progress)
       .filter(([, v]) => v.earnedAt)
       .map(([code, v]) => ({ title: code, label: titleLabel(code), earnedAt: v.earnedAt! })),
-    ...(honour ? [{ title: 'finalist', label: 'Finalist', earnedAt: AUTUMN.at }] : []),
-    ...(honour?.won ? [{ title: 'champion:demo-t0', label: titleLabel('champion:demo-t0'), earnedAt: AUTUMN.at }] : []),
+    ...(place && place <= 2 ? [{ title: 'finalist', label: 'Finalist', earnedAt: AUTUMN.at }] : []),
+    ...(place === 1 ? [{ title: 'champion:demo-t0', label: titleLabel('champion:demo-t0'), earnedAt: AUTUMN.at }] : []),
   ].sort((a, b) => (a.earnedAt < b.earnedAt ? -1 : 1));
   return { catalog: DEMO_CATALOG, progress, honours, titles };
 }
@@ -490,7 +491,9 @@ const potRating = (p: P) => (p.matches === 0 ? 1500 : p.rating);
 function listItem(t: TStore): TournamentListItem {
   const ids = t.summary.status === 'registration' ? t.registrations.map((r) => r.playerId) : t.participants.map((p) => p.playerId);
   const current = t.summary.status === 'registration' || t.summary.status === 'active';
-  return { ...t.summary, registeredCount: current ? ids.length : null, imIn: ids.includes(DEMO_ME) };
+  const final = t.summary.size ? t.nodes.find((n) => n.round === Math.log2(t.summary.size!)) : undefined;
+  const champion = t.summary.status === 'completed' && final?.winnerId ? byId(final.winnerId)?.name ?? null : null;
+  return { ...t.summary, registeredCount: current ? ids.length : null, imIn: ids.includes(DEMO_ME), champion };
 }
 
 // Postgres's ntile: n rows into k buckets as equal as possible, bigger first.
@@ -564,6 +567,7 @@ export function demoCreateTournament(input: { name: string; bestOf: number; kick
       tier: 1,
       createdAt: new Date().toISOString(),
       kickoffAt: input.kickoffAt,
+      endedAt: null,
       createdBy: DEMO_ME,
     },
     registrations: [],
@@ -659,6 +663,7 @@ function advance(t: TStore, node: TournamentNode, winner: string): void {
     scheduleMatches(t);
   } else {
     t.summary.status = 'completed';
+    t.summary.endedAt = new Date().toISOString();
   }
 }
 
@@ -916,6 +921,7 @@ function finishedTournament(): TStore {
       tier: 1,
       createdAt: new Date(Date.now() - 30 * 864e5).toISOString(),
       kickoffAt: null,
+      endedAt: new Date(Date.now() - 25 * 864e5).toISOString(),
       createdBy: DEMO_ME,
     },
     registrations: [],
@@ -974,6 +980,7 @@ function sampleTournament(): TStore {
       tier: 1,
       createdAt: new Date(Date.now() - 4 * 864e5).toISOString(),
       kickoffAt: new Date(Date.now() - 2 * 864e5).toISOString(),
+      endedAt: null,
       createdBy: DEMO_ME,
     },
     registrations: [],
@@ -1011,6 +1018,7 @@ function openTournament(): TStore {
       tier: 1,
       createdAt: new Date(Date.now() - 864e5).toISOString(),
       kickoffAt: kickoff.toISOString(),
+      endedAt: null,
       createdBy: DEMO_ME,
     },
     registrations: others.map((playerId, i) => ({ playerId, at: Date.now() - (others.length - i) * 36e5 })),

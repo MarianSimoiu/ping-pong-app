@@ -2,6 +2,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import React, { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { inscription, Medal, TrophyBadge } from '@/components/TournamentArt';
 import { useBadge, useBadges } from '@/context/BadgesContext';
 import { fetchTrophies, setTitle, type Honour, type Trophies } from '@/lib/achievements';
 import { showAlert } from '@/lib/platformAlert';
@@ -9,13 +10,15 @@ import { radius, spacing, useTheme, type Colors } from '@/theme';
 
 const monthYear = (iso: string) => new Date(iso).toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
 const shortDate = (iso: string) => new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+const PLACE = { 1: 'Champion', 2: 'Runner-up', 3: 'Third place' } as const;
 
 type Tab = 'titles' | 'trophies';
 
 // A player's titles and trophies, in two tabs. Titles: every achievement with
 // their progress, and (on their own profile) which earned title to show under
-// their name. Trophies: their tournament finals, won and lost, and the crown
-// while they lead the season points.
+// their name. Trophies: the trophy for each tournament they won, the medals
+// for their other podiums (silver for a lost final, bronze for a lost
+// semifinal), and the crown while they lead the season points.
 export function TrophyCabinet({ playerId, isMe }: { playerId: string; isMe: boolean }) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -121,7 +124,7 @@ function TitlesTab({ playerId, isMe, trophies }: { playerId: string; isMe: boole
     ) : null;
 
   const wins = trophies.honours.filter((h) => h.won);
-  const finals = trophies.honours;
+  const finals = trophies.honours.filter((h) => h.place <= 2);
 
   // A champion's titles are listed per tournament above; until then
   // "Champion" waits in the list like any other title.
@@ -200,8 +203,9 @@ function TitlesTab({ playerId, isMe, trophies }: { playerId: string; isMe: boole
   );
 }
 
-// The trophy shelf: the crown while they lead the season, then every final
-// they played, newest first — 🏆 won, 🥈 runner-up.
+// The trophy shelf: the crown while they lead the season, then every podium,
+// newest first: the trophy for a win, silver for a final, bronze for a
+// semifinal (components/TournamentArt.tsx).
 function TrophiesTab({ isMe, honours, leader }: { isMe: boolean; honours: Honour[]; leader: boolean }) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -212,8 +216,8 @@ function TrophiesTab({ isMe, honours, leader }: { isMe: boolean; honours: Honour
         <Text style={styles.emptyEmoji}>🏆</Text>
         <Text style={styles.emptyTitle}>No trophies yet</Text>
         <Text style={styles.emptyText}>
-          Win a tournament for a trophy and a gold laurel around {isMe ? 'your' : 'their'} avatar. Reach a final for a
-          runner-up medal. Lead the season points for the 👑.
+          Win a tournament for its trophy and a gold laurel around {isMe ? 'your' : 'their'} avatar. Lose the final
+          for a silver medal, a semifinal for bronze. Lead the season points for the 👑.
         </Text>
       </View>
     );
@@ -234,14 +238,25 @@ function TrophiesTab({ isMe, honours, leader }: { isMe: boolean; honours: Honour
       {honours.map((h) => (
         <View key={h.tournamentId} style={styles.cell}>
           <View
-            style={[styles.tile, h.won && styles.tileGold]}
-            accessibilityLabel={`${h.tournamentName}: ${h.won ? 'champion' : 'runner-up'}, ${monthYear(h.at)}`}
+            style={[
+              styles.tile,
+              h.place === 1 && styles.tileGold,
+              h.place === 2 && styles.tileSilver,
+              h.place === 3 && styles.tileBronze,
+            ]}
+            accessibilityLabel={`${h.tournamentName}: ${PLACE[h.place].toLowerCase()}, ${monthYear(h.at)}`}
           >
-            <Text style={styles.tileEmoji}>{h.won ? '🏆' : '🥈'}</Text>
+            <View style={styles.tileArt}>
+              {h.place === 1 ? (
+                <TrophyBadge size={60} />
+              ) : (
+                <Medal place={h.place} size={58} text={inscription(h.tournamentName, h.at)} />
+              )}
+            </View>
             <Text style={styles.tileName} numberOfLines={2}>
               {h.tournamentName}
             </Text>
-            <Text style={styles.tileResult}>{h.won ? 'Champion' : 'Runner-up'}</Text>
+            <Text style={styles.tileResult}>{PLACE[h.place]}</Text>
             <Text style={styles.tileDate}>{monthYear(h.at)}</Text>
           </View>
         </View>
@@ -340,6 +355,9 @@ function createStyles(colors: Colors) {
     tileGold: { borderColor: GOLD, borderWidth: 1.5, backgroundColor: 'rgba(255, 196, 0, 0.08)' },
     tileLeader: { borderColor: colors.primary, borderWidth: 1.5 },
     tileEmoji: { fontSize: 36, marginBottom: spacing.xs },
+    tileArt: { height: 84, justifyContent: 'center', marginBottom: spacing.xs },
+    tileSilver: { borderColor: '#9AA7B4', borderWidth: 1.5 },
+    tileBronze: { borderColor: '#B8733A', borderWidth: 1.5 },
     tileName: { color: colors.text, fontSize: 14, fontWeight: '700', textAlign: 'center' },
     tileResult: { color: colors.text, fontSize: 12, fontWeight: '600' },
     tileDate: { color: colors.textMuted, fontSize: 11 },
