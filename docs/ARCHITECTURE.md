@@ -182,7 +182,9 @@ Master, On Fire, Doubles Dynamo, Finalist, Champion; `0016_more_titles.sql`
 adds Lunch Break Legend, Night Owl, Touch Grass, Coin Flip, Dark Horse, Seed
 Killer, Ride or Die and Partner Hopper, with times of day in
 `club_time_zone()`; `0017_title_tweaks.sql` sets Giant Slayer's gap to 300 in
-`giant_slayer_gap()` and renames Seed Killer to Beast Killer). Views work them out from
+`giant_slayer_gap()` and renames Seed Killer to Beast Killer;
+`0019_unkillable_demon_king.sql` adds Unkillable Demon King, a tournament won
+without losing a game). Views work them out from
 the match history, so older matches count and nothing can be faked:
 `achievement_progress` (progress and when each was first completed),
 `tournament_honours` (who played each completed final) and `earned_titles`

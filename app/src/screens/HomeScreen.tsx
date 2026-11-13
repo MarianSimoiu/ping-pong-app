@@ -28,13 +28,6 @@ import type { PendingMatch, PlayerWithRating, SubmittedPendingMatch } from '@/li
 import type { HomeStackScreenProps } from '@/navigation/types';
 import { radius, spacing, useTheme, type Colors } from '@/theme';
 
-const BETA_MESSAGE =
-  'This app is still early and actively evolving — expect rough edges, missing ' +
-  'features, and things that might change or break between updates. That is ' +
-  'expected at this stage, not a sign something is wrong.\n\n' +
-  'Found a bug, have an idea, or something just feels off? Tell whoever gave you ' +
-  'access. Feedback from real games is exactly what shapes what gets built next.';
-
 export function HomeScreen({ navigation }: HomeStackScreenProps<'Home'>) {
   const { colors, scheme, setDarkMode } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -133,21 +126,13 @@ export function HomeScreen({ navigation }: HomeStackScreenProps<'Home'>) {
           <Text style={styles.greeting}>
             Hi, {profile?.display_name ?? '…'} 👋
           </Text>
-          <View style={styles.greetingActions}>
-            <Pressable
-              style={styles.themeToggle}
-              onPress={() => setDarkMode(scheme !== 'dark')}
-              hitSlop={8}
-            >
-              <Text style={styles.themeToggleIcon}>{scheme === 'dark' ? '🌙' : '☀️'}</Text>
-            </Pressable>
-            <Pressable
-              style={styles.betaBadge}
-              onPress={() => showAlert('This app is in beta', BETA_MESSAGE)}
-            >
-              <Text style={styles.betaBadgeText}>BETA</Text>
-            </Pressable>
-          </View>
+          <Pressable
+            style={styles.themeToggle}
+            onPress={() => setDarkMode(scheme !== 'dark')}
+            hitSlop={8}
+          >
+            <Text style={styles.themeToggleIcon}>{scheme === 'dark' ? '🌙' : '☀️'}</Text>
+          </Pressable>
         </View>
 
         {loading && !profile ? (
@@ -268,7 +253,6 @@ function createStyles(colors: Colors) {
       marginBottom: spacing.lg,
     },
     greeting: { fontSize: 24, fontWeight: '700', color: colors.text },
-    greetingActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
     themeToggle: {
       width: 32,
       height: 32,
@@ -280,15 +264,6 @@ function createStyles(colors: Colors) {
       justifyContent: 'center',
     },
     themeToggleIcon: { fontSize: 15 },
-    betaBadge: {
-      backgroundColor: colors.accent,
-      borderRadius: radius.sm,
-      paddingHorizontal: spacing.sm,
-      paddingVertical: 4,
-    },
-    // accentText, not text: this sits on the gold accent background, and the
-    // two need different contrast handling (see theme.ts).
-    betaBadgeText: { color: colors.accentText, fontSize: 11, fontWeight: '700', letterSpacing: 0.5 },
     ratingCard: {
       backgroundColor: colors.surface,
       borderRadius: radius.lg,
