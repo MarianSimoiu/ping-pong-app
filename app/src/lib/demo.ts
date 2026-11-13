@@ -397,7 +397,7 @@ export function demoBadges(): { badges: Record<string, PlayerBadge>; lines: Tier
 }
 
 // --- titles ------------------------------------------------------------------
-// The same catalog as the migrations (0015-0019); progress made up per player,
+// The same catalog as the migrations (0015-0024); progress made up per player,
 // plus the finished Autumn Open (Ana beat Ben in the final).
 
 const DEMO_CATALOG: Achievement[] = [
@@ -405,6 +405,7 @@ const DEMO_CATALOG: Achievement[] = [
   { code: 'iron_paddle', name: 'Iron Paddle', description: 'Play 100 matches', emoji: '🛡️', target: 100, sort: 20 },
   { code: 'social_butterfly', name: 'Social Butterfly', description: 'Play 15 different opponents', emoji: '🦋', target: 15, sort: 30 },
   { code: 'giant_slayer', name: 'Giant Slayer', description: 'Beat someone rated 300+ points above you who has played 10+ matches', emoji: '🗡️', target: 1, sort: 40 },
+  { code: 'farmer', name: 'Farmer', description: 'Play 10+ matches against the same player and win at least 80% of them', emoji: '🌾', target: 10, sort: 45 },
   { code: 'comeback_kid', name: 'Comeback Kid', description: 'Win a match after losing the first two games', emoji: '🔄', target: 1, sort: 50 },
   { code: 'bagel_baker', name: 'Bagel Baker', description: 'Win a game 11–0', emoji: '🥯', target: 1, sort: 60 },
   { code: 'deuce_master', name: 'Deuce Master', description: 'Win 10 games that went past 10–10', emoji: '🎯', target: 10, sort: 70 },
@@ -429,6 +430,7 @@ const DEMO_PROGRESS: Record<string, Record<string, { progress: number; earnedAt:
     regular: { progress: 14, earnedAt: null },
     social_butterfly: { progress: 7, earnedAt: null },
     giant_slayer: { progress: 1, earnedAt: daysAgo(5) },
+    farmer: { progress: 6, earnedAt: null },
     bagel_baker: { progress: 1, earnedAt: daysAgo(12) },
     deuce_master: { progress: 6, earnedAt: null },
     on_fire: { progress: 3, earnedAt: null },
@@ -452,6 +454,7 @@ const DEMO_PROGRESS: Record<string, Record<string, { progress: number; earnedAt:
     regular: { progress: 25, earnedAt: daysAgo(30) },
     social_butterfly: { progress: 11, earnedAt: null },
     seed_killer: { progress: 1, earnedAt: daysAgo(26) },
+    farmer: { progress: 10, earnedAt: daysAgo(4) },
     touch_grass: { progress: 10, earnedAt: daysAgo(18) },
   },
 };

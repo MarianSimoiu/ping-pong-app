@@ -193,7 +193,9 @@ Killer, Ride or Die and Partner Hopper, with times of day in
 `0019_unkillable_demon_king.sql` adds Unkillable Demon King, a tournament won
 without losing a game; `0023_giant_slayer_min_matches.sql` counts a Giant
 Slayer win only over an opponent with 10 rated matches already played, set in
-`giant_slayer_min_matches()`). Views work them out from
+`giant_slayer_min_matches()`; `0024_farmer.sql` adds Farmer, 10+ singles
+matches against the same player with at least 80% won, set in
+`farmer_min_matches()` and `farmer_min_percent()`). Views work them out from
 the match history, so older matches count and nothing can be faked:
 `achievement_progress` (progress and when each was first completed),
 `tournament_honours` (who played each completed final) and `earned_titles`
