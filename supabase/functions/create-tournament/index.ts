@@ -6,16 +6,14 @@
 // (tournament-kickoff). The database refuses a tournament from anyone who
 // isn't an admin as well (0012), whoever creates it.
 //
-// Players who can register (on the leaderboard) get a notification.
+// Every player can register (0020), and every other player gets a
+// notification.
 
 import { corsHeaders, jsonResponse } from '../_shared/cors.ts';
 import { caller } from '../_shared/caller.ts';
 import { tournamentOpened } from '../_shared/messages.ts';
 import { afterResponse, notifyPlayers } from '../_shared/notify.ts';
 import { checkNewTournament, errorMessage, isRuleError } from '../_shared/tournaments.ts';
-
-// Same as MIN_MATCHES_FOR_LEADERBOARD in the app and register_for_tournament.
-const MIN_MATCHES = 3;
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -38,11 +36,8 @@ Deno.serve(async (req) => {
 
     await afterResponse(
       (async () => {
-        const { data: eligible } = await admin
-          .from('player_ratings')
-          .select('player_id')
-          .gte('matches_played', MIN_MATCHES);
-        const others = (eligible ?? []).map((r) => r.player_id).filter((id) => id !== playerId);
+        const { data: everyone } = await admin.from('players').select('id');
+        const others = (everyone ?? []).map((p) => p.id).filter((id) => id !== playerId);
         await notifyPlayers(admin, others, tournamentOpened({ tournamentId, tournament: t.name }));
       })(),
     );

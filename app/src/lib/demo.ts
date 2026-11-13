@@ -479,12 +479,13 @@ export function demoSetTitle(title: string | null): void {
 }
 
 // --- tournaments -------------------------------------------------------------
-// Mirrors the server: registration until kickoff for players on the
-// leaderboard, live pots (4 from 8 players, else 2), the draw at kickoff (each
+// Mirrors the server: registration until kickoff for anyone (1500 with no
+// matches yet), live pots (4 from 8 players, else 2), the draw at kickoff (each
 // pot shuffled, Pot 1 seeded first, standard bracket), admin start/move/cancel.
 
-const MIN_MATCHES = 3;
 const MIN_PLAYERS = 4;
+// For the pots and the draw, as tournament_live_pots (0020).
+const potRating = (p: P) => (p.matches === 0 ? 1500 : p.rating);
 
 function listItem(t: TStore): TournamentListItem {
   const ids = t.summary.status === 'registration' ? t.registrations.map((r) => r.playerId) : t.participants.map((p) => p.playerId);
@@ -503,7 +504,7 @@ function ntile(i: number, n: number, k: number): number {
 function livePots(t: TStore): TournamentParticipant[] {
   const regs = t.registrations
     .map((r) => ({ at: r.at, p: byId(r.playerId)! }))
-    .sort((a, b) => b.p.rating - a.p.rating || a.at - b.at);
+    .sort((a, b) => potRating(b.p) - potRating(a.p) || a.at - b.at);
   const k = regs.length >= 8 ? 4 : regs.length >= 2 ? 2 : 1;
   return regs.map(({ p, at }, i) => ({
     playerId: p.id,
@@ -511,7 +512,7 @@ function livePots(t: TStore): TournamentParticipant[] {
     avatarUrl: p.avatarUrl ?? null,
     seed: null,
     pot: ntile(i, regs.length, k),
-    rating: p.rating,
+    rating: potRating(p),
     registeredAt: new Date(at).toISOString(),
   }));
 }
@@ -580,11 +581,6 @@ export function demoRegister(id: string, join: boolean): void {
   if (!join) {
     t.registrations = t.registrations.filter((r) => r.playerId !== DEMO_ME);
     return;
-  }
-  const played = byId(DEMO_ME)!.matches;
-  if (played < MIN_MATCHES) {
-    const more = MIN_MATCHES - played;
-    throw new Error(`Only players on the leaderboard can register: play ${more} more match${more === 1 ? '' : 'es'}`);
   }
   if (!t.registrations.some((r) => r.playerId === DEMO_ME)) t.registrations.push({ playerId: DEMO_ME, at: Date.now() });
 }

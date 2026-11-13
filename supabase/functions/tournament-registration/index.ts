@@ -2,9 +2,9 @@
 //
 // The signed-in player registers for a tournament, or withdraws, before its
 // kickoff. The rules live in the database (register_for_tournament /
-// withdraw_from_tournament, migration 0012): only players on the leaderboard
-// (3+ confirmed matches) can register, and nobody can join or leave once
-// kickoff time has come.
+// withdraw_from_tournament, migrations 0012 and 0020): anyone can register
+// (with no matches yet, they count as 1500 for the pots), and nobody can join
+// or leave once kickoff time has come.
 
 import { corsHeaders, jsonResponse } from '../_shared/cors.ts';
 import { caller } from '../_shared/caller.ts';

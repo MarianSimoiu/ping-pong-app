@@ -117,7 +117,7 @@ export function TournamentsScreen({ navigation }: TournamentsStackScreenProps<'T
           <Text style={styles.emoji}>🏆</Text>
           <Text style={styles.placeholder}>
             {isAdmin
-              ? 'No tournaments yet. Create one and players on the leaderboard can register until kickoff.'
+              ? 'No tournaments yet. Create one and everyone can register until kickoff.'
               : 'No tournaments yet. When one opens, you can register for it here.'}
           </Text>
         </View>

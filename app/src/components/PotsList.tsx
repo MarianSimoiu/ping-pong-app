@@ -28,7 +28,7 @@ export function PotRules({ count }: { count: number }) {
         ? 'Right now: 1 player. Pots start at 2.'
         : 'No one has registered yet.';
   const rules = [
-    'Everyone registered is ranked by rating, best first (equal ratings: whoever registered first).',
+    'Everyone registered is ranked by rating, best first (equal ratings: whoever registered first). Players with no matches yet count as 1500.',
     '8 or more players make 4 pots, fewer make 2. Each pot takes the next slice of the ranking, as equal as possible; the top pots take any extra player.',
     'Pots update live as players register, withdraw or play rated matches, and freeze at kickoff.',
     'At kickoff each pot is shuffled for the draw. With 4, 8, 16, 32… players, round 1 is Pot 1 v Pot 4 and Pot 2 v Pot 3 (Pot 1 v Pot 2 with two pots); otherwise the top seeds get byes, Pot 1 first.',

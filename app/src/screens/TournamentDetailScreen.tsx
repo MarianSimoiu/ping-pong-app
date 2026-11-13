@@ -9,7 +9,6 @@ import { ManageMatchSheet, ProposeTimeSheet } from '@/components/MatchSheets';
 import { PotRules, PotsList, withYou } from '@/components/PotsList';
 import { useAuth } from '@/context/AuthContext';
 import { pickChampionLine } from '@/lib/commentary';
-import { MIN_MATCHES_FOR_LEADERBOARD } from '@/lib/constants';
 import { defaultKickoff, fromLocalInputValue, toLocalInputValue, useNow } from '@/lib/countdown';
 import { formatKickoff } from '@/lib/format';
 import { groupByPot } from '@/lib/pots';
@@ -389,7 +388,8 @@ export function TournamentDetailScreen({ route, navigation }: TournamentsStackSc
   // --- Open for registration -------------------------------------------------
 
   function renderRegistration() {
-    const missing = MIN_MATCHES_FOR_LEADERBOARD - (me?.matchesPlayed ?? 0);
+    // Anyone can register; with no rated match yet, a player counts as 1500.
+    const unrated = !!me && me.matchesPlayed === 0;
     let status: React.ReactNode = null;
     if (pastKickoff && drawDue) {
       status = (
@@ -426,26 +426,20 @@ export function TournamentDetailScreen({ route, navigation }: TournamentsStackSc
           )}
           <Text style={styles.cardText}>
             Your pot can change until kickoff as players join, withdraw or play rated matches (see the pots below).
-            You'll get a notification with your first opponent.
+            {unrated ? ' Until you play a rated match, you count as 1500.' : ''} You'll get a notification with your
+            first opponent.
           </Text>
           {button('Withdraw', withdraw, 'withdraw', 'secondary')}
-        </View>
-      );
-    } else if (me && missing > 0) {
-      status = (
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Not on the leaderboard yet</Text>
-          <Text style={styles.cardText}>
-            Play {missing} more {missing === 1 ? 'match' : 'matches'} to register. Tournaments are for players on the
-            leaderboard ({MIN_MATCHES_FOR_LEADERBOARD}+ confirmed matches).
-          </Text>
         </View>
       );
     } else if (me) {
       status = (
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Registration is open</Text>
-          <Text style={styles.cardText}>Join before kickoff and see which pot your rating puts you in.</Text>
+          <Text style={styles.cardText}>
+            Join before kickoff and see which pot your rating puts you in.
+            {unrated ? " No matches yet? You're in too: you count as 1500." : ''}
+          </Text>
           {button('Register', () => run('register', () => registerForTournament(tournamentId)), 'register')}
         </View>
       );
