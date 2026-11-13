@@ -84,14 +84,15 @@ casual play (`context = 'tournament'`). A tournament goes through:
 
 1. **Registration** (`status = 'registration'`). An admin creates it with a
    name, format and kickoff time (`create-tournament` → `open_tournament`);
-   the players who can register get a notification. A trigger refuses any
+   every other player gets a notification. A trigger refuses any
    tournament whose creator isn't in `admins`, whoever inserts it. Until the
-   kickoff, players on the leaderboard (3+ confirmed matches) register or
-   withdraw (`tournament-registration` → `register_for_tournament` /
-   `withdraw_from_tournament`, which hold the rules). The
-   `tournament_live_pots` view splits the registered players into pots by
-   current rating (4 from 8 players, else 2; ties to whoever registered
-   first), so every player sees their pot change live. The tournament page
+   kickoff, any player registers or withdraws (`tournament-registration` →
+   `register_for_tournament` / `withdraw_from_tournament`, which hold the
+   rules; until `0020_open_registration.sql` only players on the leaderboard
+   could). The `tournament_live_pots` view splits the registered players into
+   pots by current rating, 1500 for a player with no rated match yet (4 pots
+   from 8 players, else 2; ties to whoever registered first), so every player
+   sees their pot change live. The tournament page
    shows everyone the pots with the rules: how they're made, and for each pot
    the ranks and ratings it covers and what its round 1 would be if the draw
    were made now (`app/src/lib/pots.ts`, kept in step with the draw by

@@ -91,12 +91,12 @@ export function CreateTournamentScreen({ navigation }: TournamentsStackScreenPro
         <View style={styles.howBox}>
           <Text style={styles.howTitle}>How it works</Text>
           <Text style={styles.how}>
-            • Until kickoff, players on the leaderboard (3+ matches) register themselves and can
-            withdraw. Everyone who can register gets a notification.
+            • Until kickoff, anyone can register themselves and withdraw. Every player gets a
+            notification.
           </Text>
           <Text style={styles.how}>
-            • Registered players are split into pots by rating: 4 pots from 8 players, otherwise 2.
-            Pots change live as people join.
+            • Registered players are split into pots by rating (1500 for players with no matches
+            yet): 4 pots from 8 players, otherwise 2. Pots change live as people join.
           </Text>
           <Text style={styles.how}>
             • At kickoff the pots freeze and the draw is made: Pot 1 plays Pot 4 and Pot 2 plays

@@ -105,8 +105,7 @@ export function doublesDeclined(
 
 const tournamentPage = (tournamentId: string) => `/tournaments/${tournamentId}`;
 
-// To every player who can register (on the leaderboard) when an admin opens a
-// tournament.
+// To every player (anyone can register) when an admin opens a tournament.
 export function tournamentOpened(o: { tournamentId: string; tournament: string }): PushMessage {
   return {
     title: `New tournament: ${o.tournament}`,

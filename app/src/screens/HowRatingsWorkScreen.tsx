@@ -187,14 +187,20 @@ export function HowRatingsWorkScreen() {
 
         <Section title="Tournaments and season points">
           <P>
-            Only admins create tournaments. Until kickoff, anyone on the leaderboard (3+ confirmed
-            matches) can register or withdraw, and sees which pot their rating puts them in: 4 pots
+            Only admins create tournaments. Until kickoff, anyone can register or withdraw, and sees
+            which pot their rating puts them in (1500 if they haven't played a match yet): 4 pots
             from 8 players, otherwise 2. At kickoff the pots freeze and the draw is made: in round 1,
             Pot 1 plays Pot 4 and Pot 2 plays Pot 3, and the top seeds get any byes.
           </P>
           <P>
-            Tournament matches change your skill rating like any other match. Either player or the
-            organizer records the result, with no confirmation step.
+            Each round has its days, and each match its time on the one table, between 11:00 and
+            18:00 (Bucharest time). You can propose another time, from today up to a day after the
+            planned one, and it moves once your opponent accepts. A match not played on its day is
+            the organizer's to decide: a result, a new time or a walkover.
+          </P>
+          <P>
+            Tournament matches change your skill rating like any other match (a walkover doesn't).
+            Either player or an admin records the result, with no confirmation step.
           </P>
           <P>
             <B>Season points</B> are a separate ranking (the Season points tab), earned only by how
