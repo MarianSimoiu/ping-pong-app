@@ -397,7 +397,7 @@ export function demoBadges(): { badges: Record<string, PlayerBadge>; lines: Tier
 }
 
 // --- titles ------------------------------------------------------------------
-// The same catalog as the migrations (0015-0024); progress made up per player,
+// The same catalog as the migrations (0015-0025); progress made up per player,
 // plus the finished Autumn Open (Ana beat Ben in the final).
 
 const DEMO_CATALOG: Achievement[] = [
@@ -416,8 +416,10 @@ const DEMO_CATALOG: Achievement[] = [
   { code: 'finalist', name: 'Finalist', description: 'Reach a tournament final', emoji: '🎖️', target: 1, sort: 100 },
   { code: 'dark_horse', name: 'Dark Horse', description: 'Win your way into a tournament semifinal from the bottom pot', emoji: '🐴', target: 1, sort: 104 },
   { code: 'seed_killer', name: 'Beast Killer', description: 'Knock the #1 seed out of a tournament', emoji: '🐉', target: 1, sort: 106 },
+  { code: 'unlucky', name: 'Unlucky', description: 'Lose the first match you play in a tournament', emoji: '🎲', target: 1, sort: 108 },
   { code: 'champion', name: 'Champion', description: 'Win a tournament', emoji: '🏆', target: 1, sort: 110 },
   { code: 'unkillable_demon_king', name: 'Unkillable Demon King', description: 'Win a tournament without losing a single game', emoji: '👹', target: 1, sort: 112 },
+  { code: 'supernova', name: 'Supernova', description: "Win 3 tournaments in a row (skipping one doesn't break the run)", emoji: '🌟', target: 3, sort: 114 },
   { code: 'lunch_break_legend', name: 'Lunch Break Legend', description: 'Win 10 matches between 12:00 and 14:00', emoji: '🥪', target: 10, sort: 120 },
   { code: 'night_owl', name: 'Night Owl', description: 'Play a match after 20:00', emoji: '🦉', target: 1, sort: 130 },
   { code: 'touch_grass', name: 'Touch Grass', description: 'Play 10 matches in one day', emoji: '🌱', target: 10, sort: 140 },
@@ -449,6 +451,7 @@ const DEMO_PROGRESS: Record<string, Record<string, { progress: number; earnedAt:
     lunch_break_legend: { progress: 10, earnedAt: daysAgo(9) },
     night_owl: { progress: 1, earnedAt: daysAgo(33) },
     unkillable_demon_king: { progress: 1, earnedAt: daysAgo(25) }, // the Autumn Open without dropping a game
+    supernova: { progress: 1, earnedAt: null }, // the Autumn Open: one in a row
   },
   p3: {
     regular: { progress: 25, earnedAt: daysAgo(30) },
@@ -457,6 +460,9 @@ const DEMO_PROGRESS: Record<string, Record<string, { progress: number; earnedAt:
     farmer: { progress: 10, earnedAt: daysAgo(4) },
     touch_grass: { progress: 10, earnedAt: daysAgo(18) },
   },
+  // Cris and Dana lost their Autumn Open semifinals, their first matches there.
+  p4: { unlucky: { progress: 1, earnedAt: daysAgo(26) } },
+  p5: { unlucky: { progress: 1, earnedAt: daysAgo(26) } },
 };
 const AUTUMN = { tournamentId: 'demo-t0', tournamentName: 'Autumn Open', at: daysAgo(25) };
 // The Autumn Open's podium: Ana won the final against Ben; Dana and Cris lost the semifinals.
