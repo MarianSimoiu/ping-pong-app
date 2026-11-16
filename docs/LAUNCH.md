@@ -48,7 +48,7 @@ comfortably; email is the only real blocker.
 2. Then everyone: one link (plus a QR code at the club). The app offers to
    install itself.
 3. Welcome message: record matches from Home, the opponent confirms, ratings
-   update. Turn on Notifications in Profile (on iPhone, add the app to the
+   update. Turn on Notifications in Profile → Settings (on iPhone, add the app to the
    Home Screen first). "How ratings work" explains the rest.
 4. A WhatsApp group for problems, with the admin fixing them.
 

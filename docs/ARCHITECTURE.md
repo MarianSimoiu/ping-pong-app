@@ -229,7 +229,7 @@ what they won.
 
 ### Push notifications
 
-Players switch notifications on per device in Profile, or from the
+Players switch notifications on per device in Profile → Settings, or from the
 "Turn on notifications?" popup (`components/PushPromptSheet.tsx`) that a
 signed-in player with them off sees a few seconds after opening the app ("Not
 now" hides it for 3 days; never in a visit where the install popup shows).
@@ -309,6 +309,12 @@ something waits on you, and it's the tab Profile opens on then. Awards is the
 titles and trophies (`TrophyCabinet`, with its own Titles · Trophies switch; a
 player profile shows it as a section instead). A row of four sizes each tab to
 its label, and scrolls sideways on a phone too narrow for all of them (320 px).
+
+The ⚙️ Settings button next to the Profile heading opens Settings
+(`screens/SettingsScreen.tsx`, `/profile/settings`), where the account and app
+settings live, off the profile page itself: who you're signed in as, Dark mode,
+the Notifications switch (web only), How ratings work, Install (while the
+browser can), and Sign out.
 
 ### Commentary
 

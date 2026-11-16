@@ -36,8 +36,8 @@ export type InstallState = {
   justInstalled: boolean;
 };
 
-// "Not now" hides the automatic popup for this long. The Install button on
-// the Profile tab still works in the meantime.
+// "Not now" hides the automatic popup for this long. The Install row in
+// Profile → Settings still works in the meantime.
 const SNOOZE_DAYS = 7;
 const SNOOZE_KEY = 'pingpong.installPrompt.snoozedUntil';
 // Let the app finish loading before the popup slides in.

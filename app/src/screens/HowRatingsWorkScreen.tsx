@@ -135,8 +135,8 @@ export function HowRatingsWorkScreen() {
             opponents until one of them answers.
           </P>
           <P>
-            Turn on <B>Notifications</B> in Profile to be told when someone records a match against
-            you, and when yours is confirmed or declined.
+            Turn on <B>Notifications</B> in Profile → Settings to be told when someone records a
+            match against you, and when yours is confirmed or declined.
           </P>
         </Section>
 

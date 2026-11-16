@@ -56,6 +56,7 @@ export const linking: LinkingOptions<TabParamList> = {
         initialRouteName: 'Account',
         screens: {
           Account: 'profile',
+          Settings: 'profile/settings',
           PlayerProfile: 'profile/stats/:playerId',
           HowRatingsWork: 'profile/how-ratings-work',
         },
