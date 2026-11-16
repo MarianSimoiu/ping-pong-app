@@ -7,14 +7,17 @@ import type { SubmittedPendingMatch } from '@/lib/types';
 import { radius, spacing, useTheme, type Colors } from '@/theme';
 
 // Matches the signed-in player recorded that are still waiting for the
-// opponent to confirm (shown on Home and Profile). Renders nothing when there
-// are none.
+// opponent to confirm (shown on Home and in Profile's Pending tab). Renders
+// nothing when there are none. `label: null` leaves out the heading (Profile
+// has one over these and the doubles ones together).
 export function AwaitingOpponentList({
   matches,
   style,
+  label = 'Awaiting opponent’s confirmation',
 }: {
   matches: SubmittedPendingMatch[];
   style?: StyleProp<ViewStyle>;
+  label?: string | null;
 }) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -22,7 +25,7 @@ export function AwaitingOpponentList({
 
   return (
     <View style={style}>
-      <Text style={styles.sectionLabel}>Awaiting opponent’s confirmation</Text>
+      {label !== null && <Text style={styles.sectionLabel}>{label}</Text>}
       {matches.map((m) => (
         <View key={m.matchId} style={styles.card}>
           <View style={styles.headerRow}>

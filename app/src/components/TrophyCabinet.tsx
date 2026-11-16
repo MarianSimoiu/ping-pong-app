@@ -2,6 +2,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import React, { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { SegmentedTabs } from '@/components/SegmentedTabs';
 import { inscription, Medal, TrophyBadge } from '@/components/TournamentArt';
 import { useBadge, useBadges } from '@/context/BadgesContext';
 import { fetchTrophies, setTitle, type Honour, type Trophies } from '@/lib/achievements';
@@ -44,39 +45,20 @@ export function TrophyCabinet({ playerId, isMe }: { playerId: string; isMe: bool
   return (
     <View>
       <Text style={styles.section}>Titles and trophies</Text>
-      <View style={styles.tabs} accessibilityRole="tablist">
-        <TabButton label="Titles" count={trophies.titles.length} active={tab === 'titles'} onPress={() => setTab('titles')} />
-        <TabButton
-          label="Trophies"
-          count={trophies.honours.length + (leader ? 1 : 0)}
-          active={tab === 'trophies'}
-          onPress={() => setTab('trophies')}
-        />
-      </View>
+      <SegmentedTabs
+        items={[
+          { key: 'titles', label: 'Titles', count: trophies.titles.length },
+          { key: 'trophies', label: 'Trophies', count: trophies.honours.length + (leader ? 1 : 0) },
+        ]}
+        active={tab}
+        onChange={setTab}
+      />
       {tab === 'titles' ? (
         <TitlesTab playerId={playerId} isMe={isMe} trophies={trophies} />
       ) : (
         <TrophiesTab isMe={isMe} honours={trophies.honours} leader={leader} />
       )}
     </View>
-  );
-}
-
-function TabButton({ label, count, active, onPress }: { label: string; count: number; active: boolean; onPress: () => void }) {
-  const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
-  return (
-    <Pressable
-      style={[styles.tab, active && styles.tabActive]}
-      onPress={onPress}
-      accessibilityRole="tab"
-      aria-selected={active}
-    >
-      <Text style={[styles.tabText, active && styles.tabTextActive]}>{label}</Text>
-      <View style={[styles.tabCount, active && styles.tabCountActive]}>
-        <Text style={[styles.tabCountText, active && styles.tabTextActive]}>{count}</Text>
-      </View>
-    </Pressable>
   );
 }
 
@@ -277,31 +259,6 @@ function createStyles(colors: Colors) {
       marginTop: spacing.lg,
       marginBottom: spacing.sm,
     },
-    tabs: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md },
-    tab: {
-      flex: 1,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 6,
-      paddingVertical: spacing.sm,
-      borderRadius: radius.md,
-      backgroundColor: colors.surface,
-      borderWidth: 1,
-      borderColor: colors.border,
-    },
-    tabActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-    tabText: { color: colors.textMuted, fontSize: 14, fontWeight: '600' },
-    tabTextActive: { color: colors.primaryText },
-    tabCount: {
-      minWidth: 20,
-      paddingHorizontal: 5,
-      borderRadius: 10,
-      backgroundColor: colors.surfaceAlt,
-      alignItems: 'center',
-    },
-    tabCountActive: { backgroundColor: 'rgba(255,255,255,0.25)' },
-    tabCountText: { color: colors.textMuted, fontSize: 12, fontWeight: '700', lineHeight: 18 },
     hint: { color: colors.textMuted, fontSize: 13, marginBottom: spacing.sm },
     row: {
       flexDirection: 'row',

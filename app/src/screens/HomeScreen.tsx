@@ -12,17 +12,14 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AwaitingOpponentList } from '@/components/AwaitingOpponentList';
-import { Avatar } from '@/components/Avatar';
 import { DoublesMatchCard, useDoublesConfirm } from '@/components/DoublesMatchCard';
+import { PendingMatchCard, useMatchConfirm } from '@/components/PendingMatchCard';
 import { useAuth } from '@/context/AuthContext';
-import { useBadges } from '@/context/BadgesContext';
-import { pickDeclineLine, pickHomeTip, pickMatchResultLine, pickPendingLine } from '@/lib/commentary';
+import { pickHomeTip } from '@/lib/commentary';
 import { MIN_MATCHES_FOR_LEADERBOARD } from '@/lib/constants';
 import { fetchDoublesToConfirm, type DoublesPendingMatch } from '@/lib/doubles';
-import { formatTimestamp } from '@/lib/format';
 import { fetchLeaderboard } from '@/lib/leaderboard';
-import { confirmMatch, fetchPendingConfirmations, fetchSubmittedPending } from '@/lib/matches';
-import { showAlert } from '@/lib/platformAlert';
+import { fetchPendingConfirmations, fetchSubmittedPending } from '@/lib/matches';
 import { fetchMyProfile } from '@/lib/players';
 import type { PendingMatch, PlayerWithRating, SubmittedPendingMatch } from '@/lib/types';
 import type { HomeStackScreenProps } from '@/navigation/types';
@@ -32,13 +29,11 @@ export function HomeScreen({ navigation }: HomeStackScreenProps<'Home'>) {
   const { colors, scheme, setDarkMode } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { session } = useAuth();
-  const { refresh: refreshBadges } = useBadges();
   const [profile, setProfile] = useState<PlayerWithRating | null>(null);
   const [rank, setRank] = useState<number | null>(null);
   const [pending, setPending] = useState<PendingMatch[]>([]);
   const [submittedPending, setSubmittedPending] = useState<SubmittedPendingMatch[]>([]);
   const [doublesToConfirm, setDoublesToConfirm] = useState<DoublesPendingMatch[]>([]);
-  const [actingId, setActingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   // Picked once per mount so it doesn't change mid-view, but varies on revisit.
@@ -74,38 +69,8 @@ export function HomeScreen({ navigation }: HomeStackScreenProps<'Home'>) {
     }
   }, [session]);
 
+  const singles = useMatchConfirm(load);
   const doubles = useDoublesConfirm(load);
-
-  const act = useCallback(
-    async (match: PendingMatch, action: 'confirm' | 'decline') => {
-      setActingId(match.matchId);
-      try {
-        const result = await confirmMatch(match.matchId, action);
-        // A confirmed result can move tiers: refresh the rings (and the tier popup).
-        if (action === 'confirm') refreshBadges();
-        if (action === 'confirm' && result.you) {
-          showAlert(
-            'MATCH CALLED!',
-            pickMatchResultLine({
-              iWon: match.iWon,
-              myGames: match.myGames,
-              opponentGames: match.opponentGames,
-              opponentName: match.submitterName,
-              delta: result.you.delta,
-            }),
-          );
-        } else if (action === 'decline') {
-          showAlert('Waved off', pickDeclineLine());
-        }
-        await load();
-      } catch (e) {
-        setError(e instanceof Error ? e.message : 'Failed to update match');
-      } finally {
-        setActingId(null);
-      }
-    },
-    [load, refreshBadges],
-  );
 
   // Reload whenever the screen regains focus (e.g. after recording a match).
   useFocusEffect(
@@ -177,43 +142,13 @@ export function HomeScreen({ navigation }: HomeStackScreenProps<'Home'>) {
           <View style={styles.pendingSection}>
             <Text style={styles.pendingHeader}>Awaiting your confirmation</Text>
             {pending.map((m) => (
-              <View key={m.matchId} style={styles.pendingCard}>
-                <View style={styles.pendingHeaderRow}>
-                  <Avatar uri={m.submitterAvatarUrl} name={m.submitterName} size={36} playerId={m.submitterId} />
-                  <View style={styles.pendingHeaderText}>
-                    <Text style={styles.pendingName}>{m.submitterName}</Text>
-                    <Text style={styles.pendingTime}>{formatTimestamp(m.submittedAt)}</Text>
-                  </View>
-                </View>
-                <Text style={styles.pendingText}>
-                  {pickPendingLine({
-                    submitterName: m.submitterName,
-                    iWon: m.iWon,
-                    myGames: m.myGames,
-                    opponentGames: m.opponentGames,
-                  })}
-                </Text>
-                <Text style={styles.pendingSets}>
-                  Sets (you–{m.submitterName}):{' '}
-                  {m.games.map((g) => `${g.myScore}–${g.opponentScore}`).join(', ')}
-                </Text>
-                <View style={styles.pendingActions}>
-                  <Pressable
-                    style={[styles.confirmBtn, actingId === m.matchId && { opacity: 0.5 }]}
-                    onPress={() => act(m, 'confirm')}
-                    disabled={actingId === m.matchId}
-                  >
-                    <Text style={styles.confirmText}>Confirm</Text>
-                  </Pressable>
-                  <Pressable
-                    style={[styles.declineBtn, actingId === m.matchId && { opacity: 0.5 }]}
-                    onPress={() => act(m, 'decline')}
-                    disabled={actingId === m.matchId}
-                  >
-                    <Text style={styles.declineText}>Decline</Text>
-                  </Pressable>
-                </View>
-              </View>
+              <PendingMatchCard
+                key={m.matchId}
+                match={m}
+                busy={singles.actingId === m.matchId}
+                onConfirm={() => singles.act(m, 'confirm')}
+                onDecline={() => singles.act(m, 'decline')}
+              />
             ))}
             {doublesToConfirm.map((m) => (
               <DoublesMatchCard
@@ -306,37 +241,6 @@ function createStyles(colors: Colors) {
       letterSpacing: 0.5,
       marginBottom: spacing.sm,
     },
-    pendingCard: {
-      backgroundColor: colors.surface,
-      borderRadius: radius.md,
-      padding: spacing.md,
-      marginBottom: spacing.sm,
-      borderWidth: 1,
-      borderColor: colors.primary,
-    },
-    pendingHeaderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm },
-    pendingHeaderText: { marginLeft: spacing.sm },
-    pendingName: { color: colors.text, fontSize: 14, fontWeight: '700' },
-    pendingTime: { color: colors.textMuted, fontSize: 11 },
-    pendingText: { color: colors.text, fontSize: 14, marginBottom: spacing.xs },
-    pendingSets: { color: colors.textMuted, fontSize: 12, marginBottom: spacing.sm },
-    pendingActions: { flexDirection: 'row', gap: spacing.sm },
-    confirmBtn: {
-      backgroundColor: colors.primary,
-      borderRadius: radius.sm,
-      paddingVertical: spacing.sm,
-      paddingHorizontal: spacing.md,
-    },
-    confirmText: { color: colors.primaryText, fontWeight: '600' },
-    declineBtn: {
-      backgroundColor: colors.surfaceAlt,
-      borderRadius: radius.sm,
-      paddingVertical: spacing.sm,
-      paddingHorizontal: spacing.md,
-      borderWidth: 1,
-      borderColor: colors.border,
-    },
-    declineText: { color: colors.danger, fontWeight: '600' },
     hintCard: {
       backgroundColor: colors.surfaceAlt,
       borderRadius: radius.md,

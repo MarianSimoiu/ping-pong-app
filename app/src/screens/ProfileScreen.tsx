@@ -6,21 +6,40 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AwaitingOpponentList } from '@/components/AwaitingOpponentList';
 import { Avatar } from '@/components/Avatar';
+import { DoublesMatchCard, useDoublesConfirm } from '@/components/DoublesMatchCard';
+import { MatchHistoryList } from '@/components/MatchHistoryList';
+import { PendingMatchCard, useMatchConfirm } from '@/components/PendingMatchCard';
+import { RatingChart } from '@/components/RatingChart';
+import { SegmentedTabs } from '@/components/SegmentedTabs';
+import { StatsRow } from '@/components/StatsRow';
 import { TierCard } from '@/components/TierCard';
 import { TrophyCabinet } from '@/components/TrophyCabinet';
 import { useBadge } from '@/context/BadgesContext';
 import { useAuth } from '@/context/AuthContext';
 import { uploadAvatar } from '@/lib/avatar';
+import { MIN_MATCHES_FOR_LEADERBOARD } from '@/lib/constants';
+import { fetchDoublesAwaitingOpponents, fetchDoublesToConfirm, type DoublesPendingMatch } from '@/lib/doubles';
 import { openInstall, useInstall } from '@/lib/install';
-import { fetchSubmittedPending } from '@/lib/matches';
+import {
+  fetchMatchHistory,
+  fetchPlayerSeasonPoints,
+  fetchRatingHistory,
+  fetchRecord,
+  type HistoryPoint,
+  type MatchHistoryItem,
+} from '@/lib/leaderboard';
+import { fetchPendingConfirmations, fetchSubmittedPending } from '@/lib/matches';
 import { fetchMyProfile } from '@/lib/players';
 import { showAlert } from '@/lib/platformAlert';
 import { getPushStatus, turnOffPush, turnOnPush, type PushStatus } from '@/lib/push';
-import type { SubmittedPendingMatch } from '@/lib/types';
+import type { PendingMatch, SubmittedPendingMatch } from '@/lib/types';
 import type { ProfileStackScreenProps } from '@/navigation/types';
 import { radius, spacing, useTheme, type Colors } from '@/theme';
 
-type Me = { id: string; displayName: string; avatarUrl: string | null; rating: number; matchesPlayed: number };
+type Me = { id: string; displayName: string; avatarUrl: string | null; rating: number; rd: number; matchesPlayed: number };
+
+// Your stats, your match history, and the matches waiting on someone's answer.
+type Tab = 'stats' | 'history' | 'pending';
 
 const PUSH_HINTS: Record<PushStatus, string> = {
   on: 'You’ll be notified about matches to confirm, and when yours are confirmed or declined.',
@@ -38,7 +57,16 @@ export function ProfileScreen({ navigation }: ProfileStackScreenProps<'Account'>
   const [busy, setBusy] = useState(false);
   const [me, setMe] = useState<Me | null>(null);
   const myBadge = useBadge(me?.id);
+  const [ratingHistory, setRatingHistory] = useState<HistoryPoint[]>([]);
+  const [matches, setMatches] = useState<MatchHistoryItem[]>([]);
+  const [record, setRecord] = useState({ wins: 0, losses: 0 });
+  const [seasonPoints, setSeasonPoints] = useState(0);
+  const [toConfirm, setToConfirm] = useState<PendingMatch[]>([]);
+  const [doublesToConfirm, setDoublesToConfirm] = useState<DoublesPendingMatch[]>([]);
   const [submittedPending, setSubmittedPending] = useState<SubmittedPendingMatch[]>([]);
+  const [doublesAwaiting, setDoublesAwaiting] = useState<DoublesPendingMatch[]>([]);
+  // Until you pick one: Pending while something waits on your answer, else Stats.
+  const [tab, setTab] = useState<Tab | null>(null);
   const [push, setPush] = useState<PushStatus | null>(null);
   const [pushBusy, setPushBusy] = useState(false);
 
@@ -52,14 +80,31 @@ export function ProfileScreen({ navigation }: ProfileStackScreenProps<'Account'>
           displayName: p.display_name,
           avatarUrl: p.avatar_url,
           rating: p.rating?.rating ?? 1500,
+          rd: p.rating?.rd ?? 350,
           matchesPlayed: p.rating?.matches_played ?? 0,
         });
-        setSubmittedPending(await fetchSubmittedPending(p.id));
+        // Each on its own: one that fails leaves its tab as it was.
+        const into = <T,>(load: Promise<T>, set: (value: T) => void) => load.then(set, () => {});
+        await Promise.all([
+          into(fetchRatingHistory(p.id), setRatingHistory),
+          into(fetchMatchHistory(p.id), setMatches),
+          into(fetchRecord(p.id), setRecord),
+          into(fetchPlayerSeasonPoints(p.id), setSeasonPoints),
+          into(fetchPendingConfirmations(p.id), setToConfirm),
+          into(fetchDoublesToConfirm(p.id), setDoublesToConfirm),
+          into(fetchSubmittedPending(p.id), setSubmittedPending),
+          into(fetchDoublesAwaitingOpponents(p.id), setDoublesAwaiting),
+        ]);
       }
     } catch {
-      // Non-fatal: the stats shortcut / pending list just won't be available.
+      // Non-fatal: the tabs just stay empty.
     }
   }, [session]);
+
+  // Confirming or declining reloads everything: a confirmed match moves your
+  // rating, record and history too.
+  const singles = useMatchConfirm(loadMe);
+  const doubles = useDoublesConfirm(loadMe);
 
   // Refresh whenever the screen regains focus (e.g. after submitting a
   // match), so a just-recorded one shows up here without a manual reload.
@@ -70,6 +115,10 @@ export function ProfileScreen({ navigation }: ProfileStackScreenProps<'Account'>
       getPushStatus().then(setPush, () => setPush('unsupported'));
     }, [loadMe]),
   );
+
+  const toAnswer = toConfirm.length + doublesToConfirm.length;
+  const pendingCount = toAnswer + submittedPending.length + doublesAwaiting.length;
+  const shownTab: Tab = tab ?? (toAnswer > 0 ? 'pending' : 'stats');
 
   async function handlePushToggle(on: boolean) {
     if (!session) return;
@@ -150,14 +199,87 @@ export function ProfileScreen({ navigation }: ProfileStackScreenProps<'Account'>
         </View>
 
         {me && <TierCard playerId={me.id} rating={me.rating} matchesPlayed={me.matchesPlayed} isMe />}
+
+        {me && (
+          <>
+            <Text style={styles.section}>Stats and matches</Text>
+            <SegmentedTabs
+              items={[
+                { key: 'stats', label: 'Stats' },
+                { key: 'history', label: 'History' },
+                { key: 'pending', label: 'Pending', count: pendingCount, alert: toAnswer > 0 },
+              ]}
+              active={shownTab}
+              onChange={setTab}
+            />
+            {shownTab === 'stats' ? (
+              <>
+                <StatsRow
+                  rating={me.rating}
+                  rd={me.rd}
+                  wins={record.wins}
+                  losses={record.losses}
+                  seasonPoints={seasonPoints}
+                  onInfoPress={() => navigation.navigate('HowRatingsWork')}
+                />
+                {me.matchesPlayed < MIN_MATCHES_FOR_LEADERBOARD && (
+                  <Text style={styles.note}>
+                    Not ranked yet — players join the leaderboard after {MIN_MATCHES_FOR_LEADERBOARD} matches.
+                  </Text>
+                )}
+                <Text style={styles.listLabel}>Rating over time</Text>
+                <RatingChart points={ratingHistory} />
+              </>
+            ) : shownTab === 'history' ? (
+              <MatchHistoryList matches={matches} />
+            ) : pendingCount === 0 ? (
+              <View style={styles.empty}>
+                <Text style={styles.emptyEmoji}>⏳</Text>
+                <Text style={styles.emptyTitle}>Nothing pending</Text>
+                <Text style={styles.emptyText}>
+                  Matches recorded against you wait here for your answer, and the ones you record wait here
+                  until your opponent confirms them.
+                </Text>
+              </View>
+            ) : (
+              <>
+                {toAnswer > 0 && <Text style={styles.listLabel}>Awaiting your confirmation</Text>}
+                {toConfirm.map((m) => (
+                  <PendingMatchCard
+                    key={m.matchId}
+                    match={m}
+                    busy={singles.actingId === m.matchId}
+                    onConfirm={() => singles.act(m, 'confirm')}
+                    onDecline={() => singles.act(m, 'decline')}
+                  />
+                ))}
+                {doublesToConfirm.map((m) => (
+                  <DoublesMatchCard
+                    key={m.matchId}
+                    match={m}
+                    busy={doubles.actingId === m.matchId}
+                    onConfirm={() => doubles.act(m, 'confirm')}
+                    onDecline={() => doubles.act(m, 'decline')}
+                  />
+                ))}
+                {submittedPending.length + doublesAwaiting.length > 0 && (
+                  <Text style={styles.listLabel}>Awaiting opponents’ confirmation</Text>
+                )}
+                <AwaitingOpponentList matches={submittedPending} label={null} />
+                {doublesAwaiting.map((m) => (
+                  <DoublesMatchCard key={m.matchId} match={m} />
+                ))}
+              </>
+            )}
+          </>
+        )}
+
         {me && <TrophyCabinet playerId={me.id} isMe />}
 
         <View style={styles.card}>
           <Text style={styles.label}>Signed in as</Text>
           <Text style={styles.value}>{session?.user.email}</Text>
         </View>
-
-        <AwaitingOpponentList matches={submittedPending} style={styles.pendingSection} />
 
         <View style={[styles.card, styles.toggleRow]}>
           <Text style={styles.value}>Dark mode</Text>
@@ -185,17 +307,6 @@ export function ProfileScreen({ navigation }: ProfileStackScreenProps<'Account'>
               accessibilityLabel="Notifications"
             />
           </View>
-        )}
-
-        {me && (
-          <Pressable
-            style={styles.linkCard}
-            onPress={() =>
-              navigation.navigate('PlayerProfile', { playerId: me.id, displayName: me.displayName })
-            }
-          >
-            <Text style={styles.linkCardText}>View my stats & rating history →</Text>
-          </Pressable>
         )}
 
         <Pressable style={styles.linkCard} onPress={() => navigation.navigate('HowRatingsWork')}>
@@ -243,7 +354,36 @@ function createStyles(colors: Colors) {
     },
     label: { color: colors.textMuted, fontSize: 13 },
     value: { color: colors.text, fontSize: 16, marginTop: spacing.xs },
-    pendingSection: { marginTop: spacing.md },
+    section: {
+      color: colors.textMuted,
+      fontSize: 13,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      marginTop: spacing.lg,
+      marginBottom: spacing.sm,
+    },
+    listLabel: {
+      color: colors.textMuted,
+      fontSize: 12,
+      fontWeight: '600',
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      marginTop: spacing.md,
+      marginBottom: spacing.sm,
+    },
+    note: { color: colors.textMuted, fontSize: 13, marginTop: spacing.sm },
+    empty: {
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: colors.border,
+      padding: spacing.lg,
+      gap: spacing.xs,
+    },
+    emptyEmoji: { fontSize: 36, opacity: 0.35 },
+    emptyTitle: { color: colors.text, fontSize: 15, fontWeight: '700' },
+    emptyText: { color: colors.textMuted, fontSize: 13, lineHeight: 18, textAlign: 'center' },
     toggleRow: {
       flexDirection: 'row',
       alignItems: 'center',
