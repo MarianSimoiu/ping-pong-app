@@ -4,10 +4,12 @@
 // kickoff. The rules live in the database (register_for_tournament /
 // withdraw_from_tournament, migrations 0012 and 0020): anyone can register
 // (with no matches yet, they count as 1500 for the pots), and nobody can join
-// or leave once kickoff time has come.
+// or leave once kickoff time has come. Each sign-up is pushed to the admins.
 
 import { corsHeaders, jsonResponse } from '../_shared/cors.ts';
 import { caller } from '../_shared/caller.ts';
+import { afterResponse } from '../_shared/notify.ts';
+import { announceRegistration } from '../_shared/registration.ts';
 import { errorMessage, isRuleError } from '../_shared/tournaments.ts';
 
 type Body = { tournamentId?: string; action?: 'register' | 'withdraw' };
@@ -32,6 +34,7 @@ Deno.serve(async (req) => {
     );
     if (error) return jsonResponse({ error: error.message }, isRuleError(error) ? 400 : 500);
 
+    if (action === 'register') await afterResponse(announceRegistration(who.admin, tournamentId, who.playerId));
     return jsonResponse({ registered: action === 'register' });
   } catch (e) {
     return jsonResponse({ error: errorMessage(e) }, 500);

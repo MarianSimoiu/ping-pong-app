@@ -16,6 +16,7 @@ import {
   tournamentCancelled,
   tournamentDrawn,
   tournamentOpened,
+  tournamentRegistered,
   tournamentRescheduled,
   walkoverGiven,
 } from './messages.ts';
@@ -169,4 +170,15 @@ Deno.test('match times: in the draw message, scheduled, moved, proposed, decline
     walkoverGiven({ ...t, match: 'semifinal', youWon: false, opponent: 'Ana' }).body,
     'The organizer gave Ana your semifinal as a walkover.',
   );
+});
+
+Deno.test('a sign-up, to the admins: who and how many, one alert each', () => {
+  const t = { tournamentId: 't1', tournament: 'Winter Cup' };
+  assertEquals(tournamentRegistered({ ...t, player: 'Ana', playerId: 'p1', count: 7 }), {
+    title: 'Winter Cup: Ana registered',
+    body: '7 players registered so far.',
+    url: '/tournaments/t1',
+    tag: 'registered-t1-p1',
+  });
+  assertEquals(tournamentRegistered({ ...t, player: 'Ben', playerId: 'p2', count: 1 }).body, '1 player registered so far.');
 });
