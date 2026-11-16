@@ -38,8 +38,9 @@ import { radius, spacing, useTheme, type Colors } from '@/theme';
 
 type Me = { id: string; displayName: string; avatarUrl: string | null; rating: number; rd: number; matchesPlayed: number };
 
-// Your stats, your match history, and the matches waiting on someone's answer.
-type Tab = 'stats' | 'history' | 'pending';
+// Your stats, your match history, the matches waiting on someone's answer, and
+// your titles and trophies (Awards).
+type Tab = 'stats' | 'history' | 'pending' | 'awards';
 
 const PUSH_HINTS: Record<PushStatus, string> = {
   on: 'You’ll be notified about matches to confirm, and when yours are confirmed or declined.',
@@ -202,12 +203,13 @@ export function ProfileScreen({ navigation }: ProfileStackScreenProps<'Account'>
 
         {me && (
           <>
-            <Text style={styles.section}>Stats and matches</Text>
+            <View style={styles.tabsTop} />
             <SegmentedTabs
               items={[
                 { key: 'stats', label: 'Stats' },
                 { key: 'history', label: 'History' },
                 { key: 'pending', label: 'Pending', count: pendingCount, alert: toAnswer > 0 },
+                { key: 'awards', label: 'Awards' },
               ]}
               active={shownTab}
               onChange={setTab}
@@ -232,6 +234,8 @@ export function ProfileScreen({ navigation }: ProfileStackScreenProps<'Account'>
               </>
             ) : shownTab === 'history' ? (
               <MatchHistoryList matches={matches} />
+            ) : shownTab === 'awards' ? (
+              <TrophyCabinet playerId={me.id} isMe heading={false} />
             ) : pendingCount === 0 ? (
               <View style={styles.empty}>
                 <Text style={styles.emptyEmoji}>⏳</Text>
@@ -274,7 +278,6 @@ export function ProfileScreen({ navigation }: ProfileStackScreenProps<'Account'>
           </>
         )}
 
-        {me && <TrophyCabinet playerId={me.id} isMe />}
 
         <View style={styles.card}>
           <Text style={styles.label}>Signed in as</Text>
@@ -354,14 +357,7 @@ function createStyles(colors: Colors) {
     },
     label: { color: colors.textMuted, fontSize: 13 },
     value: { color: colors.text, fontSize: 16, marginTop: spacing.xs },
-    section: {
-      color: colors.textMuted,
-      fontSize: 13,
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
-      marginTop: spacing.lg,
-      marginBottom: spacing.sm,
-    },
+    tabsTop: { height: spacing.lg },
     listLabel: {
       color: colors.textMuted,
       fontSize: 12,
