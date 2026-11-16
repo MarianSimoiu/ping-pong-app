@@ -298,6 +298,15 @@ navigator (Home · Leaderboard · Tournaments · Profile) once signed in. The Ho
 Leaderboard, and Profile tabs are stacks so they can push the Submit-match and
 Player-profile screens.
 
+The Profile tab (your own) has two rows of tabs (`components/SegmentedTabs.tsx`):
+Stats · History · Pending, then Titles · Trophies (`TrophyCabinet`). Stats and
+History are the numbers, rating chart and match list a player profile shows
+(`StatsRow`, `MatchHistoryList`); Pending is every match waiting on an answer:
+yours to confirm or decline (singles `PendingMatchCard`, as on Home; doubles
+`DoublesMatchCard`) and the ones you recorded, waiting on your opponents. Its
+count turns red while something waits on you, and it's the tab Profile opens on
+then.
+
 ### Commentary
 
 `lib/commentary.ts` picks a hype play-by-play line from a small pool based on

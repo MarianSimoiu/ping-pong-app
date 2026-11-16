@@ -1,25 +1,17 @@
 import { type RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/Avatar';
+import { MatchHistoryList } from '@/components/MatchHistoryList';
+import { RatingChart } from '@/components/RatingChart';
+import { StatsRow } from '@/components/StatsRow';
 import { TierCard } from '@/components/TierCard';
 import { TrophyCabinet } from '@/components/TrophyCabinet';
 import { useBadge, useBadges } from '@/context/BadgesContext';
-import { RatingChart } from '@/components/RatingChart';
-import { pickStreakLine, UPSET_DELTA_THRESHOLD } from '@/lib/commentary';
 import { MIN_MATCHES_FOR_LEADERBOARD } from '@/lib/constants';
-import { formatTimestamp } from '@/lib/format';
 import {
   fetchMatchHistory,
   fetchPlayerById,
@@ -30,20 +22,7 @@ import {
   type MatchHistoryItem,
 } from '@/lib/leaderboard';
 import type { PlayerWithRating } from '@/lib/types';
-import { radius, spacing, useTheme, type Colors } from '@/theme';
-
-// Count of leading same-result matches in a newest-first list — e.g. [W,W,W,L]
-// is a 3-match win streak.
-function currentStreak(matches: MatchHistoryItem[]): { count: number; kind: 'win' | 'loss' } | null {
-  if (matches.length === 0) return null;
-  const kind = matches[0].result;
-  let count = 0;
-  for (const m of matches) {
-    if (m.result !== kind) break;
-    count += 1;
-  }
-  return { count, kind };
-}
+import { spacing, useTheme, type Colors } from '@/theme';
 
 // Shared param shape (the route exists in both the Leaderboard and Profile
 // stacks, and both stacks have the How ratings work page).
@@ -98,11 +77,6 @@ export function PlayerProfileScreen() {
 
   const rating = player?.rating;
   const isRanked = (rating?.matches_played ?? 0) >= MIN_MATCHES_FOR_LEADERBOARD;
-  // Picked once per fresh match list, not on every re-render.
-  const streakLine = useMemo(() => {
-    const streak = currentStreak(matches);
-    return streak ? pickStreakLine(streak.count, streak.kind) : null;
-  }, [matches]);
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -122,16 +96,14 @@ export function PlayerProfileScreen() {
               {badge?.titleLabel && <Text style={styles.titleLabel}>{badge.titleLabel}</Text>}
             </View>
 
-            <View style={styles.statsRow}>
-              <Stat label="Rating" value={String(Math.round(rating?.rating ?? 1500))} />
-              <Stat
-                label="±RD"
-                value={String(Math.round(rating?.rd ?? 350))}
-                onInfoPress={() => navigation.navigate('HowRatingsWork')}
-              />
-              <Stat label="W–L" value={`${record.wins}–${record.losses}`} />
-              <Stat label="Season" value={String(seasonPoints)} />
-            </View>
+            <StatsRow
+              rating={rating?.rating ?? 1500}
+              rd={rating?.rd ?? 350}
+              wins={record.wins}
+              losses={record.losses}
+              seasonPoints={seasonPoints}
+              onInfoPress={() => navigation.navigate('HowRatingsWork')}
+            />
             {!isRanked && (
               <Text style={styles.unranked}>
                 Not ranked yet — players join the leaderboard after {MIN_MATCHES_FOR_LEADERBOARD}{' '}
@@ -151,84 +123,13 @@ export function PlayerProfileScreen() {
             <RatingChart points={history} />
 
             <Text style={styles.section}>Recent matches</Text>
-            {streakLine && (
-              <View style={styles.streakBanner}>
-                <Text style={styles.streakText}>{streakLine}</Text>
-              </View>
-            )}
-            {matches.length === 0 ? (
-              <Text style={styles.empty}>No matches yet.</Text>
-            ) : (
-              matches.map((m) => {
-                const isUpset = Math.abs(m.delta) >= UPSET_DELTA_THRESHOLD;
-                const gamesWon = m.games.filter((g) => g.myScore > g.opponentScore).length;
-                return (
-                  <View key={m.id} style={styles.matchRow}>
-                    <View style={[styles.badge, m.result === 'win' ? styles.badgeWin : styles.badgeLoss]}>
-                      <Text style={styles.badgeText}>{m.result === 'win' ? 'W' : 'L'}</Text>
-                    </View>
-                    <View style={styles.matchMain}>
-                      <View style={styles.opponentLine}>
-                        <Text style={styles.matchOpponent}>vs</Text>
-                        <Avatar uri={m.opponentAvatarUrl} name={m.opponentName} size={24} playerId={m.opponentId} />
-                        <Text style={[styles.matchOpponent, styles.opponentName]} numberOfLines={1}>
-                          {m.opponentName}
-                        </Text>
-                      </View>
-                      {m.games.length > 0 && (
-                        <Text style={styles.matchScore} numberOfLines={1}>
-                          <Text style={styles.matchOverall}>
-                            {gamesWon}–{m.games.length - gamesWon}
-                          </Text>
-                          {' · '}
-                          {m.games.map((g) => `${g.myScore}–${g.opponentScore}`).join(', ')}
-                        </Text>
-                      )}
-                      <Text style={styles.matchTime}>{formatTimestamp(m.at)}</Text>
-                    </View>
-                    {isUpset && (
-                      <Text style={styles.upsetTag}>{m.result === 'win' ? '🔥 SHOCKER' : '😱 SHOCKER'}</Text>
-                    )}
-                    <Text style={[styles.matchDelta, m.delta >= 0 ? styles.deltaUp : styles.deltaDown]}>
-                      {m.delta >= 0 ? '+' : ''}
-                      {Math.round(m.delta)}
-                    </Text>
-                  </View>
-                );
-              })
-            )}
+            <MatchHistoryList matches={matches} />
 
             {player && <TrophyCabinet playerId={player.id} isMe={!!meId && player.id === meId} />}
           </>
         )}
       </ScrollView>
     </SafeAreaView>
-  );
-}
-
-function Stat({
-  label,
-  value,
-  onInfoPress,
-}: {
-  label: string;
-  value: string;
-  onInfoPress?: () => void;
-}) {
-  const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
-  return (
-    <View style={styles.stat}>
-      <Text style={styles.statValue}>{value}</Text>
-      <View style={styles.statLabelRow}>
-        <Text style={styles.statLabel}>{label}</Text>
-        {onInfoPress && (
-          <Pressable onPress={onInfoPress} hitSlop={8}>
-            <Text style={styles.infoIcon}>ⓘ</Text>
-          </Pressable>
-        )}
-      </View>
-    </View>
   );
 }
 
@@ -239,20 +140,6 @@ function createStyles(colors: Colors) {
     header: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.md },
     name: { fontSize: 26, fontWeight: '700', color: colors.text },
     titleLabel: { color: colors.textMuted, fontSize: 14, fontStyle: 'italic', marginTop: 2 },
-    statsRow: { flexDirection: 'row', gap: spacing.sm },
-    stat: {
-      flex: 1,
-      backgroundColor: colors.surface,
-      borderRadius: radius.md,
-      paddingVertical: spacing.md,
-      alignItems: 'center',
-      borderWidth: 1,
-      borderColor: colors.border,
-    },
-    statValue: { color: colors.text, fontSize: 22, fontWeight: '700' },
-    statLabelRow: { flexDirection: 'row', alignItems: 'center', marginTop: 2, gap: 3 },
-    statLabel: { color: colors.textMuted, fontSize: 12 },
-    infoIcon: { color: colors.textMuted, fontSize: 12 },
     unranked: { color: colors.textMuted, fontSize: 13, marginTop: spacing.sm },
     section: {
       color: colors.textMuted,
@@ -262,43 +149,6 @@ function createStyles(colors: Colors) {
       marginTop: spacing.xl,
       marginBottom: spacing.sm,
     },
-    empty: { color: colors.textMuted, fontSize: 14 },
-    streakBanner: {
-      backgroundColor: colors.surfaceAlt,
-      borderRadius: radius.md,
-      borderWidth: 1,
-      borderColor: colors.accent,
-      padding: spacing.sm,
-      marginBottom: spacing.sm,
-    },
-    streakText: { color: colors.text, fontSize: 13, fontWeight: '600' },
-    upsetTag: {
-      color: colors.accent,
-      fontSize: 11,
-      fontWeight: '700',
-      marginRight: spacing.sm,
-    },
-    matchRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingVertical: spacing.sm,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
-    },
-    badge: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
-    badgeWin: { backgroundColor: colors.success },
-    badgeLoss: { backgroundColor: colors.danger },
-    badgeText: { color: colors.primaryText, fontWeight: '700', fontSize: 13 },
-    matchMain: { flex: 1, marginLeft: spacing.md },
-    opponentLine: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-    matchOpponent: { color: colors.text, fontSize: 15 },
-    opponentName: { flexShrink: 1 },
-    matchScore: { color: colors.textMuted, fontSize: 12, marginTop: 1 },
-    matchOverall: { color: colors.text, fontWeight: '700' },
-    matchTime: { color: colors.textMuted, fontSize: 11, marginTop: 1 },
-    matchDelta: { fontSize: 15, fontWeight: '600' },
-    deltaUp: { color: colors.success },
-    deltaDown: { color: colors.danger },
     error: { color: colors.danger, marginTop: spacing.lg },
   });
 }
