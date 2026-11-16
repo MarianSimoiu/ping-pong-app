@@ -148,6 +148,17 @@ export const demoMyProfile = (): PlayerWithRating => toProfile(byId(DEMO_ME)!);
 export function demoSetAvatar(uri: string): void {
   byId(DEMO_ME)!.avatarUrl = uri;
 }
+// The server's rules for a changed name (migration 0026), on the demo players.
+export function demoSetName(name: string): string {
+  const tidy = name.replace(/\s+/g, ' ').trim();
+  const length = [...tidy].length;
+  if (length < 2 || length > 30) throw new Error('A name needs 2 to 30 characters.');
+  if (players.some((p) => p.id !== DEMO_ME && p.name.toLowerCase() === tidy.toLowerCase())) {
+    throw new Error(`Someone already goes by ${tidy}. Add an initial or a nickname so people can tell you apart.`);
+  }
+  byId(DEMO_ME)!.name = tidy;
+  return tidy;
+}
 export const demoPlayerById = (id: string): PlayerWithRating | null => {
   const p = byId(id);
   return p ? toProfile(p) : null;

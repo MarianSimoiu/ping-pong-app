@@ -48,7 +48,8 @@ The schema is built up across migrations in `supabase/migrations`. Phase 1
 
 - **`players`** — `id`, `user_id` (→ `auth.users`), `display_name`, `avatar_url`,
   `created_at`. One row per authenticated user, auto-created on sign-up by the
-  `handle_new_user` trigger.
+  `handle_new_user` trigger. A player can update only their own row; a changed
+  `display_name` is tidied and checked by `0026_player_names.sql`.
 - **`player_ratings`** — current skill snapshot: `player_id`, `rating` (1500),
   `rd` (350), `volatility` (0.06), `matches_played`, `last_played_at`,
   `updated_at`.
@@ -312,9 +313,18 @@ its label, and scrolls sideways on a phone too narrow for all of them (320 px).
 
 The ⚙️ Settings button next to the Profile heading opens Settings
 (`screens/SettingsScreen.tsx`, `/profile/settings`), where the account and app
-settings live, off the profile page itself: who you're signed in as, Dark mode,
-the Notifications switch (web only), How ratings work, Install (while the
-browser can), and Sign out.
+settings live, off the profile page itself: your name (Edit changes it), who
+you're signed in as, Dark mode, the Notifications switch (web only), How
+ratings work, Install (while the browser can), and Sign out.
+
+Changing your name is a plain update of your own `players` row
+(`updateMyName` in `lib/players.ts`). A trigger from `0026_player_names.sql`
+tidies a changed name (any run of whitespace becomes one space, the ends are
+trimmed) and refuses one under 2 or over 30 characters, or one another player
+already has, whatever the case or spacing, so nobody can pass for someone
+else. The app shows the server's reason. Sign-ups aren't checked (a refusal
+there would fail the whole sign-up), and existing names stay as they are
+until their player changes them.
 
 ### Commentary
 
