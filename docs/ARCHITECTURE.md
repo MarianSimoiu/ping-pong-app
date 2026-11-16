@@ -95,7 +95,8 @@ casual play (`context = 'tournament'`). A tournament goes through:
    kickoff, any player registers or withdraws (`tournament-registration` →
    `register_for_tournament` / `withdraw_from_tournament`, which hold the
    rules; until `0020_open_registration.sql` only players on the leaderboard
-   could). The `tournament_live_pots` view splits the registered players into
+   could). Each sign-up is pushed to the admins (`announceRegistration`: who,
+   and how many are in; not to the player themselves). The `tournament_live_pots` view splits the registered players into
    pots by current rating, 1500 for a player with no rated match yet (4 pots
    from 8 players, else 2; ties to whoever registered first), so every player
    sees their pot change live. The tournament page

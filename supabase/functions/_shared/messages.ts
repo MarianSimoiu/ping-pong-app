@@ -115,6 +115,24 @@ export function tournamentOpened(o: { tournamentId: string; tournament: string }
   };
 }
 
+// To the admins when someone registers for a tournament that's open. Tagged
+// per player, so each sign-up alerts on its own (one with the same tag would
+// replace the last without a sound).
+export function tournamentRegistered(o: {
+  tournamentId: string;
+  tournament: string;
+  player: string;
+  playerId: string;
+  count: number; // registered now, them included
+}): PushMessage {
+  return {
+    title: `${o.tournament}: ${o.player} registered`,
+    body: `${o.count} ${o.count === 1 ? 'player' : 'players'} registered so far.`,
+    url: tournamentPage(o.tournamentId),
+    tag: `registered-${o.tournamentId}-${o.playerId}`,
+  };
+}
+
 // To each player once the draw is made: who they play first. `winnerOf` is
 // set instead of `opponent` after a round-1 bye whose next opponent comes from
 // a match still to play.
