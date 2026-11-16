@@ -4,6 +4,7 @@ import React from 'react';
 import { HowRatingsWorkScreen } from '@/screens/HowRatingsWorkScreen';
 import { PlayerProfileScreen } from '@/screens/PlayerProfileScreen';
 import { ProfileScreen } from '@/screens/ProfileScreen';
+import { SettingsScreen } from '@/screens/SettingsScreen';
 import { useTheme } from '@/theme';
 
 import type { ProfileStackParamList } from './types';
@@ -23,6 +24,7 @@ export function ProfileStack() {
       }}
     >
       <Stack.Screen name="Account" component={ProfileScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Settings' }} />
       <Stack.Screen
         name="PlayerProfile"
         component={PlayerProfileScreen}

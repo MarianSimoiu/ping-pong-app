@@ -30,9 +30,11 @@ export type LeaderboardStackParamList = {
 export type LeaderboardStackScreenProps<T extends keyof LeaderboardStackParamList> =
   NativeStackScreenProps<LeaderboardStackParamList, T>;
 
-// The Profile tab is a stack so "View my stats" can open the same profile screen.
+// The Profile tab is a stack: your profile -> Settings, How ratings work, or
+// another player's profile.
 export type ProfileStackParamList = {
   Account: undefined;
+  Settings: undefined;
   PlayerProfile: { playerId: string; displayName?: string };
   HowRatingsWork: undefined;
 };

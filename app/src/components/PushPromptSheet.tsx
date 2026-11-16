@@ -17,9 +17,9 @@ const OPEN_DELAY_MS = 4000;
 // "Turn on notifications?" (web only): a few seconds after the app opens, for
 // a signed-in player whose notifications are off on this device. Not shown
 // while snoozed ("Not now": 3 days), once they're on, when they're blocked or
-// unsupported (Profile explains those), or in a visit with the install or
-// tier popup.
-// The Notifications switch in Profile does the same thing.
+// unsupported (Profile → Settings explains those), or in a visit with the
+// install or tier popup.
+// The Notifications switch in Profile → Settings does the same thing.
 export function PushPromptSheet() {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -57,7 +57,7 @@ export function PushPromptSheet() {
       const status = await turnOnPush(userId);
       setOpen(false);
       if (status === 'on') {
-        showAlert('Notifications are on', 'You can turn them off any time in Profile.');
+        showAlert('Notifications are on', 'You can turn them off any time in Profile → Settings.');
       } else if (status === 'blocked') {
         showAlert('Notifications blocked', 'You can allow them for this app in your browser or phone settings.');
       } else {
