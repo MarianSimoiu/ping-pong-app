@@ -93,8 +93,8 @@ Deno.test('new match times are told to both players, once', async () => {
   const send = (_: SupabaseClient, notes: Note[]) => (sent.push(...notes), Promise.resolve());
   await announceSchedules(db, 't1', {}, send);
   assertEquals(sent.map((n) => [n.playerId, n.message.title, n.message.body]), [
-    ['ana', 'Winter Cup: your semifinal', "You play Ben on Tue 17 Nov, 11:00. Can't make it? Propose another time in the app."],
-    ['ben', 'Winter Cup: your semifinal', "You play Ana on Tue 17 Nov, 11:00. Can't make it? Propose another time in the app."],
+    ['ana', 'Winter Cup: your semifinal', "You play Ben on Tue 17 Nov, 11:00, or earlier if you're both ready and the table's free. Can't make it? Propose another time."],
+    ['ben', 'Winter Cup: your semifinal', "You play Ana on Tue 17 Nov, 11:00, or earlier if you're both ready and the table's free. Can't make it? Propose another time."],
   ]);
   assertEquals(tables.tournament_matches[0].schedule_announced, true);
 

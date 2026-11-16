@@ -136,15 +136,15 @@ Deno.test('match times: in the draw message, scheduled, moved, proposed, decline
   const at = '2026-11-16T09:00:00Z'; // Monday 11:00 in Bucharest
   assertEquals(
     tournamentDrawn({ ...t, round: 1, opponent: 'Alin', winnerOf: null, at }).body,
-    'Round 1: you play Alin on Mon 16 Nov, 11:00. Good luck!',
+    "Round 1: you play Alin on Mon 16 Nov, 11:00, or earlier if you're both ready and the table's free. Good luck!",
   );
   assertEquals(
     tournamentDrawn({ ...t, round: 2, opponent: 'Ana', winnerOf: null, at }).body,
-    'You have a bye in round 1, then you play Ana on Mon 16 Nov, 11:00.',
+    "You have a bye in round 1, then you play Ana on Mon 16 Nov, 11:00, or earlier if you're both ready and the table's free.",
   );
   assertEquals(matchScheduled({ ...t, match: 'semifinal', opponent: 'Ana', at, moved: false }), {
     title: 'Winter Cup: your semifinal',
-    body: "You play Ana on Mon 16 Nov, 11:00. Can't make it? Propose another time in the app.",
+    body: "You play Ana on Mon 16 Nov, 11:00, or earlier if you're both ready and the table's free. Can't make it? Propose another time.",
     url: '/tournaments/t1',
     tag: 'match-time-t1',
   });

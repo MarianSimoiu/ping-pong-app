@@ -22,6 +22,7 @@ import {
   isOverdue,
   pickableDays,
   proposalDays,
+  slotMinutes,
 } from '@/lib/schedule';
 import {
   answerMatchTime,
@@ -544,6 +545,11 @@ export function TournamentDetailScreen({ route, navigation }: TournamentsStackSc
           {ready && node.scheduledAt && (
             <Text style={[styles.when, overdue && styles.whenOverdue]}>🗓 {formatMatchTime(node.scheduledAt, clock)}</Text>
           )}
+          {ready && node.scheduledAt && !overdue && (
+            <Text style={styles.flexibleNote}>
+              Flexible: if you're both ready earlier, go to the table and play if it's free.
+            </Text>
+          )}
           {overdue && (
             <Text style={styles.cardText}>
               It wasn't played on its day. Play it and record the result soon: the organizer has been told and decides
@@ -804,8 +810,10 @@ export function TournamentDetailScreen({ route, navigation }: TournamentsStackSc
         {renderOverdue()}
         {tournament.status === 'active' && roundDays.length > 0 && (
           <Text style={styles.scheduleHint}>
-            🗓 One table, 11:00 to 18:00 Bucharest time. Each match gets the first free slot on its round's days as
-            soon as both players are known; the two players can agree another time, up to a day later.
+            🗓 One table, 11:00 to 18:00 Bucharest time. Matches are lined up back to back on their round's days,{' '}
+            {slotMinutes(tournament.bestOf)} minutes each, as soon as both players are known. The times are
+            flexible: if you're both ready earlier, play when the table's free; or agree another time, up to a day
+            later.
           </Text>
         )}
 
@@ -996,6 +1004,7 @@ function createStyles(colors: Colors, dark = false) {
     versus: { color: colors.text, fontSize: 22, fontWeight: '800' },
     when: { color: colors.text, fontSize: 16, fontWeight: '700' },
     whenOverdue: { color: colors.danger },
+    flexibleNote: { color: colors.textMuted, fontSize: 13, lineHeight: 18, marginTop: 2 },
     proposal: {
       backgroundColor: colors.surfaceAlt,
       borderRadius: radius.sm,

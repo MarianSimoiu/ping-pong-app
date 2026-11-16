@@ -696,8 +696,9 @@ function advance(t: TStore, node: TournamentNode, winner: string): void {
 }
 
 // --- when matches are played -------------------------------------------------
-// Mirrors 0018: one round per weekday from the draw, each match the first free
-// slot on the one table (11:00-18:00), players propose another time up to a
+// Mirrors 0018 and 0027: one round per weekday from the draw, each match the
+// first free time on the one table (11:00-18:00, back to back, tried 5 minutes
+// apart), players propose another time up to a
 // day after the planned one and the other answers, admins move matches, set
 // round dates and give walkovers. You're an admin here; nobody answers your
 // proposals.
@@ -752,7 +753,7 @@ function scheduleMatches(t: TStore): void {
     for (let tries = 0; tries < 400 && !n.scheduledAt; tries++, day = addDays(day, 1)) {
       if (day > r.endsOn && isWeekend(day)) continue;
       const closes = clubMoment(day, CLUB_CLOSES).getTime();
-      for (let at = clubMoment(day, CLUB_OPENS).getTime(); at + len <= closes; at += 15 * 60_000) {
+      for (let at = clubMoment(day, CLUB_OPENS).getTime(); at + len <= closes; at += 5 * 60_000) {
         if (at >= now + 15 * 60_000 && !clash(n.id, at, len)) {
           Object.assign(n, { scheduledAt: new Date(at).toISOString(), plannedOn: day, proposedAt: null, proposedBy: null });
           break;

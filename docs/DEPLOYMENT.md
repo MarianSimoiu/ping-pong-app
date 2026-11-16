@@ -121,6 +121,7 @@ Otherwise the link lands on the wrong page and the reset can't finish.
 | `0024_farmer.sql` | the Farmer 🌾 title: play 10+ rated singles matches against the same player and win at least 80% of them (`farmer_min_matches()`, `farmer_min_percent()`). Matches already played count; not marked as announced, so a player who already qualifies hears about it with their next match |
 | `0025_supernova_unlucky.sql` | two tournament titles: Supernova 🌟 (win 3 tournaments in a row, counting the ones a player takes part in, so skipping one doesn't break the run) and Unlucky 🎲 (lose the first match you play in a tournament; byes and walkovers aren't played matches). Tournaments already played count; not marked as announced, so a player who already qualifies hears about it with their next match |
 | `0026_player_names.sql` | players change their name from Profile → Settings: a trigger tidies a changed `display_name` (whitespace runs made one space, ends trimmed) and refuses one under 2 or over 30 characters, or another player's (ignoring case and spacing). Sign-ups and existing names aren't touched |
+| `0027_match_lengths.sql` | shorter tournament match slots, back to back from 11:00: 15 minutes at best of 1, 20 at best of 3, 25 at best of 5, 30 at best of 7 (was 30, 30, 45, 60); start times tried 5 minutes apart (was 15). Matches that already have a time keep it |
 
 ### Club time zone
 
@@ -138,15 +139,17 @@ language sql immutable as $$ select 'Europe/London'::text $$;
 ### Tournament match times
 
 From `0018`, tournament matches have times, on one table, between 11:00 and
-18:00 club time (`club_opens()`, `club_closes()`), never overlapping: a match
-takes 30 minutes at best of 3, 45 at best of 5 (`match_slot()`).
+18:00 club time (`club_opens()`, `club_closes()`), back to back and never
+overlapping: since `0027` a match takes 15 minutes at best of 1, 20 at best of
+3, 25 at best of 5 and 30 at best of 7 (`match_slot()`). The time is flexible:
+players who are both ready earlier play when the table's free.
 
 - **Round days.** At the draw each round gets a day: one round per weekday,
   starting the weekday after the draw. An admin changes a round's days on the
   tournament page (Edit next to the round); its matches outside the new days
   get new times in them.
 - **Match times.** As soon as both players of a match are known (the draw, a
-  result, a walkover), it gets the first free slot on its round's days, and
+  result, a walkover), it gets the first free time on its round's days, and
   both players are notified.
 - **Players** can propose another time: 11:00 to 18:00, from today up to one
   day after the day it was set for. The opponent accepts (the match moves) or

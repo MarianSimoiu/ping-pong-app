@@ -7,13 +7,13 @@
 export const CLUB_TIME_ZONE = 'Europe/Bucharest';
 export const CLUB_OPENS = '11:00';
 export const CLUB_CLOSES = '18:00';
-// The times offered when picking: on the hour and half hour.
-const PICK_STEP_MINUTES = 30;
 // How far ahead an admin can move a match from the app.
 const ADMIN_DAYS = 21;
 
-// How long a match takes on the table, in minutes.
-export const slotMinutes = (bestOf: number): number => (bestOf <= 3 ? 30 : bestOf === 5 ? 45 : 60);
+// How long a match holds the table, in minutes (match_slot, migration 0027).
+// The time is when it's planned, not an appointment: two players who are both
+// ready earlier just play, if the table's free.
+export const slotMinutes = (bestOf: number): number => (bestOf <= 1 ? 15 : bestOf <= 3 ? 20 : bestOf <= 5 ? 25 : 30);
 
 const clubFormat = new Intl.DateTimeFormat('en-GB', {
   timeZone: CLUB_TIME_ZONE,
@@ -116,12 +116,13 @@ export function adminDays(now: Date | number = Date.now()): string[] {
   return Array.from({ length: ADMIN_DAYS }, (_, i) => addDays(today, i));
 }
 
-// The start times offered for a day: 11:00, 11:30, … up to the last one that
-// ends by closing time.
+// The start times offered for a day: back to back from opening, one match
+// apart (11:00, 11:20, 11:40, … at best of 3), as the matches are lined up,
+// up to the last one that ends by closing time.
 export function startTimes(bestOf: number): string[] {
   const len = slotMinutes(bestOf);
   const out: string[] = [];
-  for (let m = minutes(CLUB_OPENS); m + len <= minutes(CLUB_CLOSES); m += PICK_STEP_MINUTES) {
+  for (let m = minutes(CLUB_OPENS); m + len <= minutes(CLUB_CLOSES); m += len) {
     out.push(`${pad(Math.floor(m / 60))}:${pad(m % 60)}`);
   }
   return out;

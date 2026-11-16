@@ -133,6 +133,10 @@ export function tournamentRegistered(o: {
   };
 }
 
+// A match's time is when it's planned, not an appointment: two players who
+// are both ready earlier just play, if the table's free.
+const orEarlier = ", or earlier if you're both ready and the table's free";
+
 // To each player once the draw is made: who they play first. `winnerOf` is
 // set instead of `opponent` after a round-1 bye whose next opponent comes from
 // a match still to play.
@@ -145,7 +149,7 @@ export function tournamentDrawn(o: {
   at?: string | null; // that match's time, once it has one
 }): PushMessage {
   const next = o.opponent ? o.opponent : o.winnerOf ? `the winner of ${o.winnerOf[0]} v ${o.winnerOf[1]}` : null;
-  const when = o.at ? ` on ${clubTime(o.at)}` : '';
+  const when = o.at ? ` on ${clubTime(o.at)}${orEarlier}` : '';
   let body: string;
   if (o.round === 1 && next) body = `Round 1: you play ${next}${when}. Good luck!`;
   else if (next) body = `You have a bye in round 1, then you play ${next}${when}.`;
@@ -173,7 +177,7 @@ export function matchScheduled(o: {
     title: o.moved ? `${o.tournament}: your ${o.match} moved` : `${o.tournament}: your ${o.match}`,
     body: o.moved
       ? `You play ${o.opponent} on ${clubTime(o.at)} now.`
-      : `You play ${o.opponent} on ${clubTime(o.at)}. Can't make it? Propose another time in the app.`,
+      : `You play ${o.opponent} on ${clubTime(o.at)}${orEarlier}. Can't make it? Propose another time.`,
     url: tournamentPage(o.tournamentId),
     tag: `match-time-${o.tournamentId}`,
   };

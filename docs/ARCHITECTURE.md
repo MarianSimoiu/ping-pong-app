@@ -130,10 +130,14 @@ casual play (`context = 'tournament'`). A tournament goes through:
 **When matches are played** (`0018_match_schedule.sql`). At the draw,
 `tournament_rounds` gives each round a day (one per weekday from the next
 one). Triggers on `tournaments` and `tournament_matches` give every match
-whose two players are known the first free slot on its round's days
+whose two players are known the first free time on its round's days
 (`schedule_tournament_matches`): one table, 11:00–18:00 club time, matches
-never overlapping (30 minutes at best of 3, 45 at best of 5), so the draw,
-each result and each walkover schedule the next matches. `match-schedule`
+back to back and never overlapping (`0027_match_lengths.sql`: 15 minutes at
+best of 1, 20 at best of 3, 25 at best of 5, 30 at best of 7; start times
+tried 5 minutes apart), so the draw, each result and each walkover schedule
+the next matches. A time is a plan, not an appointment: two players who are
+both ready earlier play when the table's free (the app and the
+notifications say so); nothing stops a result being recorded before it. `match-schedule`
 carries the rest, each step an RPC that checks the rules and says why it
 refuses: a player proposes another time (from today until a day after the
 planned day; `propose_match_time`), the opponent accepts or declines, or the

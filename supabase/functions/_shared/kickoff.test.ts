@@ -179,8 +179,8 @@ Deno.test('the draw announcement tells each player who they play first, by name'
   const body = (id: string) => sent.find((n) => n.playerId === id)?.message.body;
   assertEquals(sent.length, 5);
   assertEquals(body('Ana'), 'You have a bye in round 1, then you play the winner of Dan v Eva.');
-  assertEquals(body('Ben'), 'You have a bye in round 1, then you play Cris on Tue 17 Nov, 11:30.');
-  assertEquals(body('Dan'), 'Round 1: you play Eva on Mon 16 Nov, 11:00. Good luck!');
+  assertEquals(body('Ben'), "You have a bye in round 1, then you play Cris on Tue 17 Nov, 11:30, or earlier if you're both ready and the table's free.");
+  assertEquals(body('Dan'), "Round 1: you play Eva on Mon 16 Nov, 11:00, or earlier if you're both ready and the table's free. Good luck!");
   assert(sent.every((n) => n.message.title === 'Winter Cup: the draw is out' && n.message.url === '/tournaments/t1'));
 
   // A database failure is logged, never thrown.
