@@ -1,11 +1,12 @@
 import { useFocusEffect } from '@react-navigation/native';
 import React, { useCallback, useMemo, useState } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/context/AuthContext';
 import { openInstall, useInstall } from '@/lib/install';
 import { showAlert } from '@/lib/platformAlert';
+import { fetchMyProfile, NAME_MAX_LENGTH, nameFits, tidyName, updateMyName } from '@/lib/players';
 import { getPushStatus, turnOffPush, turnOnPush, type PushStatus } from '@/lib/push';
 import type { ProfileStackScreenProps } from '@/navigation/types';
 import { radius, spacing, useTheme, type Colors } from '@/theme';
@@ -18,9 +19,9 @@ const PUSH_HINTS: Record<PushStatus, string> = {
   unsupported: 'This browser can’t show notifications.',
 };
 
-// Profile → Settings, the one place for these: who you're signed in as, dark
-// mode, notifications, how ratings work (and installing the app, where the
-// browser can), and signing out.
+// Profile → Settings, the one place for these: your name (and changing it),
+// who you're signed in as, dark mode, notifications, how ratings work (and
+// installing the app, where the browser can), and signing out.
 export function SettingsScreen({ navigation }: ProfileStackScreenProps<'Settings'>) {
   const { colors, scheme, setDarkMode } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -29,13 +30,39 @@ export function SettingsScreen({ navigation }: ProfileStackScreenProps<'Settings
   const [busy, setBusy] = useState(false);
   const [push, setPush] = useState<PushStatus | null>(null);
   const [pushBusy, setPushBusy] = useState(false);
+  const [name, setName] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState(false);
+  const [draft, setDraft] = useState('');
+  const [savingName, setSavingName] = useState(false);
 
   // On every visit: also catches a permission changed in the phone's settings meanwhile.
   useFocusEffect(
     useCallback(() => {
       getPushStatus().then(setPush, () => setPush('unsupported'));
-    }, []),
+      if (session) fetchMyProfile(session.user.id).then((p) => p && setName(p.display_name), () => {});
+    }, [session]),
   );
+
+  const draftLength = [...tidyName(draft)].length;
+  const canSaveName = !savingName && nameFits(draft) && tidyName(draft) !== name;
+
+  function startEditingName() {
+    setDraft(name ?? '');
+    setEditingName(true);
+  }
+
+  async function handleSaveName() {
+    if (!session || !canSaveName) return;
+    setSavingName(true);
+    try {
+      setName(await updateMyName(session.user.id, draft));
+      setEditingName(false);
+    } catch (e) {
+      showAlert('Couldn’t change your name', e instanceof Error ? e.message : 'Something went wrong');
+    } finally {
+      setSavingName(false);
+    }
+  }
 
   async function handlePushToggle(on: boolean) {
     if (!session) return;
@@ -75,9 +102,74 @@ export function SettingsScreen({ navigation }: ProfileStackScreenProps<'Settings
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.groupLabel}>Account</Text>
         <View style={styles.group}>
-          <View style={styles.row}>
+          {editingName ? (
+            <View style={styles.editName}>
+              <Text style={styles.rowLabel}>Name</Text>
+              <TextInput
+                style={styles.input}
+                value={draft}
+                onChangeText={setDraft}
+                autoFocus
+                autoCapitalize="words"
+                autoCorrect={false}
+                maxLength={NAME_MAX_LENGTH}
+                returnKeyType="done"
+                onSubmitEditing={handleSaveName}
+                editable={!savingName}
+                placeholder="Your name"
+                placeholderTextColor={colors.textMuted}
+                accessibilityLabel="Name"
+              />
+              <View style={styles.editNameHint}>
+                <Text style={[styles.rowHint, styles.rowText]}>
+                  Everyone sees it: on the leaderboard, in matches and tournaments.
+                </Text>
+                <Text style={[styles.rowHint, !nameFits(draft) && styles.tooLong]}>
+                  {draftLength}/{NAME_MAX_LENGTH}
+                </Text>
+              </View>
+              <View style={styles.editNameButtons}>
+                <Pressable
+                  style={styles.cancelButton}
+                  onPress={() => setEditingName(false)}
+                  disabled={savingName}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.saveButton, !canSaveName && { opacity: 0.5 }]}
+                  onPress={handleSaveName}
+                  disabled={!canSaveName}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.saveButtonText}>{savingName ? 'Saving…' : 'Save'}</Text>
+                </Pressable>
+              </View>
+            </View>
+          ) : (
+            <View style={styles.row}>
+              <View style={styles.rowText}>
+                <Text style={styles.rowLabel}>Name</Text>
+                <Text style={styles.rowTitle} numberOfLines={1}>
+                  {name ?? '…'}
+                </Text>
+              </View>
+              {name !== null && (
+                <Pressable
+                  onPress={startEditingName}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Edit name"
+                >
+                  <Text style={styles.editLink}>Edit</Text>
+                </Pressable>
+              )}
+            </View>
+          )}
+          <View style={[styles.row, styles.rowDivider]}>
             <View style={styles.rowText}>
-              <Text style={styles.rowHint}>Signed in as</Text>
+              <Text style={styles.rowLabel}>Signed in as</Text>
               <Text style={styles.rowTitle} numberOfLines={1}>
                 {session?.user.email}
               </Text>
@@ -166,8 +258,43 @@ function createStyles(colors: Colors) {
     rowDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
     rowText: { flex: 1 },
     rowTitle: { color: colors.text, fontSize: 16 },
+    rowLabel: { color: colors.textMuted, fontSize: 13, lineHeight: 18, marginBottom: 2 },
     rowHint: { color: colors.textMuted, fontSize: 13, lineHeight: 18, marginTop: 2 },
     chevron: { color: colors.textMuted, fontSize: 22, lineHeight: 22 },
+    editLink: { color: colors.primary, fontSize: 15, fontWeight: '600' },
+    editName: { paddingVertical: spacing.md },
+    input: {
+      backgroundColor: colors.surfaceAlt,
+      borderRadius: radius.sm,
+      borderWidth: 1,
+      borderColor: colors.border,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm + 2,
+      color: colors.text,
+      fontSize: 16,
+      marginTop: spacing.xs,
+    },
+    editNameHint: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md, marginTop: spacing.xs },
+    tooLong: { color: colors.danger, fontWeight: '600' },
+    editNameButtons: { flexDirection: 'row', justifyContent: 'flex-end', gap: spacing.sm, marginTop: spacing.md },
+    cancelButton: {
+      backgroundColor: colors.surfaceAlt,
+      borderRadius: radius.sm,
+      borderWidth: 1,
+      borderColor: colors.border,
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.md,
+    },
+    cancelButtonText: { color: colors.text, fontWeight: '600' },
+    saveButton: {
+      backgroundColor: colors.primary,
+      borderRadius: radius.sm,
+      borderWidth: 1, // as tall as Cancel
+      borderColor: colors.primary,
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.md,
+    },
+    saveButtonText: { color: colors.primaryText, fontWeight: '600' },
     signOut: {
       backgroundColor: colors.surfaceAlt,
       borderRadius: radius.md,
