@@ -19,8 +19,10 @@ type Tab = 'titles' | 'trophies';
 // their progress, and (on their own profile) which earned title to show under
 // their name. Trophies: the trophy for each tournament they won, the medals
 // for their other podiums (silver for a lost final, bronze for a lost
-// semifinal), and the crown while they lead the season points.
-export function TrophyCabinet({ playerId, isMe }: { playerId: string; isMe: boolean }) {
+// semifinal), and the crown while they lead the season points. `heading:
+// false` leaves out its "Titles and trophies" heading (your own Profile shows it
+// under an Awards tab instead).
+export function TrophyCabinet({ playerId, isMe, heading = true }: { playerId: string; isMe: boolean; heading?: boolean }) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const badge = useBadge(playerId);
@@ -44,7 +46,7 @@ export function TrophyCabinet({ playerId, isMe }: { playerId: string; isMe: bool
   const leader = badge?.seasonLeader ?? false;
   return (
     <View>
-      <Text style={styles.section}>Titles and trophies</Text>
+      {heading && <Text style={styles.section}>Titles and trophies</Text>}
       <SegmentedTabs
         items={[
           { key: 'titles', label: 'Titles', count: trophies.titles.length },
