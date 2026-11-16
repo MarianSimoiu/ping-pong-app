@@ -119,6 +119,7 @@ Otherwise the link lands on the wrong page and the reset can't finish.
 | `0022_unanswered_matches.sql` | the `unanswered_matches` view: how many pending matches wait on each player to confirm or decline (singles they didn't record; doubles the other team recorded, for both opponents), shown on the leaderboard |
 | `0023_giant_slayer_min_matches.sql` | Giant Slayer counts only a win over someone who had already played 10 rated singles matches (`giant_slayer_min_matches()`). Whoever had it only from beating newcomers loses it: cleared from under their name, and announced again when earned for real |
 | `0024_farmer.sql` | the Farmer 🌾 title: play 10+ rated singles matches against the same player and win at least 80% of them (`farmer_min_matches()`, `farmer_min_percent()`). Matches already played count; not marked as announced, so a player who already qualifies hears about it with their next match |
+| `0025_supernova_unlucky.sql` | two tournament titles: Supernova 🌟 (win 3 tournaments in a row, counting the ones a player takes part in, so skipping one doesn't break the run) and Unlucky 🎲 (lose the first match you play in a tournament; byes and walkovers aren't played matches). Tournaments already played count; not marked as announced, so a player who already qualifies hears about it with their next match |
 
 ### Club time zone
 
