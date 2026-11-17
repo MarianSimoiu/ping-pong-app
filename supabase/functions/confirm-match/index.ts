@@ -1,19 +1,34 @@
 // Edge Function: confirm-match
 //
-// The opponent confirms or declines a pending casual match. Only the participant
-// who did NOT submit it may act. On confirm, ratings are computed NOW (using
+// The opponent confirms or declines a pending match. Only the participant who
+// did NOT submit it may act. On confirm, ratings are computed NOW (using
 // current values + the repeat-opponent guard) and applied atomically; on
 // decline, the match is marked rejected and never affects ratings. Either way
 // the player who recorded it gets a push notification.
+//
+// A tournament result (migration 0028: one player recorded it) goes the same
+// way, with the tournament's rules: no repeat-opponent damping, and on
+// confirm the bracket moves on (confirm_tournament_result), the winner's next
+// match gets its time and, after the final, season points are awarded. On
+// decline the match is still to be recorded (reject_match frees it).
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
 import { corsHeaders, jsonResponse } from '../_shared/cors.ts';
 import { repeatFactor } from '../_shared/glicko2.ts';
 import { computeRatingUpdate, roundRating, type RatingRow } from '../_shared/engine.ts';
-import { gamesWon, singlesConfirmed, singlesDeclined } from '../_shared/messages.ts';
+import {
+  gamesWon,
+  singlesConfirmed,
+  singlesDeclined,
+  tournamentResultConfirmed,
+  tournamentResultDeclined,
+} from '../_shared/messages.ts';
 import { afterResponse, notifyPlayers } from '../_shared/notify.ts';
 import { announceRewards } from '../_shared/rewards.ts';
+import { matchName } from '../_shared/rounds.ts';
+import { announceSchedules } from '../_shared/schedule.ts';
+import { awardSeasonPoints } from '../_shared/season.ts';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -50,7 +65,7 @@ Deno.serve(async (req) => {
 
     const { data: match, error: mErr } = await admin
       .from('matches')
-      .select('id, player_a, player_b, winner_id, best_of, created_by, status')
+      .select('id, player_a, player_b, winner_id, best_of, created_by, status, context, tournament_id, round')
       .eq('id', matchId)
       .single();
     if (mErr || !match) return jsonResponse({ error: 'Match not found' }, 404);
@@ -74,10 +89,35 @@ Deno.serve(async (req) => {
       theirGames: submitterIsA ? games.b : games.a,
     };
 
+    // A tournament result: which tournament and match, for the messages.
+    const inTournament = match.context === 'tournament' && !!match.tournament_id;
+    let tournament: { id: string; name: string; size: number } | null = null;
+    if (inTournament) {
+      const { data: t, error: tErr } = await admin
+        .from('tournaments')
+        .select('id, name, size')
+        .eq('id', match.tournament_id)
+        .single();
+      if (tErr || !t) return jsonResponse({ error: 'Tournament not found' }, 404);
+      tournament = t;
+    }
+    const tournamentResult = tournament && {
+      ...submitterResult,
+      tournamentId: tournament.id,
+      tournament: tournament.name,
+      match: matchName(match.round ?? 1, Math.log2(tournament.size)),
+    };
+
     if (action === 'decline') {
       const { error: rejErr } = await admin.rpc('reject_match', { match_id: matchId });
       if (rejErr) return jsonResponse({ error: rejErr.message }, 500);
-      await afterResponse(notifyPlayers(admin, [match.created_by], singlesDeclined(submitterResult)));
+      await afterResponse(
+        notifyPlayers(
+          admin,
+          [match.created_by],
+          tournamentResult ? tournamentResultDeclined(tournamentResult) : singlesDeclined(submitterResult),
+        ),
+      );
       return jsonResponse({ status: 'rejected' });
     }
 
@@ -92,38 +132,54 @@ Deno.serve(async (req) => {
     const aRow = ratingRows.find((r) => r.player_id === match.player_a) as RatingRow;
     const bRow = ratingRows.find((r) => r.player_id === match.player_b) as RatingRow;
 
-    // Repeat-opponent guard: confirmed H2H games between the pair in the last 24h.
-    const since = new Date(Date.now() - DAY_MS).toISOString();
-    const { count: priorToday } = await admin
-      .from('matches')
-      .select('id', { count: 'exact', head: true })
-      .eq('status', 'confirmed')
-      .gte('played_at', since)
-      .or(
-        `and(player_a.eq.${match.player_a},player_b.eq.${match.player_b}),` +
-          `and(player_a.eq.${match.player_b},player_b.eq.${match.player_a})`,
-      );
-    const factor = repeatFactor(priorToday ?? 0);
+    // Repeat-opponent guard: confirmed H2H games between the pair in the last
+    // 24h. Tournament matches always count in full.
+    let factor = 1;
+    if (!tournament) {
+      const since = new Date(Date.now() - DAY_MS).toISOString();
+      const { count: priorToday } = await admin
+        .from('matches')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'confirmed')
+        .gte('played_at', since)
+        .or(
+          `and(player_a.eq.${match.player_a},player_b.eq.${match.player_b}),` +
+            `and(player_a.eq.${match.player_b},player_b.eq.${match.player_a})`,
+        );
+      factor = repeatFactor(priorToday ?? 0);
+    }
 
     const aWon = match.winner_id === match.player_a;
     const update = computeRatingUpdate({ aRow, bRow, aWon, factor, now: new Date() });
 
-    const { error: confirmErr } = await admin.rpc('confirm_match', {
+    // A tournament result also completes the bracket match and moves the winner on.
+    const { error: confirmErr } = await admin.rpc(tournament ? 'confirm_tournament_result' : 'confirm_match', {
       payload: { match_id: matchId, events: update.events, ratings: update.ratings },
     });
     if (confirmErr) return jsonResponse({ error: confirmErr.message }, 500);
 
     const submitterBefore = submitterIsA ? update.aBefore : update.bBefore;
     const submitterAfter = submitterIsA ? update.aAfter : update.bAfter;
+    const change = {
+      delta: Math.round(submitterAfter.rating - submitterBefore.rating),
+      rating: Math.round(submitterAfter.rating),
+    };
     await afterResponse(
-      notifyPlayers(admin, [match.created_by], singlesConfirmed({
-        ...submitterResult,
-        delta: Math.round(submitterAfter.rating - submitterBefore.rating),
-        rating: Math.round(submitterAfter.rating),
-      })),
+      notifyPlayers(
+        admin,
+        [match.created_by],
+        tournamentResult
+          ? tournamentResultConfirmed({ ...tournamentResult, ...change })
+          : singlesConfirmed({ ...submitterResult, ...change }),
+      ),
     );
     // A tier promotion for either player.
     await afterResponse(announceRewards(admin, [match.player_a, match.player_b]));
+    if (tournament) {
+      // The winner's next match time; season points if that was the final.
+      await afterResponse(announceSchedules(admin, tournament.id));
+      await awardSeasonPoints(admin, tournament.id);
+    }
 
     // The caller is always the confirming (non-submitting) participant, but
     // may be either side of the match — surface their own before/after and

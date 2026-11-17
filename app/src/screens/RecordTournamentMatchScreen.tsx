@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useBadges } from '@/context/BadgesContext';
 import type { RawGameInput } from '@/lib/matches';
+import { showAlert } from '@/lib/platformAlert';
 import { recordTournamentMatch } from '@/lib/tournaments';
 import type { TournamentsStackScreenProps } from '@/navigation/types';
 import { radius, spacing, useTheme, type Colors } from '@/theme';
@@ -57,8 +58,16 @@ export function RecordTournamentMatchScreen({
     }
     setSubmitting(true);
     try {
-      await recordTournamentMatch({ tournamentMatchId, games });
-      refreshBadges(); // the result can move tiers
+      const recorded = await recordTournamentMatch({ tournamentMatchId, games });
+      if (recorded.status === 'pending') {
+        // A player's result counts once their opponent confirms it (0028).
+        showAlert(
+          'Sent to confirm',
+          `${recorded.waitingFor ?? 'Your opponent'} has to confirm the score before it counts. They've been told.`,
+        );
+      } else {
+        refreshBadges(); // the organizer's result counts now, and can move tiers
+      }
       navigation.goBack();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to record match');

@@ -119,13 +119,26 @@ casual play (`context = 'tournament'`). A tournament goes through:
    4 players nothing happens: registration is closed and the admin moves the
    kickoff or cancels (`manage-tournament` → `reschedule_tournament` /
    `cancel_tournament`, registered players are notified).
-3. **Play** (`active` → `completed`). `submit-tournament-match` records a
-   ready node's result through the shared rating engine, then
-   `apply_tournament_result` completes the node and advances the winner — or
-   finishes the tournament on the final, which awards season points
-   (`_shared/season.ts`). The rating orchestration lives in
-   `_shared/engine.ts`, shared by both `submit-match` and
-   `submit-tournament-match`.
+3. **Play** (`active` → `completed`). A result counts once both players
+   agree on it (`0028_tournament_confirmation.sql`), like a casual match.
+   When one of the two players records it, `submit-tournament-match` stores
+   it as a pending match (`record_tournament_result`: context `tournament`,
+   linked from the node's `pending_match_id`) and the other is notified;
+   the node stays ready, and the bracket shows the score with ⏳. The other
+   confirms or declines it through `confirm-match`, which for a tournament
+   result runs the shared rating engine without repeat-opponent damping,
+   then `confirm_tournament_result` completes the node and advances the
+   winner (`advance_tournament_winner`), or finishes the tournament on the
+   final, which awards season points (`_shared/season.ts`); declining
+   (`reject_match`) leaves the match still to be recorded. The recorder is
+   told either way. A result the organizer or an admin records, not as one
+   of the players, counts straight away (`apply_tournament_result`) and
+   replaces one still waiting, as a walkover does; both players are told.
+   Pending results show in the same "awaiting confirmation" lists as casual
+   ones, labelled with the tournament, and count as unanswered matches. A
+   match still unconfirmed the day after its date reaches the admins as
+   such. The rating orchestration lives in `_shared/engine.ts`, shared by
+   `confirm-match` and `submit-tournament-match`.
 
 **When matches are played** (`0018_match_schedule.sql`). At the draw,
 `tournament_rounds` gives each round a day (one per weekday from the next

@@ -140,3 +140,22 @@ Deno.test('matches not played by the day after their date: every admin is told, 
   await announceOverdue(fakeDb(tables), now, send);
   assertEquals(sent.length, 4, 'told once');
 });
+
+Deno.test('an overdue match with a result one player recorded: the admins hear who is still to confirm it', async () => {
+  const now = new Date('2026-11-18T08:00:00Z');
+  const tables = {
+    admins: [{ player_id: 'dan' }],
+    tournaments: [{ id: 't1', name: 'Winter Cup', size: 4 }],
+    players,
+    matches: [{ id: 'r1', created_by: 'ben' }],
+    tournament_matches: [match('m1', 1, 'ana', 'ben', '2026-11-16T09:00:00Z', true, { pending_match_id: 'r1' })],
+  };
+  const sent: Note[] = [];
+  await announceOverdue(fakeDb(tables), now, (_: SupabaseClient, notes: Note[]) => (sent.push(...notes), Promise.resolve()));
+  assertEquals(sent.length, 1);
+  assertEquals(sent[0].message.title, "Winter Cup: a result isn't confirmed");
+  assertEquals(
+    sent[0].message.body,
+    "Ben recorded Ana v Ben (semifinal, due Mon 16 Nov, 11:00) and Ana hasn't confirmed it. Record the result to settle it, or give a walkover.",
+  );
+});

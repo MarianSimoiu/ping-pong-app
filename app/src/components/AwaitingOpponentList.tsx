@@ -29,6 +29,7 @@ export function AwaitingOpponentList({
       {label !== null && <Text style={styles.sectionLabel}>{label}</Text>}
       {matches.map((m) => (
         <View key={m.matchId} style={styles.card}>
+          {m.tournament && <Text style={styles.kicker}>🏆 {m.tournament.name} · tournament result</Text>}
           <View style={styles.headerRow}>
             <PlayerLink playerId={m.opponentId} name={m.opponentName} style={styles.opponent}>
               <Avatar uri={m.opponentAvatarUrl} name={m.opponentName} size={36} playerId={m.opponentId} />
@@ -73,6 +74,7 @@ function createStyles(colors: Colors) {
     opponent: { flex: 1, flexDirection: 'row', alignItems: 'center' },
     headerText: { flex: 1, marginLeft: spacing.sm },
     name: { color: colors.text, fontSize: 14, fontWeight: '700' },
+    kicker: { color: colors.textMuted, fontSize: 12, fontWeight: '700', marginBottom: spacing.xs },
     time: { color: colors.textMuted, fontSize: 11 },
     result: { fontSize: 13, fontWeight: '700' },
     resultWin: { color: colors.success },

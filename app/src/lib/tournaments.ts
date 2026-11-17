@@ -55,22 +55,34 @@ export type TournamentNode = {
   // The points of each game once it's played, side A's first (none for a
   // walkover or a bye).
   games: GameScore[];
+  // A result one of the players recorded, waiting for the other to confirm
+  // it (0028): until then the match is still to be played.
+  pending: PendingResult | null;
 };
 
 export type GameScore = { a: number; b: number };
+export type PendingResult = { matchId: string; by: string; games: GameScore[] };
 
-// The score of a played match, the winner's first: the games won ("2–1"), or
-// the points of a one-game match ("11–7"). Null without games (a walkover).
-export function winningScore(node: Pick<TournamentNode, 'games' | 'winnerId' | 'playerA'>): string | null {
-  if (!node.winnerId || node.games.length === 0) return null;
-  const aWon = node.winnerId === node.playerA;
-  if (node.games.length === 1) {
-    const { a, b } = node.games[0];
+// Whether side A won these games (the most games; one game: the most points).
+export const sideAWon = (games: GameScore[]): boolean =>
+  games.filter((g) => g.a > g.b).length > games.filter((g) => g.b > g.a).length;
+
+// A score, the winner's first: the games won ("2–1"), or the points of a
+// one-game match ("11–7").
+export function scoreLine(games: GameScore[], aWon: boolean): string {
+  if (games.length === 1) {
+    const { a, b } = games[0];
     return aWon ? `${a}–${b}` : `${b}–${a}`;
   }
-  const aGames = node.games.filter((g) => g.a > g.b).length;
-  const bGames = node.games.length - aGames;
+  const aGames = games.filter((g) => g.a > g.b).length;
+  const bGames = games.length - aGames;
   return aWon ? `${aGames}–${bGames}` : `${bGames}–${aGames}`;
+}
+
+// The score of a played match, the winner's first. Null without games (a walkover).
+export function winningScore(node: Pick<TournamentNode, 'games' | 'winnerId' | 'playerA'>): string | null {
+  if (!node.winnerId || node.games.length === 0) return null;
+  return scoreLine(node.games, node.winnerId === node.playerA);
 }
 
 // The days a round is played (club days, "2026-11-16").
@@ -159,10 +171,20 @@ export async function fetchTournaments(myUserId: string | null): Promise<Tournam
   }));
 }
 
-// A played match as stored: its own player_a, and its games' points.
-type PlayedMatch = { player_a: string; games: { game_no: number; score_a: number; score_b: number }[] };
+// A played match as stored: its own player_a, who recorded it, and its games' points.
+type PlayedMatch = {
+  player_a: string;
+  created_by: string;
+  games: { game_no: number; score_a: number; score_b: number }[];
+};
 
-const mapNode = (n: any, played?: PlayedMatch): TournamentNode => ({
+// Its games turned to the node's sides, in case the match has them the other way.
+const gamesOf = (n: any, played?: PlayedMatch): GameScore[] =>
+  [...(played?.games ?? [])]
+    .sort((x, y) => x.game_no - y.game_no)
+    .map((g) => (played!.player_a === n.player_a ? { a: g.score_a, b: g.score_b } : { a: g.score_b, b: g.score_a }));
+
+const mapNode = (n: any, played?: PlayedMatch, pending?: PlayedMatch): TournamentNode => ({
   id: n.id,
   round: n.round,
   slot: n.slot,
@@ -175,10 +197,11 @@ const mapNode = (n: any, played?: PlayedMatch): TournamentNode => ({
   proposedAt: n.proposed_at ?? null,
   proposedBy: n.proposed_by ?? null,
   walkover: !!n.walkover,
-  // Turned to the node's sides, in case the match has them the other way.
-  games: [...(played?.games ?? [])]
-    .sort((x, y) => x.game_no - y.game_no)
-    .map((g) => (played!.player_a === n.player_a ? { a: g.score_a, b: g.score_b } : { a: g.score_b, b: g.score_a })),
+  games: gamesOf(n, played),
+  pending:
+    n.pending_match_id && pending
+      ? { matchId: n.pending_match_id, by: pending.created_by, games: gamesOf(n, pending) }
+      : null,
 });
 
 export async function fetchTournamentDetail(id: string): Promise<TournamentDetail> {
@@ -200,7 +223,7 @@ export async function fetchTournamentDetail(id: string): Promise<TournamentDetai
     supabase
       .from('tournament_matches')
       .select(
-        'id, round, slot, player_a, player_b, winner_id, status, scheduled_at, planned_on, proposed_at, proposed_by, walkover, match_id',
+        'id, round, slot, player_a, player_b, winner_id, status, scheduled_at, planned_on, proposed_at, proposed_by, walkover, match_id, pending_match_id',
       )
       .eq('tournament_id', id)
       .order('round', { ascending: true })
@@ -216,8 +239,13 @@ export async function fetchTournamentDetail(id: string): Promise<TournamentDetai
       .select('id, scheduled_at, tournament:tournaments(best_of)')
       .eq('status', 'ready')
       .gte('scheduled_at', new Date(Date.now() - 864e5).toISOString()),
-    // The games of the matches played in it, for the scores on the bracket.
-    supabase.from('matches').select('id, player_a, games:match_games(game_no, score_a, score_b)').eq('tournament_id', id),
+    // The games of the matches played in it, for the scores on the bracket,
+    // and of the results waiting to be confirmed.
+    supabase
+      .from('matches')
+      .select('id, player_a, created_by, games:match_games(game_no, score_a, score_b)')
+      .eq('tournament_id', id)
+      .in('status', ['confirmed', 'pending']),
   ]);
   if (tRes.error) throw tRes.error;
   if (pRes.error) throw pRes.error;
@@ -257,7 +285,11 @@ export async function fetchTournamentDetail(id: string): Promise<TournamentDetai
     gamesRes.error ? [] : (gamesRes.data ?? []).map((m: any) => [m.id, m as PlayedMatch]),
   );
   const nodes: TournamentNode[] = (nRes.data ?? []).map((n: any) =>
-    mapNode(n, n.match_id ? playedById.get(n.match_id) : undefined),
+    mapNode(
+      n,
+      n.match_id ? playedById.get(n.match_id) : undefined,
+      n.pending_match_id ? playedById.get(n.pending_match_id) : undefined,
+    ),
   );
   const rounds: TournamentRound[] = (rRes.data ?? []).map((r: any) => ({
     round: r.round,
@@ -335,12 +367,16 @@ export async function requestKickoff(): Promise<void> {
   await invoke('tournament-kickoff', {});
 }
 
+// A player's result waits for their opponent to confirm it ('pending', with
+// who that is); the organizer's counts straight away ('confirmed').
+export type RecordedResult = { status: 'pending' | 'confirmed'; winnerId: string; waitingFor?: string | null };
+
 export async function recordTournamentMatch(input: {
   tournamentMatchId: string;
   games: RawGameInput[];
-}): Promise<{ winnerId: string }> {
+}): Promise<RecordedResult> {
   if (DEMO) return demo.demoRecordTournamentMatch(input);
-  return invoke<{ winnerId: string }>('submit-tournament-match', input);
+  return invoke<RecordedResult>('submit-tournament-match', input);
 }
 
 // --- When matches are played (the match-schedule function) ------------------

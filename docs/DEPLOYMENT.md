@@ -122,6 +122,7 @@ Otherwise the link lands on the wrong page and the reset can't finish.
 | `0025_supernova_unlucky.sql` | two tournament titles: Supernova 🌟 (win 3 tournaments in a row, counting the ones a player takes part in, so skipping one doesn't break the run) and Unlucky 🎲 (lose the first match you play in a tournament; byes and walkovers aren't played matches). Tournaments already played count; not marked as announced, so a player who already qualifies hears about it with their next match |
 | `0026_player_names.sql` | players change their name from Profile → Settings: a trigger tidies a changed `display_name` (whitespace runs made one space, ends trimmed) and refuses one under 2 or over 30 characters, or another player's (ignoring case and spacing). Sign-ups and existing names aren't touched |
 | `0027_match_lengths.sql` | shorter tournament match slots, back to back from 11:00: 15 minutes at best of 1, 20 at best of 3, 25 at best of 5, 30 at best of 7 (was 30, 30, 45, 60); start times tried 5 minutes apart (was 15). Matches that already have a time keep it |
+| `0028_tournament_confirmation.sql` | tournament results are confirmed by both players: a player's result waits as a pending match (`tournament_matches.pending_match_id`, `record_tournament_result`) until the other confirms it (`confirm_tournament_result`: ratings, then the bracket moves on) or declines it (`reject_match` frees the match); an organizer's result (`apply_tournament_result`) or a walkover replaces one still waiting |
 
 ### Club time zone
 

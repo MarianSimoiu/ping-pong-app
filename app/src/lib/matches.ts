@@ -32,7 +32,15 @@ export async function submitMatch(input: {
   return data;
 }
 
-// Pending casual matches the given player must confirm (logged by the opponent).
+// A tournament result's tournament, by the matches' own link to it.
+const TOURNAMENT = 'context, tournament:tournaments!matches_tournament_fk(id, name)';
+const tournamentOf = (m: any): { id: string; name: string } | null => {
+  const t = Array.isArray(m.tournament) ? m.tournament[0] : m.tournament;
+  return m.context === 'tournament' && t ? { id: t.id, name: t.name } : null;
+};
+
+// Pending matches the given player must confirm (logged by the opponent):
+// casual ones, and tournament results (0028).
 export async function fetchPendingConfirmations(myPlayerId: string): Promise<PendingMatch[]> {
   if (DEMO) return demo.demoPending();
   const { data, error } = await supabase
@@ -40,7 +48,8 @@ export async function fetchPendingConfirmations(myPlayerId: string): Promise<Pen
     .select(
       'id, player_a, player_b, winner_id, created_by, played_at, ' +
         'creator:players!matches_created_by_fkey(display_name, avatar_url), ' +
-        'games:match_games(game_no, score_a, score_b)',
+        'games:match_games(game_no, score_a, score_b), ' +
+        TOURNAMENT,
     )
     .eq('status', 'pending')
     .neq('created_by', myPlayerId)
@@ -73,23 +82,25 @@ export async function fetchPendingConfirmations(myPlayerId: string): Promise<Pen
       opponentGames,
       games,
       submittedAt: m.played_at,
+      tournament: tournamentOf(m),
     };
   });
 }
 
-// Casual matches the given player submitted that are still awaiting their
-// opponent's confirmation. The submitter is always player_a (submit-match
-// requires the caller to record their own match as player_a), so the
-// opponent is always player_b here — unlike fetchPendingConfirmations,
-// there's no "which side am I" branching needed.
+// Matches the given player submitted that are still awaiting their
+// opponent's confirmation. A casual one has the submitter as player_a
+// (submit-match records the caller's own side as a); a tournament result
+// keeps the bracket's sides, so the submitter may be either.
 export async function fetchSubmittedPending(myPlayerId: string): Promise<SubmittedPendingMatch[]> {
   if (DEMO) return demo.demoSubmittedPending();
   const { data, error } = await supabase
     .from('matches')
     .select(
-      'id, player_b, winner_id, played_at, ' +
-        'opponent:players!matches_player_b_fkey(display_name, avatar_url), ' +
-        'games:match_games(game_no, score_a, score_b)',
+      'id, player_a, player_b, winner_id, played_at, ' +
+        'pa:players!matches_player_a_fkey(display_name, avatar_url), ' +
+        'pb:players!matches_player_b_fkey(display_name, avatar_url), ' +
+        'games:match_games(game_no, score_a, score_b), ' +
+        TOURNAMENT,
     )
     .eq('status', 'pending')
     .eq('created_by', myPlayerId)
@@ -97,14 +108,16 @@ export async function fetchSubmittedPending(myPlayerId: string): Promise<Submitt
   if (error) throw error;
 
   return (data ?? []).map((m: any) => {
-    const opponent = Array.isArray(m.opponent) ? m.opponent[0] : m.opponent;
+    const iAmA = m.player_a === myPlayerId;
+    const opponent = (x: any) => (Array.isArray(x) ? x[0] : x);
+    const them = opponent(iAmA ? m.pb : m.pa);
     const orderedGames = [...(m.games ?? [])].sort((a, b) => a.game_no - b.game_no);
 
     let myGames = 0;
     let opponentGames = 0;
     const games = orderedGames.map((g) => {
-      const myScore = g.score_a;
-      const opponentScore = g.score_b;
+      const myScore = iAmA ? g.score_a : g.score_b;
+      const opponentScore = iAmA ? g.score_b : g.score_a;
       if (myScore > opponentScore) myGames += 1;
       else opponentGames += 1;
       return { myScore, opponentScore };
@@ -112,14 +125,15 @@ export async function fetchSubmittedPending(myPlayerId: string): Promise<Submitt
 
     return {
       matchId: m.id,
-      opponentId: m.player_b,
-      opponentName: opponent?.display_name ?? 'Someone',
-      opponentAvatarUrl: opponent?.avatar_url ?? null,
+      opponentId: iAmA ? m.player_b : m.player_a,
+      opponentName: them?.display_name ?? 'Someone',
+      opponentAvatarUrl: them?.avatar_url ?? null,
       iWon: m.winner_id === myPlayerId,
       myGames,
       opponentGames,
       games,
       submittedAt: m.played_at,
+      tournament: tournamentOf(m),
     };
   });
 }

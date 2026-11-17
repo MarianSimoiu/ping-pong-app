@@ -141,7 +141,7 @@ type TStore = {
   nodes: TournamentNode[];
   rounds: TournamentRound[]; // the days each round is played, once drawn
 };
-const tournaments: TStore[] = [finishedTournament(), sampleTournament(), openTournament()];
+const tournaments: TStore[] = [finishedTournament(), sampleTournament(), openTournament(), lunchLeague()];
 
 // --- profile / leaderboard ---------------------------------------------------
 
@@ -258,14 +258,46 @@ export function demoSubmitMatch(): { matchId: string; status: 'pending' } {
   return { matchId: `m-${Date.now()}`, status: 'pending' };
 }
 
-export const demoPending = (): PendingMatch[] => [...pending];
+export const demoPending = (): PendingMatch[] => [
+  ...waitingResults(false).map(({ other, ...r }) => ({
+    ...r,
+    submitterId: other.id,
+    submitterName: other.name,
+    submitterAvatarUrl: other.avatarUrl ?? null,
+  })),
+  ...pending,
+];
 
-export const demoSubmittedPending = (): SubmittedPendingMatch[] => [...submittedPending];
+export const demoSubmittedPending = (): SubmittedPendingMatch[] => [
+  ...waitingResults(true).map(({ other, ...r }) => ({
+    ...r,
+    opponentId: other.id,
+    opponentName: other.name,
+    opponentAvatarUrl: other.avatarUrl ?? null,
+  })),
+  ...submittedPending,
+];
 
 export function demoConfirm(
   matchId: string,
   action: 'confirm' | 'decline',
 ): { status: string; you?: { delta: number; rating: number; rd: number } } {
+  const result = waitingResult(matchId);
+  if (result) {
+    const { t, node } = result;
+    const games = node.pending!.games;
+    node.pending = null;
+    if (action !== 'confirm') return { status: 'rejected' };
+    const winner = aWonGames(games) ? node.playerA! : node.playerB!;
+    node.games = games;
+    advance(t, node, winner);
+    const me = byId(DEMO_ME)!;
+    const delta = winner === DEMO_ME ? 16 : -14;
+    me.matches += 1;
+    me.rating += delta;
+    me.rd = Math.max(40, me.rd - 3);
+    return { status: 'confirmed', you: { delta, rating: me.rating, rd: me.rd } };
+  }
   const match = pending.find((m) => m.matchId === matchId);
   pending = pending.filter((m) => m.matchId !== matchId);
   if (action !== 'confirm' || !match) {
@@ -673,17 +705,65 @@ export function demoCancel(id: string): void {
   t.summary.status = 'cancelled';
 }
 
+// Whether side A won these games (the most games; one game: the most points).
+const aWonGames = (games: GameScore[]) =>
+  games.filter((g) => g.a > g.b).length > games.filter((g) => g.b > g.a).length;
+
+// Mirrors submit-tournament-match (0028): a result you record as one of the
+// players waits for your opponent to confirm it (nobody does in the demo);
+// as the organizer (you're an admin here) it counts straight away.
 export function demoRecordTournamentMatch(input: {
   tournamentMatchId: string;
   games: Array<{ score_a: number; score_b: number }>;
-}): { winnerId: string } {
+}): { status: 'pending' | 'confirmed'; winnerId: string; waitingFor?: string | null } {
   const { t, node } = nodeOf(input.tournamentMatchId);
-  const aWins = input.games.filter((g) => g.score_a > g.score_b).length;
-  const bWins = input.games.length - aWins;
-  const winner = aWins >= bWins ? node.playerA! : node.playerB!;
-  node.games = input.games.map((g) => ({ a: g.score_a, b: g.score_b }));
+  if (node.status !== 'ready' || !node.playerA || !node.playerB) throw new Error('This match is not ready to be played yet');
+  const games = input.games.map((g) => ({ a: g.score_a, b: g.score_b }));
+  const winner = aWonGames(games) ? node.playerA : node.playerB;
+  if (node.playerA === DEMO_ME || node.playerB === DEMO_ME) {
+    if (node.pending) throw new Error('A result for this match is already waiting to be confirmed');
+    node.pending = { matchId: `tr-${Date.now()}`, by: DEMO_ME, games };
+    Object.assign(node, { proposedAt: null, proposedBy: null });
+    const other = node.playerA === DEMO_ME ? node.playerB : node.playerA;
+    return { status: 'pending', winnerId: winner, waitingFor: byId(other)?.name ?? null };
+  }
+  node.pending = null;
+  node.games = games;
   advance(t, node, winner);
-  return { winnerId: winner };
+  return { status: 'confirmed', winnerId: winner };
+}
+
+// A tournament result waiting to be confirmed, by its match id.
+function waitingResult(matchId: string): { t: TStore; node: TournamentNode } | null {
+  for (const t of tournaments) {
+    const node = t.nodes.find((n) => n.pending?.matchId === matchId);
+    if (node) return { t, node };
+  }
+  return null;
+}
+
+// Results waiting in tournaments you play in: recorded by you, or for you to confirm.
+function waitingResults(recordedByYou: boolean) {
+  return tournaments.flatMap((t) =>
+    t.nodes
+      .filter((n) => n.pending && (n.playerA === DEMO_ME || n.playerB === DEMO_ME) && (n.pending.by === DEMO_ME) === recordedByYou)
+      .map((n) => {
+        const iAmA = n.playerA === DEMO_ME;
+        const other = byId((iAmA ? n.playerB : n.playerA)!)!;
+        const games = n.pending!.games.map((g) => ({ myScore: iAmA ? g.a : g.b, opponentScore: iAmA ? g.b : g.a }));
+        const myGames = games.filter((g) => g.myScore > g.opponentScore).length;
+        return {
+          matchId: n.pending!.matchId,
+          other,
+          iWon: myGames > games.length - myGames,
+          myGames,
+          opponentGames: games.length - myGames,
+          games,
+          submittedAt: n.scheduledAt ?? new Date().toISOString(),
+          tournament: { id: t.summary.id, name: t.summary.name },
+        };
+      }),
+  );
 }
 
 // The match is over: the winner goes on (and the next match gets its time),
@@ -865,6 +945,7 @@ export function demoGiveWalkover(id: string, winnerId: string): void {
     throw new Error('Only a match waiting to be played can be given as a walkover');
   }
   if (winnerId !== node.playerA && winnerId !== node.playerB) throw new Error('The winner has to be one of the two players');
+  node.pending = null;
   node.walkover = true;
   advance(t, node, winnerId);
 }
@@ -906,6 +987,7 @@ function buildBracket(ids: string[]): { nodes: TournamentNode[]; size: number } 
         proposedBy: null,
         walkover: false,
         games: [],
+        pending: null,
       });
     }
   }
@@ -1050,6 +1132,56 @@ function sampleTournament(): TStore {
       { round: 1, startsOn: yesterday, endsOn: yesterday },
       { round: 2, startsOn: today, endsOn: tomorrow },
       { round: 3, startsOn: nextWeekday(tomorrow), endsOn: nextWeekday(tomorrow) },
+    ],
+  };
+}
+
+// In progress, 4 players, with results waiting to be confirmed (0028): Emil
+// recorded your semifinal (he won 2–1), yours to confirm or decline; Fei
+// recorded hers against Gabi (2–0), for Gabi to confirm.
+function lunchLeague(): TStore {
+  const ids = [DEMO_ME, 'p7', 'p8', 'p6']; // seeds 1-4: you v Emil, Fei v Gabi
+  const { nodes, size } = buildBracket(ids);
+  const today = clubDay(Date.now());
+  const at = (hhmm: string) => clubMoment(today, hhmm).toISOString();
+  const node = (round: number, slot: number) => nodes.find((n) => n.round === round && n.slot === slot)!;
+  Object.assign(node(1, 0), {
+    scheduledAt: at('12:00'),
+    plannedOn: today,
+    pending: { matchId: 'demo-result-1', by: 'p6', games: [{ a: 9, b: 11 }, { a: 11, b: 8 }, { a: 7, b: 11 }] },
+  });
+  Object.assign(node(1, 1), {
+    scheduledAt: at('12:20'),
+    plannedOn: today,
+    pending: { matchId: 'demo-result-2', by: 'p7', games: [{ a: 11, b: 6 }, { a: 11, b: 9 }] },
+  });
+  return {
+    summary: {
+      id: 'demo-t3',
+      name: 'Lunch League',
+      status: 'active',
+      size,
+      bestOf: 3,
+      tier: 1,
+      createdAt: new Date(Date.now() - 3 * 864e5).toISOString(),
+      kickoffAt: new Date(Date.now() - 864e5).toISOString(),
+      endedAt: null,
+      createdBy: 'p2',
+    },
+    registrations: [],
+    participants: ids.map((playerId, i) => ({
+      playerId,
+      seed: i + 1,
+      pot: i < 2 ? 1 : 2,
+      name: byId(playerId)?.name ?? '—',
+      avatarUrl: null,
+      rating: byId(playerId)?.rating ?? null,
+      registeredAt: null,
+    })),
+    nodes,
+    rounds: [
+      { round: 1, startsOn: today, endsOn: today },
+      { round: 2, startsOn: nextWeekday(today), endsOn: nextWeekday(today) },
     ],
   };
 }

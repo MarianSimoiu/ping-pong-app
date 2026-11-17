@@ -208,7 +208,9 @@ export function HowRatingsWorkScreen() {
           </P>
           <P>
             Tournament matches change your skill rating like any other match (a walkover doesn't).
-            Either player or an admin records the result, with no confirmation step.
+            One player records the result and <B>the other confirms it</B>; only then does it count
+            and the winner go on. If they decline, the match is still to be recorded. A result the
+            organizer records counts straight away.
           </P>
           <P>
             <B>Season points</B> are a separate ranking (the Season points tab), earned only by how
