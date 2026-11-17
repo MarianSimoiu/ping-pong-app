@@ -3,7 +3,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Avatar } from '@/components/Avatar';
+import { BracketTree } from '@/components/BracketTree';
 import { Countdown } from '@/components/Countdown';
 import { DateTimeField } from '@/components/DateTimeField';
 import { ManageMatchSheet, ProposeTimeSheet } from '@/components/MatchSheets';
@@ -36,7 +36,6 @@ import {
   rescheduleTournament,
   setRoundDates,
   startTournamentNow,
-  winningScore,
   withdrawFromTournament,
   type TournamentDetail,
   type TournamentNode,
@@ -80,9 +79,6 @@ function myPath(nodes: TournamentNode[], meId: string): MyPath | null {
     winnerOf: feeder?.playerA && feeder.playerB ? [feeder.playerA, feeder.playerB] : null,
   };
 }
-
-// A first-round "match" that was only a bye.
-const isBye = (n: TournamentNode) => n.round === 1 && n.status === 'completed' && (!n.playerA || !n.playerB);
 
 type Me = { id: string; matchesPlayed: number };
 
@@ -659,29 +655,6 @@ export function TournamentDetailScreen({ route, navigation }: TournamentsStackSc
     );
   }
 
-  function renderRoundHeader(round: number) {
-    const dates = roundDates(round);
-    const name = roundLabel(round, totalRounds);
-    const editable = isAdmin && tournament.status === 'active' && !!dates && editingRound?.round !== round;
-    return (
-      <View style={styles.roundHeader}>
-        <Text style={[styles.sectionLabel, styles.sectionLabelInRow, { flex: 1 }]}>{name}</Text>
-        {dates && <Text style={styles.roundDates}>{formatDayRange(dates.startsOn, dates.endsOn)}</Text>}
-        {editable && (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`Change the days of the ${name.toLowerCase()}`}
-            onPress={() => openRoundDates(round)}
-            hitSlop={8}
-            disabled={busy !== null}
-          >
-            <Text style={styles.editLink}>Edit</Text>
-          </Pressable>
-        )}
-      </View>
-    );
-  }
-
   function renderRoundEditor(round: number) {
     if (!editingRound || editingRound.round !== round) return null;
     const today = clubDay(clock);
@@ -803,8 +776,8 @@ export function TournamentDetailScreen({ route, navigation }: TournamentsStackSc
   }
 
   function renderBracket() {
-    const rounds = Array.from(new Set(nodes.map((n) => n.round))).sort((a, b) => a - b);
-    const byes = nodes.filter(isBye).length;
+    // The rounds being played: the tree opens on the first of them.
+    const playing = tournament.status === 'active' ? nodes.filter((n) => n.status === 'ready').map((n) => n.round) : [];
     const hasPots = participants.some((p) => p.pot !== null);
     return (
       <>
@@ -821,86 +794,34 @@ export function TournamentDetailScreen({ route, navigation }: TournamentsStackSc
           </Text>
         )}
 
-        {rounds.map((round) => {
-          const shown = nodes.filter((n) => n.round === round && !isBye(n));
-          return (
-            <View key={round}>
-              {renderRoundHeader(round)}
-              {round === 1 && byes > 0 && (
-                <Text style={styles.sectionHint}>
-                  {byes === 1 ? '1 player has' : `${byes} players have`} a bye into round 2.
-                </Text>
-              )}
-              {renderRoundEditor(round)}
-              {roundNotice?.round === round && <Text style={styles.notice}>{roundNotice.text}</Text>}
-              {shown.map((node) => {
-                const isReady = node.status === 'ready';
-                const mine = !!meId && (node.playerA === meId || node.playerB === meId);
-                const manageable = canManage(node);
-                const recordable = isReady && canRecord(node);
-                const overdue = isOverdue(node, clock);
-                const score = winningScore(node);
-                return (
-                  <Pressable
-                    key={node.id}
-                    accessibilityRole={manageable || recordable ? 'button' : undefined}
-                    style={[styles.match, isReady && styles.matchReady, mine && styles.matchMine]}
-                    onPress={() => onMatchPress(node)}
-                    disabled={!manageable && !recordable}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <PlayerLine
-                        playerId={node.playerA}
-                        avatarUrl={avatarOf(node.playerA)}
-                        name={nameOf(node.playerA, node.status === 'pending' ? 'TBD' : 'Bye')}
-                        isWinner={!!node.winnerId && node.winnerId === node.playerA}
-                        isMe={!!meId && node.playerA === meId}
-                      />
-                      {score ? (
-                        <View style={styles.scoreRow}>
-                          <View style={styles.scoreLine} />
-                          <Text style={styles.score} accessibilityLabel={`${nameOf(node.winnerId, '')} won ${score}`}>
-                            {score}
-                          </Text>
-                          <View style={styles.scoreLine} />
-                        </View>
-                      ) : (
-                        <View style={styles.divider} />
-                      )}
-                      <PlayerLine
-                        playerId={node.playerB}
-                        avatarUrl={avatarOf(node.playerB)}
-                        name={nameOf(node.playerB, node.status === 'pending' ? 'TBD' : 'Bye')}
-                        isWinner={!!node.winnerId && node.winnerId === node.playerB}
-                        isMe={!!meId && node.playerB === meId}
-                      />
-                      {isReady && node.scheduledAt && (
-                        <View style={styles.metaRow}>
-                          <Text style={[styles.meta, overdue && styles.metaOverdue]}>
-                            🗓 {formatMatchTime(node.scheduledAt, clock)}
-                          </Text>
-                          {overdue && <Text style={[styles.tag, styles.tagDanger]}>Overdue</Text>}
-                          {node.proposedAt && <Text style={styles.tag}>New time asked</Text>}
-                        </View>
-                      )}
-                      {node.walkover && (
-                        <View style={styles.metaRow}>
-                          <Text style={styles.tag}>Walkover</Text>
-                        </View>
-                      )}
-                    </View>
-                    {manageable ? (
-                      <Text style={styles.record}>Manage ›</Text>
-                    ) : (
-                      recordable && <Text style={styles.record}>Record ›</Text>
-                    )}
-                    {node.status === 'completed' && <Text style={styles.done}>✓</Text>}
-                  </Pressable>
-                );
-              })}
-            </View>
-          );
-        })}
+        <Text style={styles.sectionLabel}>Bracket</Text>
+        {editingRound && renderRoundEditor(editingRound.round)}
+        {roundNotice && (
+          <Text style={styles.notice}>
+            {roundLabel(roundNotice.round, totalRounds)}: {roundNotice.text}
+          </Text>
+        )}
+        <BracketTree
+          nodes={nodes}
+          totalRounds={totalRounds}
+          champion={champion}
+          meId={meId}
+          now={clock}
+          nameOf={nameOf}
+          avatarOf={avatarOf}
+          roundTitle={(round) => roundLabel(round, totalRounds)}
+          roundDays={(round) => {
+            const dates = roundDates(round);
+            return dates ? formatDayRange(dates.startsOn, dates.endsOn) : null;
+          }}
+          canEditRound={(round) =>
+            isAdmin && tournament.status === 'active' && !!roundDates(round) && editingRound?.round !== round
+          }
+          onEditRound={openRoundDates}
+          canPress={(node) => canManage(node) || (node.status === 'ready' && canRecord(node))}
+          onPressMatch={onMatchPress}
+          startRound={playing.length > 0 ? Math.min(...playing) : 1}
+        />
 
         {hasPots && (
           <>
@@ -968,40 +889,6 @@ export function TournamentDetailScreen({ route, navigation }: TournamentsStackSc
   );
 }
 
-// The photos on the bracket: big enough for the 👑 and 🏆 corner badges.
-const BRACKET_AVATAR = 28;
-
-// One side of a bracket match: the player's photo (with their tier ring) and
-// name, or an empty circle while it's not known who plays.
-function PlayerLine({
-  playerId,
-  avatarUrl,
-  name,
-  isWinner,
-  isMe,
-}: {
-  playerId: string | null;
-  avatarUrl: string | null;
-  name: string;
-  isWinner: boolean;
-  isMe: boolean;
-}) {
-  const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
-  return (
-    <View style={styles.playerRow}>
-      {playerId ? (
-        <Avatar uri={avatarUrl} name={name} size={BRACKET_AVATAR} playerId={playerId} />
-      ) : (
-        <View style={styles.avatarEmpty} />
-      )}
-      <Text style={[styles.player, isMe && styles.playerMe, isWinner && styles.winner]} numberOfLines={1}>
-        {withYou(name, isMe)}
-      </Text>
-    </View>
-  );
-}
-
 function createStyles(colors: Colors, dark = false) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
@@ -1066,35 +953,9 @@ function createStyles(colors: Colors, dark = false) {
     lateName: { color: colors.text, fontSize: 15, fontWeight: '600' },
     lateMeta: { color: colors.textMuted, fontSize: 13, marginTop: 2 },
     scheduleHint: { color: colors.textMuted, fontSize: 13, lineHeight: 19, marginBottom: spacing.xs },
-    roundHeader: {
-      flexDirection: 'row',
-      alignItems: 'baseline',
-      gap: spacing.sm,
-      marginTop: spacing.md,
-      marginBottom: spacing.sm,
-    },
-    roundDates: { color: colors.text, fontSize: 13, fontWeight: '600' },
-    editLink: { color: colors.primary, fontSize: 13, fontWeight: '700' },
     dateField: { flex: 1, gap: spacing.xs },
     fieldLabel: { color: colors.textMuted, fontSize: 12, fontWeight: '600' },
     notice: { color: colors.success, fontSize: 13, fontWeight: '600', marginBottom: spacing.sm },
-    metaRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: spacing.xs, marginTop: spacing.sm },
-    meta: { color: colors.textMuted, fontSize: 13, fontWeight: '600', marginRight: spacing.xs },
-    metaOverdue: { color: colors.danger },
-    tag: {
-      color: colors.textMuted,
-      fontSize: 11,
-      fontWeight: '700',
-      textTransform: 'uppercase',
-      letterSpacing: 0.4,
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: 999,
-      paddingHorizontal: 8,
-      paddingVertical: 2,
-      overflow: 'hidden',
-    },
-    tagDanger: { color: colors.danger, borderColor: colors.danger },
     cardText: { color: colors.textMuted, fontSize: 14, lineHeight: 20 },
     cardNote: { color: colors.textMuted, fontSize: 13 },
     potLine: { color: colors.text, fontSize: 16 },
@@ -1124,7 +985,6 @@ function createStyles(colors: Colors, dark = false) {
       marginTop: spacing.md,
       marginBottom: spacing.sm,
     },
-    sectionHint: { color: colors.textMuted, fontSize: 13, marginTop: -4, marginBottom: spacing.sm },
     sectionRow: {
       flexDirection: 'row',
       alignItems: 'baseline',
@@ -1186,55 +1046,7 @@ function createStyles(colors: Colors, dark = false) {
     podiumArt: { width: 36, alignItems: 'center' },
     podiumPlace: { color: colors.textMuted, fontSize: 12, fontWeight: '600' },
     podiumName: { color: colors.text, fontSize: 16, fontWeight: '700' },
-    match: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: colors.surface,
-      borderRadius: radius.md,
-      padding: spacing.md,
-      marginBottom: spacing.sm,
-      borderWidth: 1,
-      borderColor: colors.border,
-    },
-    matchReady: { borderColor: colors.primary },
-    matchMine: { backgroundColor: colors.surfaceAlt },
-    playerRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-    avatarEmpty: {
-      width: BRACKET_AVATAR,
-      height: BRACKET_AVATAR,
-      borderRadius: BRACKET_AVATAR / 2,
-      borderWidth: 1,
-      borderStyle: 'dashed',
-      borderColor: colors.border,
-    },
-    player: { color: colors.text, fontSize: 15, flexShrink: 1 },
-    playerMe: { fontWeight: '700' },
-    winner: { color: colors.success, fontWeight: '700' },
-    // Starts where the names do.
-    divider: {
-      height: 1,
-      backgroundColor: colors.border,
-      marginVertical: spacing.sm - 2,
-      marginLeft: BRACKET_AVATAR + spacing.sm,
-    },
-    // A played match: the divider with the winning score in its middle.
-    scoreRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.sm,
-      marginLeft: BRACKET_AVATAR + spacing.sm,
-      marginVertical: -1,
-    },
-    scoreLine: { flex: 1, height: 1, backgroundColor: colors.border },
-    score: {
-      color: colors.text,
-      fontSize: 13,
-      fontWeight: '800',
-      lineHeight: 15,
-      fontVariant: ['tabular-nums'],
-    },
     record: { color: colors.primary, fontWeight: '600', marginLeft: spacing.md },
-    done: { color: colors.success, fontSize: 18, marginLeft: spacing.md },
     error: { color: colors.danger, padding: spacing.lg },
   });
 }

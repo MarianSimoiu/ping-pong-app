@@ -154,6 +154,14 @@ player's match card, and the organizer's tools (`components/MatchSheets.tsx`),
 with the times picked from `lib/schedule.ts` (the same rules, in club time
 whatever the phone's zone).
 
+The bracket is drawn as a tree (`components/BracketTree.tsx`): a column per
+round with its days, each match half-way between the two it comes from and
+joined to them by lines, then the champion. Between a match's two players
+it shows the winning score once it's played (games won, or the points of a
+one-game match; read from `match_games`), "Walkover", or its time while it's
+waiting to be played. It scrolls sideways where it's wider than the screen
+and opens on the round being played.
+
 Tournaments from before registration existed have no kickoff time or pots
 and show as before. The app only reads the tournament tables; every change is
 an RPC called by an Edge Function with the service role.
@@ -284,7 +292,7 @@ context/AuthContext Session state + sign-in / sign-up / sign-out / password-rese
 navigation/         Root switch (auth vs app), bottom tabs, and per-tab stacks
 screens/            SignIn, Home, SubmitMatch, Leaderboard, PlayerProfile,
                     Tournaments, Profile
-components/          RatingChart (react-native-svg), Avatar, Placeholder
+components/          RatingChart (react-native-svg), Avatar, BracketTree, Placeholder
 theme.ts            Shared colors / spacing
 ```
 
