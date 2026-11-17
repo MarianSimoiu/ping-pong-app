@@ -911,6 +911,7 @@ export function TournamentDetailScreen({ route, navigation }: TournamentsStackSc
         <BracketTree
           nodes={nodes}
           totalRounds={totalRounds}
+          bestOf={tournament.bestOf}
           champion={champion}
           meId={meId}
           now={clock}
