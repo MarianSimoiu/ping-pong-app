@@ -215,7 +215,9 @@ export function matchTimeDeclined(o: {
   };
 }
 
-// To the admins, the day after a match should have been played.
+// To the admins, the day after a match should have been played. With
+// `recordedBy` one player recorded a result the other (`waitingFor`) hasn't
+// confirmed: the organizer's own result settles it.
 export function matchOverdue(o: {
   tournamentId: string;
   tournament: string;
@@ -223,12 +225,61 @@ export function matchOverdue(o: {
   playerA: string;
   playerB: string;
   at: string;
+  recordedBy?: string | null;
+  waitingFor?: string | null;
 }): PushMessage {
+  const unconfirmed = !!o.recordedBy && !!o.waitingFor;
   return {
-    title: `${o.tournament}: a match wasn't played`,
-    body: `${o.playerA} v ${o.playerB} (${o.match}) was due ${clubTime(o.at)}. Record the result or give a walkover.`,
+    title: unconfirmed ? `${o.tournament}: a result isn't confirmed` : `${o.tournament}: a match wasn't played`,
+    body: unconfirmed
+      ? `${o.recordedBy} recorded ${o.playerA} v ${o.playerB} (${o.match}, due ${clubTime(o.at)}) and ${o.waitingFor} hasn't confirmed it. Record the result to settle it, or give a walkover.`
+      : `${o.playerA} v ${o.playerB} (${o.match}) was due ${clubTime(o.at)}. Record the result or give a walkover.`,
     url: tournamentPage(o.tournamentId),
     tag: `overdue-${o.tournamentId}`,
+  };
+}
+
+// --- Results (migration 0028): one player records it, the other confirms it.
+
+type TournamentResult = Result & { tournamentId: string; tournament: string; match: string; matchId: string };
+
+// To the other player when one records their match.
+export function tournamentResultToConfirm(o: TournamentResult & { recorder: string }): PushMessage {
+  return {
+    title: `${o.recorder} recorded your ${o.match}`,
+    body: `${o.tournament}: you ${wonOrLost(o)} ${score(o)}. It counts once you confirm it. Tap to confirm or decline.`,
+    url: tournamentPage(o.tournamentId),
+    tag: `result-${o.matchId}`,
+  };
+}
+
+// To the player who recorded it, once the other confirms it.
+export function tournamentResultConfirmed(o: TournamentResult & RatingChange & { opponent: string }): PushMessage {
+  return {
+    title: `${o.opponent} confirmed your ${o.match}`,
+    body: `${o.tournament}: you ${wonOrLost(o)} ${score(o)} · rating ${signed(o.delta)}, now ${o.rating}.`,
+    url: tournamentPage(o.tournamentId),
+    tag: `result-${o.matchId}`,
+  };
+}
+
+// To the player who recorded it, if the other declines it.
+export function tournamentResultDeclined(o: TournamentResult & { opponent: string }): PushMessage {
+  return {
+    title: `${o.opponent} declined your ${o.match} result`,
+    body: `Your ${score(o)} ${o.youWon ? 'win' : 'loss'} doesn't count. Agree on the score and record it again, or ask the organizer.`,
+    url: tournamentPage(o.tournamentId),
+    tag: `result-${o.matchId}`,
+  };
+}
+
+// To both players when the organizer records their match (it counts straight away).
+export function tournamentResultByOrganizer(o: TournamentResult & { opponent: string }): PushMessage {
+  return {
+    title: `${o.tournament}: your ${o.match} result`,
+    body: `The organizer recorded it: you ${wonOrLost(o)} ${score(o)} against ${o.opponent}.`,
+    url: tournamentPage(o.tournamentId),
+    tag: `result-${o.matchId}`,
   };
 }
 

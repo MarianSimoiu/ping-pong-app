@@ -15,7 +15,14 @@ import {
   timeOptions,
   type TableTime,
 } from '@/lib/schedule';
-import { giveWalkover, moveTournamentMatch, proposeMatchTime, type TournamentNode } from '@/lib/tournaments';
+import {
+  giveWalkover,
+  moveTournamentMatch,
+  proposeMatchTime,
+  scoreLine,
+  sideAWon,
+  type TournamentNode,
+} from '@/lib/tournaments';
 import { radius, spacing, useTheme, type Colors } from '@/theme';
 
 // A tournament match's time, picked from the club's hours (lib/schedule.ts):
@@ -324,6 +331,16 @@ export function ManageMatchSheet({
         <Text style={styles.note}>
           {nameOf(node.proposedBy)} asked to move it to {formatMatchTime(node.proposedAt, now)}; waiting for{' '}
           {nameOf(node.proposedBy === node.playerA ? node.playerB : node.playerA)}.
+        </Text>
+      )}
+      {node.pending && (
+        // A player's result the other hasn't confirmed (0028): the organizer's own settles it.
+        <Text style={styles.note}>
+          {nameOf(node.pending.by)} recorded it:{' '}
+          {nameOf(sideAWon(node.pending.games) ? node.playerA : node.playerB)} won{' '}
+          {scoreLine(node.pending.games, sideAWon(node.pending.games))}. Waiting for{' '}
+          {nameOf(node.pending.by === node.playerA ? node.playerB : node.playerA)} to confirm it; a result you record
+          counts straight away instead.
         </Text>
       )}
       <ActionButton label="Record result" onPress={onRecord} disabled={busy !== null} />

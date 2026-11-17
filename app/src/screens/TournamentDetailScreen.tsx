@@ -11,11 +11,13 @@ import { PlayerName } from '@/components/PlayerLink';
 import { PotRules, PotsList, withYou } from '@/components/PotsList';
 import { inscription, Medal, MedalBadge, Sunburst, Trophy, TrophyBadge } from '@/components/TournamentArt';
 import { useAuth } from '@/context/AuthContext';
+import { useBadges } from '@/context/BadgesContext';
 import { pickChampionLine } from '@/lib/commentary';
 import { defaultKickoff, fromLocalInputValue, toLocalInputValue, useNow } from '@/lib/countdown';
 import { formatKickoff } from '@/lib/format';
 import { groupByPot } from '@/lib/pots';
-import { confirmAction } from '@/lib/platformAlert';
+import { confirmMatch } from '@/lib/matches';
+import { confirmAction, showAlert } from '@/lib/platformAlert';
 import { fetchIsAdmin, fetchMyProfile } from '@/lib/players';
 import {
   clubDay,
@@ -35,9 +37,12 @@ import {
   registerForTournament,
   requestKickoff,
   rescheduleTournament,
+  scoreLine,
   setRoundDates,
+  sideAWon,
   startTournamentNow,
   withdrawFromTournament,
+  type PendingResult,
   type TournamentDetail,
   type TournamentNode,
 } from '@/lib/tournaments';
@@ -96,6 +101,8 @@ type Busy =
   | 'decline'
   | 'takeBack'
   | 'dates'
+  | 'confirmResult'
+  | 'declineResult'
   | null;
 type Sheet = { kind: 'propose' | 'manage'; nodeId: string } | null;
 
@@ -103,6 +110,7 @@ export function TournamentDetailScreen({ route, navigation }: TournamentsStackSc
   const { colors, scheme } = useTheme();
   const styles = useMemo(() => createStyles(colors, scheme === 'dark'), [colors, scheme]);
   const { session } = useAuth();
+  const { refresh: refreshBadges } = useBadges();
   const userId = session?.user.id ?? null;
   const { tournamentId } = route.params;
   const [detail, setDetail] = useState<TournamentDetail | null>(null);
@@ -535,8 +543,11 @@ export function TournamentDetailScreen({ route, navigation }: TournamentsStackSc
     if (path.kind === 'play') {
       const node = path.node;
       const opponent = nameOf(path.opponent, '');
-      const ready = node.status === 'ready';
-      const overdue = isOverdue(node, clock);
+      // A result one of you recorded, waiting for the other (0028): it's been
+      // played, so no times or recording until it's confirmed or declined.
+      const result = node.pending;
+      const ready = node.status === 'ready' && !result;
+      const overdue = !result && isOverdue(node, clock);
       const askedByThem = ready && !!node.proposedAt && node.proposedBy === path.opponent;
       const askedByMe = ready && !!node.proposedAt && node.proposedBy === meId;
       const canPropose =
@@ -551,6 +562,7 @@ export function TournamentDetailScreen({ route, navigation }: TournamentsStackSc
           <Text style={styles.versus}>
             vs <PlayerName playerId={path.opponent} name={opponent} />
           </Text>
+          {result && renderResult(node, result, path.opponent, opponent)}
           {ready && node.scheduledAt && (
             <Text style={[styles.when, overdue && styles.whenOverdue]}>🗓 {formatMatchTime(node.scheduledAt, clock)}</Text>
           )}
@@ -637,6 +649,72 @@ export function TournamentDetailScreen({ route, navigation }: TournamentsStackSc
     );
   }
 
+  // A result waiting to be confirmed, on the player's own match card: theirs
+  // to confirm or decline, or waiting for their opponent.
+  function renderResult(node: TournamentNode, result: PendingResult, opponentId: string, opponent: string) {
+    const iAmA = node.playerA === meId;
+    const mine = result.games.map((g) => (iAmA ? [g.a, g.b] : [g.b, g.a]));
+    const myGames = mine.filter(([x, y]) => x > y).length;
+    const iWon = myGames > mine.length - myGames;
+    // Your side first: games won, or a one-game match's points.
+    const score = mine.length === 1 ? `${mine[0][0]}–${mine[0][1]}` : `${myGames}–${mine.length - myGames}`;
+    // Each game's score kept on one line (word joiners around the dash).
+    const games = mine.length > 1 ? ` (${mine.map(([x, y]) => `${x}\u2060–\u2060${y}`).join(', ')})` : '';
+    const byMe = result.by === meId;
+    const who = <PlayerName playerId={opponentId} name={opponent} style={styles.strong} />;
+
+    async function answer(action: 'confirm' | 'decline') {
+      if (
+        action === 'decline' &&
+        !(await confirmAction(
+          'Decline this result?',
+          `It won't count, and the match is still to be recorded. Agree on the score with ${opponent} and record it again, or ask the organizer.`,
+          'Decline',
+        ))
+      ) {
+        return;
+      }
+      run(action === 'confirm' ? 'confirmResult' : 'declineResult', async () => {
+        const answered = await confirmMatch(result.matchId, action);
+        if (action === 'confirm') {
+          refreshBadges(); // the result can move tiers
+          if (answered.you) {
+            const d = answered.you.delta;
+            showAlert(
+              'Result confirmed',
+              `You ${iWon ? 'won' : 'lost'} ${score}. Rating ${d >= 0 ? '+' : ''}${d}, now ${answered.you.rating}.`,
+            );
+          }
+        }
+      });
+    }
+
+    return (
+      <View style={styles.proposal}>
+        <Text style={styles.proposalText}>
+          {byMe ? 'You recorded it: ' : <>{who} recorded it: </>}
+          you {iWon ? 'won' : 'lost'} <Text style={styles.strong}>{score}</Text>
+          {games}.
+        </Text>
+        <Text style={styles.cardText}>
+          {byMe ? (
+            <>
+              Waiting for {who} to confirm it. It counts, and the winner goes on, once they do.
+            </>
+          ) : (
+            'It counts, and the winner goes on, once you confirm it.'
+          )}
+        </Text>
+        {!byMe && (
+          <View style={styles.buttonRow}>
+            <View style={{ flex: 1 }}>{button('Confirm', () => answer('confirm'), 'confirmResult')}</View>
+            <View style={{ flex: 1 }}>{button('Decline', () => answer('decline'), 'declineResult', 'danger')}</View>
+          </View>
+        )}
+      </View>
+    );
+  }
+
   // Admins: the matches not played on their day, to decide.
   function renderOverdue() {
     if (!isAdmin || tournament.status !== 'active') return null;
@@ -661,7 +739,10 @@ export function TournamentDetailScreen({ route, navigation }: TournamentsStackSc
                 {nameOf(n.playerA, '?')} v {nameOf(n.playerB, '?')}
               </Text>
               <Text style={styles.lateMeta}>
-                {roundLabel(n.round, totalRounds)} · due {formatMatchTime(n.scheduledAt!, clock)}
+                {roundLabel(n.round, totalRounds)} ·{' '}
+                {n.pending
+                  ? `${nameOf(n.pending.by, '?')} recorded ${scoreLine(n.pending.games, sideAWon(n.pending.games))}, not confirmed yet`
+                  : `due ${formatMatchTime(n.scheduledAt!, clock)}`}
               </Text>
             </View>
             <Text style={styles.record}>Decide ›</Text>
@@ -843,7 +924,7 @@ export function TournamentDetailScreen({ route, navigation }: TournamentsStackSc
             isAdmin && tournament.status === 'active' && !!roundDates(round) && editingRound?.round !== round
           }
           onEditRound={openRoundDates}
-          canPress={(node) => canManage(node) || (node.status === 'ready' && canRecord(node))}
+          canPress={(node) => canManage(node) || (node.status === 'ready' && !node.pending && canRecord(node))}
           onPressMatch={onMatchPress}
           startRound={playing.length > 0 ? Math.min(...playing) : 1}
         />

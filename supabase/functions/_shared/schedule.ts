@@ -120,7 +120,7 @@ export async function announceOverdue(admin: SupabaseClient, now = new Date(), s
       .eq('status', 'ready')
       .eq('overdue_notified', false)
       .lt('scheduled_at', todayStarts)
-      .select('tournament_id, round, player_a, player_b, scheduled_at');
+      .select('tournament_id, round, player_a, player_b, scheduled_at, pending_match_id');
     if (error) throw error;
     if (!claimed || claimed.length === 0) return;
 
@@ -132,11 +132,21 @@ export async function announceOverdue(admin: SupabaseClient, now = new Date(), s
     if (tError) throw tError;
     const byId = new Map((tournaments ?? []).map((t: { id: string; name: string; size: number }) => [t.id, t]));
     const nameOf = await names(admin, claimed.flatMap((m) => [m.player_a, m.player_b]));
+    // Results one player recorded and the other hasn't confirmed (0028): who recorded each.
+    const pendingIds = claimed.map((m) => m.pending_match_id).filter((id): id is string => !!id);
+    const recorderOf = new Map<string, string>();
+    if (pendingIds.length > 0) {
+      const { data: pending, error: pError } = await admin.from('matches').select('id, created_by').in('id', pendingIds);
+      if (pError) throw pError;
+      for (const p of (pending ?? []) as { id: string; created_by: string }[]) recorderOf.set(p.id, p.created_by);
+    }
 
     const notes: Note[] = [];
     for (const m of claimed) {
       const t = byId.get(m.tournament_id);
       if (!t) continue;
+      const recorder = m.pending_match_id ? recorderOf.get(m.pending_match_id) : undefined;
+      const waiting = recorder ? (recorder === m.player_a ? m.player_b : m.player_a) : undefined;
       const message = matchOverdue({
         tournamentId: m.tournament_id,
         tournament: t.name,
@@ -144,6 +154,8 @@ export async function announceOverdue(admin: SupabaseClient, now = new Date(), s
         playerA: nameOf.get(m.player_a) ?? '?',
         playerB: nameOf.get(m.player_b) ?? '?',
         at: m.scheduled_at,
+        recordedBy: recorder ? nameOf.get(recorder) ?? '?' : null,
+        waitingFor: waiting ? nameOf.get(waiting) ?? '?' : null,
       });
       for (const a of admins ?? []) notes.push({ playerId: a.player_id, message });
     }

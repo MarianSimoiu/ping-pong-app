@@ -80,10 +80,12 @@ export type PendingMatch = {
   // Per-set scores, from the viewer's perspective, in play order.
   games: { myScore: number; opponentScore: number }[];
   submittedAt: string;
+  // A tournament match's result (0028), which also moves its bracket on.
+  tournament?: { id: string; name: string } | null;
 };
 
-// A casual match the current user submitted, awaiting the opponent's
-// confirmation — the mirror image of PendingMatch.
+// A match the current user submitted, awaiting the opponent's confirmation —
+// the mirror image of PendingMatch.
 export type SubmittedPendingMatch = {
   matchId: string;
   opponentId: string;
@@ -94,4 +96,5 @@ export type SubmittedPendingMatch = {
   opponentGames: number;
   games: { myScore: number; opponentScore: number }[];
   submittedAt: string;
+  tournament?: { id: string; name: string } | null;
 };

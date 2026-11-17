@@ -6,8 +6,9 @@ The formulas here are implemented in
 and the worked numbers below are asserted by
 [`glicko2.test.ts`](../supabase/functions/_shared/glicko2.test.ts) — so the code
 and this doc can't drift apart. All rating math runs **server-side** in Edge
-Functions (`confirm-match` for casual matches, `submit-tournament-match` for
-tournament ones); clients never compute or write ratings.
+Functions (`confirm-match` when the opponent confirms a match, casual or
+tournament; `submit-tournament-match` for a tournament result the organizer
+records); clients never compute or write ratings.
 
 Each player has **two numbers**:
 

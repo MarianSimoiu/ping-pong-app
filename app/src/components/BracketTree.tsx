@@ -6,7 +6,7 @@ import { Avatar } from '@/components/Avatar';
 import { PlayerLink } from '@/components/PlayerLink';
 import { withYou } from '@/components/PotsList';
 import { formatMatchTime, isOverdue } from '@/lib/schedule';
-import { winningScore, type TournamentNode } from '@/lib/tournaments';
+import { scoreLine, sideAWon, winningScore, type TournamentNode } from '@/lib/tournaments';
 import { radius, spacing, useTheme, type Colors } from '@/theme';
 
 // A tournament's bracket drawn as a tree: a column per round, each match
@@ -239,7 +239,8 @@ function MatchBox({
   const nameB = nameOf(node.playerB, fallback);
   const winner = nameOf(node.winnerId, '');
 
-  // Between the two players: the score once it's played, else when it's on.
+  // Between the two players: the score once it's played (⏳ while the other
+  // player still has to confirm it), else when it's on.
   let middle: React.ReactNode = null;
   let said: string | null = null;
   if (score) {
@@ -248,6 +249,15 @@ function MatchBox({
   } else if (node.walkover) {
     middle = <Text style={styles.midMuted}>Walkover</Text>;
     said = `${winner} won on a walkover`;
+  } else if (node.pending) {
+    const aWon = sideAWon(node.pending.games);
+    const waiting = scoreLine(node.pending.games, aWon);
+    middle = (
+      <Text style={[styles.midWaiting, pressable && styles.midAction]} numberOfLines={1}>
+        {waiting} ⏳{pressable ? ' ›' : ''}
+      </Text>
+    );
+    said = `${aWon ? nameA : nameB} won ${waiting}, waiting to be confirmed`;
   } else if (time) {
     middle = (
       <Text style={[styles.midTime, pressable && styles.midAction, overdue && styles.midOverdue]} numberOfLines={1}>
@@ -407,6 +417,7 @@ function createStyles(colors: Colors) {
     midLine: { flex: 1, height: 1, backgroundColor: colors.border },
     midScore: { color: colors.text, fontSize: 12, fontWeight: '800', fontVariant: ['tabular-nums'] },
     midMuted: { color: colors.textMuted, fontSize: 11, fontWeight: '700' },
+    midWaiting: { color: colors.textMuted, fontSize: 12, fontWeight: '700', fontVariant: ['tabular-nums'] },
     midTime: { color: colors.textMuted, fontSize: 11, fontWeight: '600', flexShrink: 1 },
     midAction: { color: colors.primary },
     midOverdue: { color: colors.danger },

@@ -18,6 +18,10 @@ import {
   tournamentOpened,
   tournamentRegistered,
   tournamentRescheduled,
+  tournamentResultByOrganizer,
+  tournamentResultConfirmed,
+  tournamentResultDeclined,
+  tournamentResultToConfirm,
   walkoverGiven,
 } from './messages.ts';
 
@@ -165,6 +169,16 @@ Deno.test('match times: in the draw message, scheduled, moved, proposed, decline
     matchOverdue({ ...t, match: 'round of 16 match', playerA: 'Ana', playerB: 'Ben', at }).body,
     'Ana v Ben (round of 16 match) was due Mon 16 Nov, 11:00. Record the result or give a walkover.',
   );
+  // Played, but the result one player recorded isn't confirmed (0028).
+  assertEquals(
+    matchOverdue({ ...t, match: 'semifinal', playerA: 'Ana', playerB: 'Ben', at, recordedBy: 'Ana', waitingFor: 'Ben' }),
+    {
+      title: "Winter Cup: a result isn't confirmed",
+      body: "Ana recorded Ana v Ben (semifinal, due Mon 16 Nov, 11:00) and Ben hasn't confirmed it. Record the result to settle it, or give a walkover.",
+      url: '/tournaments/t1',
+      tag: 'overdue-t1',
+    },
+  );
   assertEquals(walkoverGiven({ ...t, match: 'semifinal', youWon: true, opponent: 'Ben' }).title, 'Winter Cup: you go through');
   assertEquals(
     walkoverGiven({ ...t, match: 'semifinal', youWon: false, opponent: 'Ana' }).body,
@@ -181,4 +195,35 @@ Deno.test('a sign-up, to the admins: who and how many, one alert each', () => {
     tag: 'registered-t1-p1',
   });
   assertEquals(tournamentRegistered({ ...t, player: 'Ben', playerId: 'p2', count: 1 }).body, '1 player registered so far.');
+});
+
+Deno.test('tournament results: to confirm, confirmed, declined, and the organizer\'s', () => {
+  const r = { tournamentId: 't1', tournament: 'Winter Cup', match: 'semifinal', matchId: 'm9' };
+  assertEquals(tournamentResultToConfirm({ ...r, recorder: 'Ana', youWon: false, yourGames: 1, theirGames: 2 }), {
+    title: 'Ana recorded your semifinal',
+    body: 'Winter Cup: you lost 1–2. It counts once you confirm it. Tap to confirm or decline.',
+    url: '/tournaments/t1',
+    tag: 'result-m9',
+  });
+  assertEquals(
+    tournamentResultConfirmed({ ...r, opponent: 'Ben', youWon: true, yourGames: 2, theirGames: 1, delta: 18, rating: 1630 }),
+    {
+      title: 'Ben confirmed your semifinal',
+      body: 'Winter Cup: you won 2–1 · rating +18, now 1630.',
+      url: '/tournaments/t1',
+      tag: 'result-m9',
+    },
+  );
+  assertEquals(tournamentResultDeclined({ ...r, opponent: 'Ben', youWon: true, yourGames: 2, theirGames: 1 }), {
+    title: 'Ben declined your semifinal result',
+    body: "Your 2–1 win doesn't count. Agree on the score and record it again, or ask the organizer.",
+    url: '/tournaments/t1',
+    tag: 'result-m9',
+  });
+  assertEquals(tournamentResultByOrganizer({ ...r, opponent: 'Ana', youWon: false, yourGames: 0, theirGames: 2 }), {
+    title: 'Winter Cup: your semifinal result',
+    body: 'The organizer recorded it: you lost 0–2 against Ana.',
+    url: '/tournaments/t1',
+    tag: 'result-m9',
+  });
 });

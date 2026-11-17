@@ -67,6 +67,7 @@ export function PendingMatchCard({
   const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.card}>
+      {m.tournament && <Text style={styles.kicker}>🏆 {m.tournament.name} · tournament result</Text>}
       <PlayerLink playerId={m.submitterId} name={m.submitterName} style={styles.headerRow}>
         <Avatar uri={m.submitterAvatarUrl} name={m.submitterName} size={36} playerId={m.submitterId} />
         <View style={styles.headerText}>
@@ -110,6 +111,7 @@ function createStyles(colors: Colors) {
     headerRow: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', marginBottom: spacing.sm },
     headerText: { marginLeft: spacing.sm },
     name: { color: colors.text, fontSize: 14, fontWeight: '700' },
+    kicker: { color: colors.textMuted, fontSize: 12, fontWeight: '700', marginBottom: spacing.xs },
     time: { color: colors.textMuted, fontSize: 11 },
     text: { color: colors.text, fontSize: 14, marginBottom: spacing.xs },
     sets: { color: colors.textMuted, fontSize: 12, marginBottom: spacing.sm },
