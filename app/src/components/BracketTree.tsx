@@ -1,4 +1,5 @@
-import React, { useMemo, useRef, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Avatar } from '@/components/Avatar';
@@ -10,7 +11,8 @@ import { radius, spacing, useTheme, type Colors } from '@/theme';
 // A tournament's bracket drawn as a tree: a column per round, each match
 // half-way between the two matches its players come from, with lines joining
 // them, and the champion at the end. From the semifinals back it's wider than
-// a phone, so it scrolls sideways.
+// a phone, so it scrolls sideways, or zooms out to fit the screen's width
+// (the choice is kept on the device).
 
 const BOX_W = 160; // two rounds side by side fill a phone's width
 const GAP = 22; // between rounds, where the lines run
@@ -20,6 +22,7 @@ const SLOT = BOX_H + ROW_GAP;
 const AVATAR = 20;
 const CHAMP_W = 112;
 const LINE = 1.5;
+const ZOOM_KEY = 'pingpong.bracket.zoomedOut';
 
 export type BracketTreeProps = {
   nodes: TournamentNode[];
@@ -47,6 +50,14 @@ export function BracketTree(props: BracketTreeProps) {
   const scrollRef = useRef<ScrollView>(null);
   const scrolled = useRef(false);
   const [viewWidth, setViewWidth] = useState(0);
+  // The tree's own height (column headers and matches), to size it zoomed out.
+  const [treeHeight, setTreeHeight] = useState(0);
+  const [zoomedOut, setZoomedOut] = useState(false);
+  useEffect(() => {
+    AsyncStorage.getItem(ZOOM_KEY)
+      .then((stored) => stored === '1' && setZoomedOut(true))
+      .catch(() => {});
+  }, []);
 
   const rounds = Array.from({ length: totalRounds }, (_, i) => i + 1);
   const left = (round: number) => (round - 1) * (BOX_W + GAP);
@@ -80,14 +91,48 @@ export function BracketTree(props: BracketTreeProps) {
     <View key="to-champion" style={[styles.line, { left: left(totalRounds) + BOX_W, top: height / 2 - LINE / 2, width: GAP }]} />,
   );
 
-  const overflows = viewWidth > 0 && width + 2 * spacing.lg > viewWidth;
+  // The room inside the page's margins; wider than that, the tree scrolls, or
+  // zoomed out it's scaled down to fit it.
+  const room = viewWidth - 2 * spacing.lg;
+  const overflows = viewWidth > 0 && width > room;
+  const scale = overflows && zoomedOut ? room / width : 1;
+
+  function toggleZoom() {
+    const next = !zoomedOut;
+    setZoomedOut(next);
+    AsyncStorage.setItem(ZOOM_KEY, next ? '1' : '0').catch(() => {});
+  }
+  // Once it's redrawn: zoomed out, from the start; back to full size, on the
+  // round being played again.
+  const zoomChanged = useRef(false);
+  useEffect(() => {
+    if (!zoomChanged.current) {
+      zoomChanged.current = true;
+      return;
+    }
+    scrollRef.current?.scrollTo({ x: zoomedOut || startRound <= 1 ? 0 : left(startRound), animated: false });
+  }, [zoomedOut]);
 
   return (
     <>
-      {overflows && <Text style={styles.hint}>Swipe sideways to see every round →</Text>}
+      {overflows && (
+        <View style={styles.toolbar}>
+          <Text style={styles.hint}>{zoomedOut ? 'The whole bracket' : 'Swipe sideways to see every round →'}</Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={zoomedOut ? 'Zoom in on the bracket' : 'Zoom out to fit the whole bracket'}
+            onPress={toggleZoom}
+            hitSlop={8}
+            style={styles.zoomButton}
+          >
+            <Text style={styles.zoomText}>{zoomedOut ? '🔍 Zoom in' : '🔍 Zoom out'}</Text>
+          </Pressable>
+        </View>
+      )}
       <ScrollView
         ref={scrollRef}
         horizontal
+        scrollEnabled={scale === 1}
         style={styles.scroller}
         contentContainerStyle={styles.scrollContent}
         onLayout={(e) => setViewWidth(e.nativeEvent.layout.width)}
@@ -95,64 +140,70 @@ export function BracketTree(props: BracketTreeProps) {
           // Open on the round being played (once: not on every refresh).
           if (scrolled.current) return;
           scrolled.current = true;
-          if (startRound > 1) scrollRef.current?.scrollTo({ x: left(startRound), animated: false });
+          if (startRound > 1 && scale === 1) scrollRef.current?.scrollTo({ x: left(startRound), animated: false });
         }}
       >
-        <View>
-          <View style={styles.headers}>
-            {rounds.map((round) => {
-              const title = roundTitle(round);
-              const days = roundDays(round);
-              return (
-                <View key={round} style={[styles.header, { width: BOX_W, marginRight: GAP }]}>
-                  <Text style={styles.headerTitle} numberOfLines={1}>
-                    {title}
-                  </Text>
-                  <View style={styles.headerSub}>
-                    {days && <Text style={styles.headerDays}>{days}</Text>}
-                    {props.canEditRound(round) && (
-                      <Pressable
-                        accessibilityRole="button"
-                        accessibilityLabel={`Change the days of the ${title.toLowerCase()}`}
-                        onPress={() => props.onEditRound(round)}
-                        hitSlop={8}
-                      >
-                        <Text style={styles.editLink}>Edit</Text>
-                      </Pressable>
-                    )}
+        {/* Zoomed out: the tree drawn smaller, in a box of its smaller size. */}
+        <View style={scale < 1 ? { width: width * scale, height: treeHeight * scale, overflow: 'hidden' } : null}>
+          <View
+            onLayout={(e) => setTreeHeight(e.nativeEvent.layout.height)}
+            style={scale < 1 ? { width, transform: [{ scale }], transformOrigin: 'top left' } : null}
+          >
+            <View style={styles.headers}>
+              {rounds.map((round) => {
+                const title = roundTitle(round);
+                const days = roundDays(round);
+                return (
+                  <View key={round} style={[styles.header, { width: BOX_W, marginRight: GAP }]}>
+                    <Text style={styles.headerTitle} numberOfLines={1}>
+                      {title}
+                    </Text>
+                    <View style={styles.headerSub}>
+                      {days && <Text style={styles.headerDays}>{days}</Text>}
+                      {props.canEditRound(round) && (
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={`Change the days of the ${title.toLowerCase()}`}
+                          onPress={() => props.onEditRound(round)}
+                          hitSlop={8}
+                        >
+                          <Text style={styles.editLink}>Edit</Text>
+                        </Pressable>
+                      )}
+                    </View>
                   </View>
-                </View>
-              );
-            })}
-            <View style={[styles.header, { width: CHAMP_W }]}>
-              <Text style={styles.headerTitle}>Champion</Text>
+                );
+              })}
+              <View style={[styles.header, { width: CHAMP_W }]}>
+                <Text style={styles.headerTitle}>Champion</Text>
+              </View>
             </View>
-          </View>
 
-          <View style={{ width, height }}>
-            {lines}
-            {nodes.map((node) => (
-              <MatchBox
-                key={node.id}
-                node={node}
-                left={left(node.round)}
-                top={centre(node.round, node.slot) - BOX_H / 2}
-                {...props}
-                styles={styles}
-              />
-            ))}
-            <View style={[styles.champ, { left: champLeft, top: height / 2 - BOX_H / 2 }]}>
-              <Text style={styles.trophy}>🏆</Text>
-              {champion ? (
-                <View style={styles.champRow}>
-                  <Avatar uri={avatarOf(champion)} name={nameOf(champion, '?')} size={AVATAR} playerId={champion} />
-                  <Text style={styles.champName} numberOfLines={1}>
-                    {withYou(nameOf(champion, '?'), champion === meId)}
-                  </Text>
-                </View>
-              ) : (
-                <Text style={styles.champTbd}>?</Text>
-              )}
+            <View style={{ width, height }}>
+              {lines}
+              {nodes.map((node) => (
+                <MatchBox
+                  key={node.id}
+                  node={node}
+                  left={left(node.round)}
+                  top={centre(node.round, node.slot) - BOX_H / 2}
+                  {...props}
+                  styles={styles}
+                />
+              ))}
+              <View style={[styles.champ, { left: champLeft, top: height / 2 - BOX_H / 2 }]}>
+                <Text style={styles.trophy}>🏆</Text>
+                {champion ? (
+                  <View style={styles.champRow}>
+                    <Avatar uri={avatarOf(champion)} name={nameOf(champion, '?')} size={AVATAR} playerId={champion} />
+                    <Text style={styles.champName} numberOfLines={1}>
+                      {withYou(nameOf(champion, '?'), champion === meId)}
+                    </Text>
+                  </View>
+                ) : (
+                  <Text style={styles.champTbd}>?</Text>
+                )}
+              </View>
             </View>
           </View>
         </View>
@@ -274,7 +325,23 @@ function Side({
 
 function createStyles(colors: Colors) {
   return StyleSheet.create({
-    hint: { color: colors.textMuted, fontSize: 12, marginTop: -2, marginBottom: spacing.sm },
+    toolbar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: spacing.sm,
+      marginTop: -2,
+      marginBottom: spacing.sm,
+    },
+    hint: { color: colors.textMuted, fontSize: 12, flexShrink: 1 },
+    zoomButton: {
+      borderWidth: 1,
+      borderColor: colors.primary,
+      borderRadius: 999,
+      paddingHorizontal: spacing.sm + 2,
+      paddingVertical: 4,
+    },
+    zoomText: { color: colors.primary, fontSize: 13, fontWeight: '700' },
     // Edge to edge, so the rounds scroll under the screen's sides.
     scroller: { marginHorizontal: -spacing.lg },
     scrollContent: { paddingHorizontal: spacing.lg, paddingBottom: spacing.sm },
