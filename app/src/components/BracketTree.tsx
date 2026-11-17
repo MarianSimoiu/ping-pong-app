@@ -15,7 +15,8 @@ import { radius, spacing, useTheme, type Colors } from '@/theme';
 // a phone, so it scrolls sideways, or zooms out to fit the screen's width
 // (the choice is kept on the device).
 
-const BOX_W = 160; // two rounds side by side fill a phone's width
+const BOX_W = 160; // two rounds side by side fill a phone's width (best of 1 or 3)
+const SET_W = 18; // one game's points on a player's row: a 15 px cell and a 3 px gap
 const GAP = 22; // between rounds, where the lines run
 const BOX_H = 78;
 const ROW_GAP = 12; // between two first-round matches
@@ -25,9 +26,14 @@ const CHAMP_W = 112;
 const LINE = 1.5;
 const ZOOM_KEY = 'pingpong.bracket.zoomedOut';
 
+// Wide enough for a whole match's games beside the names: the usual width up
+// to best of 3, then one game's cell more for each game past three.
+const boxWidth = (bestOf: number) => BOX_W + Math.max(0, bestOf - 3) * SET_W;
+
 export type BracketTreeProps = {
   nodes: TournamentNode[];
   totalRounds: number;
+  bestOf: number;
   champion: string | null;
   meId: string | null;
   now: number;
@@ -61,8 +67,9 @@ export function BracketTree(props: BracketTreeProps) {
   }, []);
 
   const rounds = Array.from({ length: totalRounds }, (_, i) => i + 1);
-  const left = (round: number) => (round - 1) * (BOX_W + GAP);
-  const champLeft = left(totalRounds) + BOX_W + GAP;
+  const boxW = boxWidth(props.bestOf);
+  const left = (round: number) => (round - 1) * (boxW + GAP);
+  const champLeft = left(totalRounds) + boxW + GAP;
   const width = champLeft + CHAMP_W;
   const height = 2 ** (totalRounds - 1) * SLOT - ROW_GAP;
   // Each round's matches share the height equally; a match sits in the
@@ -75,7 +82,7 @@ export function BracketTree(props: BracketTreeProps) {
     for (let k = 0; k < 2 ** (totalRounds - round - 1); k++) {
       const top = centre(round, 2 * k);
       const bottom = centre(round, 2 * k + 1);
-      const x = left(round) + BOX_W;
+      const x = left(round) + boxW;
       lines.push(
         <View
           key={`join-${round}-${k}`}
@@ -89,7 +96,7 @@ export function BracketTree(props: BracketTreeProps) {
     }
   }
   lines.push(
-    <View key="to-champion" style={[styles.line, { left: left(totalRounds) + BOX_W, top: height / 2 - LINE / 2, width: GAP }]} />,
+    <View key="to-champion" style={[styles.line, { left: left(totalRounds) + boxW, top: height / 2 - LINE / 2, width: GAP }]} />,
   );
 
   // The room inside the page's margins; wider than that, the tree scrolls, or
@@ -155,7 +162,7 @@ export function BracketTree(props: BracketTreeProps) {
                 const title = roundTitle(round);
                 const days = roundDays(round);
                 return (
-                  <View key={round} style={[styles.header, { width: BOX_W, marginRight: GAP }]}>
+                  <View key={round} style={[styles.header, { width: boxW, marginRight: GAP }]}>
                     <Text style={styles.headerTitle} numberOfLines={1}>
                       {title}
                     </Text>
@@ -187,6 +194,7 @@ export function BracketTree(props: BracketTreeProps) {
                   key={node.id}
                   node={node}
                   left={left(node.round)}
+                  width={boxW}
                   top={centre(node.round, node.slot) - BOX_H / 2}
                   {...props}
                   styles={styles}
@@ -226,7 +234,8 @@ function MatchBox({
   canPress,
   onPressMatch,
   styles,
-}: BracketTreeProps & { node: TournamentNode; left: number; top: number; styles: Styles }) {
+  width,
+}: BracketTreeProps & { node: TournamentNode; left: number; top: number; width: number; styles: Styles }) {
   const ready = node.status === 'ready';
   const bye = node.round === 1 && node.status === 'completed' && (!node.playerA || !node.playerB);
   const mine = !!meId && (node.playerA === meId || node.playerB === meId);
@@ -268,6 +277,11 @@ function MatchBox({
     said = overdue ? `was due ${time}` : time;
   }
 
+  // Each player's points in every game, on their row: the match's, or the
+  // result waiting to be confirmed (paler until it is).
+  const games = node.games.length > 0 ? node.games : node.pending?.games ?? [];
+  const gamesWaiting = node.games.length === 0 && !!node.pending;
+
   const between = (
     <>
       <View style={styles.midLine} />
@@ -278,13 +292,17 @@ function MatchBox({
   // Each player opens their profile; the line between them, when the match is
   // the viewer's to record or manage, opens that.
   return (
-    <View style={[styles.box, { left, top }, ready && styles.boxReady, mine && styles.boxMine, bye && styles.boxBye]}>
+    <View
+      style={[styles.box, { left, top, width }, ready && styles.boxReady, mine && styles.boxMine, bye && styles.boxBye]}
+    >
       <Side
         id={node.playerA}
         name={nameA}
         avatarUrl={avatarOf(node.playerA)}
         isWinner={!!node.winnerId && node.winnerId === node.playerA}
         isMe={!!meId && node.playerA === meId}
+        points={games.map((g) => ({ mine: g.a, theirs: g.b }))}
+        waiting={gamesWaiting}
         styles={styles}
       />
       {pressable ? (
@@ -308,6 +326,8 @@ function MatchBox({
         avatarUrl={avatarOf(node.playerB)}
         isWinner={!!node.winnerId && node.winnerId === node.playerB}
         isMe={!!meId && node.playerB === meId}
+        points={games.map((g) => ({ mine: g.b, theirs: g.a }))}
+        waiting={gamesWaiting}
         styles={styles}
       />
     </View>
@@ -315,13 +335,16 @@ function MatchBox({
 }
 
 // One player of a match: photo (with their tier ring) and name, opening their
-// profile; or an empty circle while it's not known who plays.
+// profile, then their points in each game played (bold where they won the
+// game); or an empty circle while it's not known who plays.
 function Side({
   id,
   name,
   avatarUrl,
   isWinner,
   isMe,
+  points,
+  waiting,
   styles,
 }: {
   id: string | null;
@@ -329,6 +352,8 @@ function Side({
   avatarUrl: string | null;
   isWinner: boolean;
   isMe: boolean;
+  points: { mine: number; theirs: number }[];
+  waiting: boolean;
   styles: Styles;
 }) {
   return (
@@ -337,6 +362,15 @@ function Side({
       <Text style={[styles.name, isMe && styles.nameMe, isWinner && styles.nameWinner]} numberOfLines={1}>
         {withYou(name, isMe)}
       </Text>
+      {points.length > 0 && (
+        <View style={[styles.points, waiting && styles.pointsWaiting]}>
+          {points.map((p, i) => (
+            <Text key={i} style={[styles.point, p.mine > p.theirs && styles.pointWon]}>
+              {p.mine}
+            </Text>
+          ))}
+        </View>
+      )}
     </PlayerLink>
   );
 }
@@ -389,7 +423,7 @@ function createStyles(colors: Colors) {
     line: { position: 'absolute', height: LINE, backgroundColor: colors.textMuted, opacity: 0.55 },
     box: {
       position: 'absolute',
-      width: BOX_W,
+      width: BOX_W, // (each box gets its tournament's width)
       height: BOX_H,
       justifyContent: 'center',
       paddingHorizontal: spacing.sm,
@@ -410,7 +444,12 @@ function createStyles(colors: Colors) {
       borderStyle: 'dashed',
       borderColor: colors.border,
     },
-    name: { color: colors.text, fontSize: 13, flexShrink: 1 },
+    name: { color: colors.text, fontSize: 13, flex: 1 },
+    // A player's points in each game, in columns that line up with the other player's.
+    points: { flexDirection: 'row', gap: SET_W - 15 },
+    pointsWaiting: { opacity: 0.6 },
+    point: { width: 15, textAlign: 'right', color: colors.textMuted, fontSize: 11, fontVariant: ['tabular-nums'] },
+    pointWon: { color: colors.text, fontWeight: '700' },
     nameMe: { fontWeight: '700' },
     nameWinner: { color: colors.success, fontWeight: '700' },
     mid: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 20 },

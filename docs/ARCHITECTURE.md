@@ -180,7 +180,10 @@ round with its days, each match half-way between the two it comes from and
 joined to them by lines, then the champion. Between a match's two players
 it shows the winning score once it's played (games won, or the points of a
 one-game match; read from `match_games`), "Walkover", or its time while it's
-waiting to be played. It scrolls sideways where it's wider than the screen
+waiting to be played; and each player's row ends with their points in every
+game, lined up with the other player's, bold where they won the game (paler
+while a result waits to be confirmed). The boxes widen past best of 3 so
+the names keep their room. It scrolls sideways where it's wider than the screen
 and opens on the round being played; **Zoom out** scales it down to fit the
 screen's width instead (kept on the device, `pingpong.bracket.zoomedOut`).
 
