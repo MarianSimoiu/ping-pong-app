@@ -160,7 +160,8 @@ joined to them by lines, then the champion. Between a match's two players
 it shows the winning score once it's played (games won, or the points of a
 one-game match; read from `match_games`), "Walkover", or its time while it's
 waiting to be played. It scrolls sideways where it's wider than the screen
-and opens on the round being played.
+and opens on the round being played; **Zoom out** scales it down to fit the
+screen's width instead (kept on the device, `pingpong.bracket.zoomedOut`).
 
 Tournaments from before registration existed have no kickoff time or pots
 and show as before. The app only reads the tournament tables; every change is
