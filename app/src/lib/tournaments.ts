@@ -52,7 +52,26 @@ export type TournamentNode = {
   proposedAt: string | null; // another time one player asked for, until the other answers
   proposedBy: string | null;
   walkover: boolean; // won without playing (the organizer's call)
+  // The points of each game once it's played, side A's first (none for a
+  // walkover or a bye).
+  games: GameScore[];
 };
+
+export type GameScore = { a: number; b: number };
+
+// The score of a played match, the winner's first: the games won ("2–1"), or
+// the points of a one-game match ("11–7"). Null without games (a walkover).
+export function winningScore(node: Pick<TournamentNode, 'games' | 'winnerId' | 'playerA'>): string | null {
+  if (!node.winnerId || node.games.length === 0) return null;
+  const aWon = node.winnerId === node.playerA;
+  if (node.games.length === 1) {
+    const { a, b } = node.games[0];
+    return aWon ? `${a}–${b}` : `${b}–${a}`;
+  }
+  const aGames = node.games.filter((g) => g.a > g.b).length;
+  const bGames = node.games.length - aGames;
+  return aWon ? `${aGames}–${bGames}` : `${bGames}–${aGames}`;
+}
 
 // The days a round is played (club days, "2026-11-16").
 export type TournamentRound = { round: number; startsOn: string; endsOn: string };
@@ -140,7 +159,10 @@ export async function fetchTournaments(myUserId: string | null): Promise<Tournam
   }));
 }
 
-const mapNode = (n: any): TournamentNode => ({
+// A played match as stored: its own player_a, and its games' points.
+type PlayedMatch = { player_a: string; games: { game_no: number; score_a: number; score_b: number }[] };
+
+const mapNode = (n: any, played?: PlayedMatch): TournamentNode => ({
   id: n.id,
   round: n.round,
   slot: n.slot,
@@ -153,11 +175,15 @@ const mapNode = (n: any): TournamentNode => ({
   proposedAt: n.proposed_at ?? null,
   proposedBy: n.proposed_by ?? null,
   walkover: !!n.walkover,
+  // Turned to the node's sides, in case the match has them the other way.
+  games: [...(played?.games ?? [])]
+    .sort((x, y) => x.game_no - y.game_no)
+    .map((g) => (played!.player_a === n.player_a ? { a: g.score_a, b: g.score_b } : { a: g.score_b, b: g.score_a })),
 });
 
 export async function fetchTournamentDetail(id: string): Promise<TournamentDetail> {
   if (DEMO) return demo.demoTournamentDetail(id);
-  const [tRes, pRes, liveRes, nRes, rRes, tableRes] = await Promise.all([
+  const [tRes, pRes, liveRes, nRes, rRes, tableRes, gamesRes] = await Promise.all([
     supabase.from('tournaments').select(SUMMARY_COLUMNS).eq('id', id).single(),
     supabase
       .from('tournament_participants')
@@ -174,7 +200,7 @@ export async function fetchTournamentDetail(id: string): Promise<TournamentDetai
     supabase
       .from('tournament_matches')
       .select(
-        'id, round, slot, player_a, player_b, winner_id, status, scheduled_at, planned_on, proposed_at, proposed_by, walkover',
+        'id, round, slot, player_a, player_b, winner_id, status, scheduled_at, planned_on, proposed_at, proposed_by, walkover, match_id',
       )
       .eq('tournament_id', id)
       .order('round', { ascending: true })
@@ -190,6 +216,8 @@ export async function fetchTournamentDetail(id: string): Promise<TournamentDetai
       .select('id, scheduled_at, tournament:tournaments(best_of)')
       .eq('status', 'ready')
       .gte('scheduled_at', new Date(Date.now() - 864e5).toISOString()),
+    // The games of the matches played in it, for the scores on the bracket.
+    supabase.from('matches').select('id, player_a, games:match_games(game_no, score_a, score_b)').eq('tournament_id', id),
   ]);
   if (tRes.error) throw tRes.error;
   if (pRes.error) throw pRes.error;
@@ -224,7 +252,13 @@ export async function fetchTournamentDetail(id: string): Promise<TournamentDetai
   const nameById: Record<string, string> = {};
   for (const p of participants) nameById[p.playerId] = p.name;
 
-  const nodes: TournamentNode[] = (nRes.data ?? []).map(mapNode);
+  // The scores are a nicety: without them the bracket still shows who won.
+  const playedById = new Map<string, PlayedMatch>(
+    gamesRes.error ? [] : (gamesRes.data ?? []).map((m: any) => [m.id, m as PlayedMatch]),
+  );
+  const nodes: TournamentNode[] = (nRes.data ?? []).map((n: any) =>
+    mapNode(n, n.match_id ? playedById.get(n.match_id) : undefined),
+  );
   const rounds: TournamentRound[] = (rRes.data ?? []).map((r: any) => ({
     round: r.round,
     startsOn: r.starts_on,
