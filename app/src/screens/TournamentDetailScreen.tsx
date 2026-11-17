@@ -37,6 +37,7 @@ import {
   registerForTournament,
   requestKickoff,
   rescheduleTournament,
+  roundDaysShown,
   scoreLine,
   setRoundDates,
   sideAWon,
@@ -626,7 +627,7 @@ export function TournamentDetailScreen({ route, navigation }: TournamentsStackSc
         </View>
       );
     }
-    const dates = roundDates(path.node.round);
+    const dates = roundDaysShown(roundDates(path.node.round), nodes, path.node.round);
     return (
       <View style={styles.card}>
         <Text style={styles.cardKicker}>
@@ -893,10 +894,10 @@ export function TournamentDetailScreen({ route, navigation }: TournamentsStackSc
         {renderOverdue()}
         {tournament.status === 'active' && roundDays.length > 0 && (
           <Text style={styles.scheduleHint}>
-            🗓 One table, 11:00 to 18:00 Bucharest time. Matches are lined up back to back on their round's days,{' '}
-            {slotMinutes(tournament.bestOf)} minutes each, as soon as both players are known. The times are
-            flexible: if you're both ready earlier, play when the table's free; or agree another time, up to a day
-            later.
+            🗓 One table, 11:00 to 18:00 Bucharest time, {slotMinutes(tournament.bestOf)} minutes a match. Round 1
+            starts the weekday after the draw; after that, as soon as a match's two players are known it gets the
+            first free time on the table, the same day if there's room. The times are flexible: if you're both ready
+            earlier, play when the table's free; or agree another time, up to a day later.
           </Text>
         )}
 
@@ -917,7 +918,7 @@ export function TournamentDetailScreen({ route, navigation }: TournamentsStackSc
           avatarOf={avatarOf}
           roundTitle={(round) => roundLabel(round, totalRounds)}
           roundDays={(round) => {
-            const dates = roundDates(round);
+            const dates = roundDaysShown(roundDates(round), nodes, round);
             return dates ? formatDayRange(dates.startsOn, dates.endsOn) : null;
           }}
           canEditRound={(round) =>

@@ -198,13 +198,15 @@ export function HowRatingsWorkScreen() {
             Pot 1 plays Pot 4 and Pot 2 plays Pot 3, and the top seeds get any byes.
           </P>
           <P>
-            Each round has its days, and its matches are lined up back to back on the one table,
-            from 11:00 to 18:00 (Bucharest time): 20 minutes each at best of 3 (15 at best of 1, 25
-            at best of 5, 30 at best of 7). The time is flexible: if you and your opponent are both
-            ready earlier, go to the table and play if it's free. You can also propose another time,
-            from today up to a day after the planned one, and it moves once your opponent accepts. A
-            match not played on its day is the organizer's to decide: a result, a new time or a
-            walkover.
+            Matches are lined up back to back on the one table, from 11:00 to 18:00 (Bucharest time)
+            on weekdays: 20 minutes each at best of 3 (15 at best of 1, 25 at best of 5, 30 at best
+            of 7). Round 1 starts the weekday after the draw. After that, as soon as both players of a
+            match are known, it gets the <B>first free time</B> on the table: the same day if there's
+            room, so winners can play on straight away. (When the organizer sets a round's days, its
+            matches stay on those days.) The time is flexible: if you and your opponent are both ready
+            earlier, go to the table and play if it's free. You can also propose another time, from
+            today up to a day after the planned one, and it moves once your opponent accepts. A match
+            not played on its day is the organizer's to decide: a result, a new time or a walkover.
           </P>
           <P>
             Tournament matches change your skill rating like any other match (a walkover doesn't).

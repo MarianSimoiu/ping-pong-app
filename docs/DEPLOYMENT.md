@@ -123,6 +123,7 @@ Otherwise the link lands on the wrong page and the reset can't finish.
 | `0026_player_names.sql` | players change their name from Profile → Settings: a trigger tidies a changed `display_name` (whitespace runs made one space, ends trimmed) and refuses one under 2 or over 30 characters, or another player's (ignoring case and spacing). Sign-ups and existing names aren't touched |
 | `0027_match_lengths.sql` | shorter tournament match slots, back to back from 11:00: 15 minutes at best of 1, 20 at best of 3, 25 at best of 5, 30 at best of 7 (was 30, 30, 45, 60); start times tried 5 minutes apart (was 15). Matches that already have a time keep it |
 | `0028_tournament_confirmation.sql` | tournament results are confirmed by both players: a player's result waits as a pending match (`tournament_matches.pending_match_id`, `record_tournament_result`) until the other confirms it (`confirm_tournament_result`: ratings, then the bracket moves on) or declines it (`reject_match` frees the match); an organizer's result (`apply_tournament_result`) or a walkover replaces one still waiting |
+| `0029_next_match_asap.sql` | once play has started, a tournament match whose two players are known gets the first free time from then on (11:00–18:00 weekdays, 15 minutes ahead, the same day if there's room) instead of its round's planned day; at the draw nothing changes; `tournament_rounds.fixed` marks the rounds whose days an admin set (`set_round_dates`), which keep their matches within them |
 
 ### Club time zone
 

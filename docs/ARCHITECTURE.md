@@ -143,12 +143,20 @@ casual play (`context = 'tournament'`). A tournament goes through:
 **When matches are played** (`0018_match_schedule.sql`). At the draw,
 `tournament_rounds` gives each round a day (one per weekday from the next
 one). Triggers on `tournaments` and `tournament_matches` give every match
-whose two players are known the first free time on its round's days
-(`schedule_tournament_matches`): one table, 11:00–18:00 club time, matches
-back to back and never overlapping (`0027_match_lengths.sql`: 15 minutes at
-best of 1, 20 at best of 3, 25 at best of 5, 30 at best of 7; start times
-tried 5 minutes apart), so the draw, each result and each walkover schedule
-the next matches. A time is a plan, not an appointment: two players who are
+whose two players are known the first free time (`schedule_tournament_matches`):
+one table, 11:00–18:00 club time, matches back to back and never overlapping
+(`0027_match_lengths.sql`: 15 minutes at best of 1, 20 at best of 3, 25 at
+best of 5, 30 at best of 7; start times tried 5 minutes apart), so the draw,
+each result and each walkover schedule the next matches. At the draw that's
+on the round's day (round 1 the weekday after it). Once play has started (a
+match played or given as a walkover), a match whose players become known
+gets the first free time from then on, 15 minutes ahead at least, on a
+weekday, the same day if there's room (`0029_next_match_asap.sql`): the
+winners play on without waiting for their round's planned day. A round
+whose days an admin set (`set_round_dates`) is `fixed` and keeps its
+matches within them. The app shows a round with the days its matches have
+times on, else its planned days (`roundDaysShown`), and an admin's days as
+they are. A time is a plan, not an appointment: two players who are
 both ready earlier play when the table's free (the app and the
 notifications say so); nothing stops a result being recorded before it. `match-schedule`
 carries the rest, each step an RPC that checks the rules and says why it

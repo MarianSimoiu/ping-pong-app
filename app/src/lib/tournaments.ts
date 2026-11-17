@@ -1,7 +1,7 @@
 import * as demo from '@/lib/demo';
 import { DEMO } from '@/lib/env';
 import type { RawGameInput } from '@/lib/matches';
-import { slotMinutes, type TableTime } from '@/lib/schedule';
+import { clubDay, slotMinutes, type TableTime } from '@/lib/schedule';
 import { functionErrorMessage, supabase } from '@/lib/supabase';
 
 // registration: open for players to join until kickoff_at; active: drawn and
@@ -85,8 +85,27 @@ export function winningScore(node: Pick<TournamentNode, 'games' | 'winnerId' | '
   return scoreLine(node.games, node.winnerId === node.playerA);
 }
 
-// The days a round is played (club days, "2026-11-16").
-export type TournamentRound = { round: number; startsOn: string; endsOn: string };
+// The days a round is played (club days, "2026-11-16"): planned at the draw,
+// or `fixed` by an admin (its matches then stay within them, 0029).
+export type TournamentRound = { round: number; startsOn: string; endsOn: string; fixed: boolean };
+
+// The days to show for a round. Once play has started a match gets the first
+// free time as soon as both its players are known (0029), often before its
+// round's planned day: so the days its matches have times on, else the plan.
+// Days an admin set stand as they are.
+export function roundDaysShown(
+  round: TournamentRound | null,
+  nodes: TournamentNode[],
+  roundNo: number,
+): { startsOn: string; endsOn: string } | null {
+  if (round?.fixed) return { startsOn: round.startsOn, endsOn: round.endsOn };
+  const days = nodes
+    .filter((n) => n.round === roundNo && n.scheduledAt)
+    .map((n) => clubDay(n.scheduledAt!))
+    .sort();
+  if (days.length > 0) return { startsOn: days[0], endsOn: days[days.length - 1] };
+  return round ? { startsOn: round.startsOn, endsOn: round.endsOn } : null;
+}
 
 export type TournamentDetail = {
   tournament: TournamentSummary;
@@ -230,7 +249,7 @@ export async function fetchTournamentDetail(id: string): Promise<TournamentDetai
       .order('slot', { ascending: true }),
     supabase
       .from('tournament_rounds')
-      .select('round, starts_on, ends_on')
+      .select('round, starts_on, ends_on, fixed')
       .eq('tournament_id', id)
       .order('round', { ascending: true }),
     // The one table: what's booked from today on, in any tournament.
@@ -295,6 +314,7 @@ export async function fetchTournamentDetail(id: string): Promise<TournamentDetai
     round: r.round,
     startsOn: r.starts_on,
     endsOn: r.ends_on,
+    fixed: !!r.fixed,
   }));
   const table: TableTime[] = (tableRes.data ?? []).map((m: any) => {
     const t = Array.isArray(m.tournament) ? m.tournament[0] : m.tournament;

@@ -784,12 +784,13 @@ function advance(t: TStore, node: TournamentNode, winner: string): void {
 }
 
 // --- when matches are played -------------------------------------------------
-// Mirrors 0018 and 0027: one round per weekday from the draw, each match the
-// first free time on the one table (11:00-18:00, back to back, tried 5 minutes
-// apart), players propose another time up to a
-// day after the planned one and the other answers, admins move matches, set
-// round dates and give walkovers. You're an admin here; nobody answers your
-// proposals.
+// Mirrors 0018, 0027 and 0029: one round per weekday from the draw, each match
+// the first free time on the one table (11:00-18:00, back to back, tried 5
+// minutes apart): on its round's days at the draw, then as soon as both its
+// players are known (unless an admin fixed its round's days). Players propose
+// another time up to a day after the planned one and the other answers,
+// admins move matches, set round dates and give walkovers. You're an admin
+// here; nobody answers your proposals.
 
 const nodeOf = (id: string) => {
   for (const t of tournaments) {
@@ -821,7 +822,7 @@ function ensureRounds(t: TStore): void {
   for (let r = 1; r <= Math.log2(t.summary.size); r++) {
     if (t.rounds.some((x) => x.round === r)) continue;
     day = nextWeekday(day);
-    t.rounds.push({ round: r, startsOn: day, endsOn: day });
+    t.rounds.push({ round: r, startsOn: day, endsOn: day, fixed: false });
   }
   t.rounds.sort((a, b) => a.round - b.round);
 }
@@ -835,11 +836,15 @@ function scheduleMatches(t: TStore): void {
   const waiting = t.nodes
     .filter((n) => n.status === 'ready' && !n.scheduledAt && n.playerA && n.playerB)
     .sort((a, b) => a.round - b.round || a.slot - b.slot);
+  // Play has started (a match played or given as a walkover; a bye isn't one):
+  // the next matches get the first free time from now (0029).
+  const started = t.nodes.some((n) => n.status === 'completed' && n.playerA && n.playerB);
   for (const n of waiting) {
     const r = t.rounds.find((x) => x.round === n.round)!;
-    let day = r.startsOn > today ? r.startsOn : today;
+    const asap = started && !r.fixed;
+    let day = asap || r.startsOn <= today ? today : r.startsOn;
     for (let tries = 0; tries < 400 && !n.scheduledAt; tries++, day = addDays(day, 1)) {
-      if (day > r.endsOn && isWeekend(day)) continue;
+      if ((asap || day > r.endsOn) && isWeekend(day)) continue;
       const closes = clubMoment(day, CLUB_CLOSES).getTime();
       for (let at = clubMoment(day, CLUB_OPENS).getTime(); at + len <= closes; at += 5 * 60_000) {
         if (at >= now + 15 * 60_000 && !clash(n.id, at, len)) {
@@ -925,7 +930,7 @@ export function demoSetRoundDates(input: {
   ensureRounds(t);
   const r = t.rounds.find((x) => x.round === input.round);
   if (!r) throw new Error(`No round ${input.round} in this tournament`);
-  Object.assign(r, { startsOn: input.startsOn, endsOn: input.endsOn });
+  Object.assign(r, { startsOn: input.startsOn, endsOn: input.endsOn, fixed: true });
   const from = input.startsOn > today ? input.startsOn : today;
   let moved = 0;
   for (const n of t.nodes) {
@@ -1129,9 +1134,9 @@ function sampleTournament(): TStore {
     })),
     nodes,
     rounds: [
-      { round: 1, startsOn: yesterday, endsOn: yesterday },
-      { round: 2, startsOn: today, endsOn: tomorrow },
-      { round: 3, startsOn: nextWeekday(tomorrow), endsOn: nextWeekday(tomorrow) },
+      { round: 1, startsOn: yesterday, endsOn: yesterday, fixed: false },
+      { round: 2, startsOn: today, endsOn: tomorrow, fixed: false },
+      { round: 3, startsOn: nextWeekday(tomorrow), endsOn: nextWeekday(tomorrow), fixed: false },
     ],
   };
 }
@@ -1180,8 +1185,8 @@ function lunchLeague(): TStore {
     })),
     nodes,
     rounds: [
-      { round: 1, startsOn: today, endsOn: today },
-      { round: 2, startsOn: nextWeekday(today), endsOn: nextWeekday(today) },
+      { round: 1, startsOn: today, endsOn: today, fixed: false },
+      { round: 2, startsOn: nextWeekday(today), endsOn: nextWeekday(today), fixed: false },
     ],
   };
 }
