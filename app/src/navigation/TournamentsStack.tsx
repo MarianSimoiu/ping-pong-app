@@ -2,6 +2,8 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import React from 'react';
 
 import { CreateTournamentScreen } from '@/screens/CreateTournamentScreen';
+import { HowRatingsWorkScreen } from '@/screens/HowRatingsWorkScreen';
+import { PlayerProfileScreen } from '@/screens/PlayerProfileScreen';
 import { RecordTournamentMatchScreen } from '@/screens/RecordTournamentMatchScreen';
 import { TournamentDetailScreen } from '@/screens/TournamentDetailScreen';
 import { TournamentsScreen } from '@/screens/TournamentsScreen';
@@ -35,6 +37,17 @@ export function TournamentsStack() {
         name="RecordTournamentMatch"
         component={RecordTournamentMatchScreen}
         options={{ title: 'Record result', presentation: 'modal' }}
+      />
+      <Stack.Screen
+        name="PlayerProfile"
+        component={PlayerProfileScreen}
+        // From a link there's no name yet; the screen sets it once loaded.
+        options={({ route }) => ({ title: route.params.displayName ?? 'Player' })}
+      />
+      <Stack.Screen
+        name="HowRatingsWork"
+        component={HowRatingsWorkScreen}
+        options={{ title: 'How ratings work' }}
       />
     </Stack.Navigator>
   );

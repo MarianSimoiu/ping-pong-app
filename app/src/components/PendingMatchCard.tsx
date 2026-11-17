@@ -2,6 +2,7 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Avatar } from '@/components/Avatar';
+import { PlayerLink } from '@/components/PlayerLink';
 import { useBadges } from '@/context/BadgesContext';
 import { pickDeclineLine, pickMatchResultLine, pickPendingLine } from '@/lib/commentary';
 import { formatTimestamp } from '@/lib/format';
@@ -66,13 +67,13 @@ export function PendingMatchCard({
   const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.card}>
-      <View style={styles.headerRow}>
+      <PlayerLink playerId={m.submitterId} name={m.submitterName} style={styles.headerRow}>
         <Avatar uri={m.submitterAvatarUrl} name={m.submitterName} size={36} playerId={m.submitterId} />
         <View style={styles.headerText}>
           <Text style={styles.name}>{m.submitterName}</Text>
           <Text style={styles.time}>{formatTimestamp(m.submittedAt)}</Text>
         </View>
-      </View>
+      </PlayerLink>
       <Text style={styles.text}>
         {pickPendingLine({
           submitterName: m.submitterName,
@@ -106,7 +107,7 @@ function createStyles(colors: Colors) {
       borderWidth: 1,
       borderColor: colors.primary,
     },
-    headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm },
+    headerRow: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', marginBottom: spacing.sm },
     headerText: { marginLeft: spacing.sm },
     name: { color: colors.text, fontSize: 14, fontWeight: '700' },
     time: { color: colors.textMuted, fontSize: 11 },

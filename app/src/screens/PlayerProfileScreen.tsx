@@ -24,8 +24,8 @@ import {
 import type { PlayerWithRating } from '@/lib/types';
 import { spacing, useTheme, type Colors } from '@/theme';
 
-// Shared param shape (the route exists in both the Leaderboard and Profile
-// stacks, and both stacks have the How ratings work page).
+// Shared param shape (the route exists in every tab's stack, and each of them
+// has the How ratings work page too).
 type ParamList = {
   PlayerProfile: { playerId: string; displayName: string };
   HowRatingsWork: undefined;

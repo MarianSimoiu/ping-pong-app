@@ -309,9 +309,16 @@ production behavior is unaffected since `DEMO` can only be true when
 configuration is missing.
 
 Navigation shows the sign-in screen when there is no session, and the tab
-navigator (Home · Leaderboard · Tournaments · Profile) once signed in. The Home,
-Leaderboard, and Profile tabs are stacks so they can push the Submit-match and
-Player-profile screens.
+navigator (Home · Leaderboard · Tournaments · Doubles · Profile) once signed in.
+Every tab is a stack, and every stack has the Player-profile screen (and How
+ratings work, which a profile links to): tapping a player anywhere, their photo
+or name, pushes their profile on top of the current screen in the same tab, so
+Back comes straight back (`components/PlayerLink.tsx`: `useOpenPlayer`, the
+`PlayerLink` block and the inline `PlayerName`). That covers the leaderboard
+rows, match history, pending and awaited matches, doubles teams and cards, the
+tournament pots, podium and "your match" lines, and the bracket, where each
+player opens their profile and the line between two players opens recording or
+managing the match. A profile's own match list opens further profiles.
 
 The Profile tab (your own) has one row of tabs (`components/SegmentedTabs.tsx`):
 Stats · History · Pending · Awards. Stats and History are the numbers, rating

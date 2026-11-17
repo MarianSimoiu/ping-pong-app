@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { Avatar } from '@/components/Avatar';
+import { PlayerLink } from '@/components/PlayerLink';
 import { formatTimestamp } from '@/lib/format';
 import type { SubmittedPendingMatch } from '@/lib/types';
 import { radius, spacing, useTheme, type Colors } from '@/theme';
@@ -29,11 +30,13 @@ export function AwaitingOpponentList({
       {matches.map((m) => (
         <View key={m.matchId} style={styles.card}>
           <View style={styles.headerRow}>
-            <Avatar uri={m.opponentAvatarUrl} name={m.opponentName} size={36} playerId={m.opponentId} />
-            <View style={styles.headerText}>
-              <Text style={styles.name}>vs {m.opponentName}</Text>
-              <Text style={styles.time}>{formatTimestamp(m.submittedAt)}</Text>
-            </View>
+            <PlayerLink playerId={m.opponentId} name={m.opponentName} style={styles.opponent}>
+              <Avatar uri={m.opponentAvatarUrl} name={m.opponentName} size={36} playerId={m.opponentId} />
+              <View style={styles.headerText}>
+                <Text style={styles.name}>vs {m.opponentName}</Text>
+                <Text style={styles.time}>{formatTimestamp(m.submittedAt)}</Text>
+              </View>
+            </PlayerLink>
             <Text style={[styles.result, m.iWon ? styles.resultWin : styles.resultLoss]}>
               {m.iWon ? 'Won' : 'Lost'} {m.myGames}–{m.opponentGames}
             </Text>
@@ -67,6 +70,7 @@ function createStyles(colors: Colors) {
       borderColor: colors.border,
     },
     headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm },
+    opponent: { flex: 1, flexDirection: 'row', alignItems: 'center' },
     headerText: { flex: 1, marginLeft: spacing.sm },
     name: { color: colors.text, fontSize: 14, fontWeight: '700' },
     time: { color: colors.textMuted, fontSize: 11 },

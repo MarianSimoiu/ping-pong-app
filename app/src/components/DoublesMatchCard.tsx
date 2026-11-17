@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { PlayerName } from '@/components/PlayerLink';
 import { pickDeclineLine } from '@/lib/commentary';
 import { confirmDoublesMatch, type DoublesPendingMatch } from '@/lib/doubles';
 import { formatTimestamp } from '@/lib/format';
@@ -62,13 +63,16 @@ export function DoublesMatchCard({
   return (
     <View style={[styles.card, actionable && styles.cardActionable]}>
       <Text style={styles.teams}>
-        You & {match.partnerName} <Text style={styles.vs}>vs</Text> {opponents}
+        You & <PlayerName playerId={match.partnerId} name={match.partnerName} /> <Text style={styles.vs}>vs</Text>{' '}
+        <PlayerName playerId={match.opponentIds[0]} name={o1} /> &{' '}
+        <PlayerName playerId={match.opponentIds[1]} name={o2} />
       </Text>
       <Text style={styles.time}>{formatTimestamp(match.submittedAt)}</Text>
 
       {actionable ? (
         <Text style={styles.text}>
-          {match.submitterName} recorded it: your team {result}.
+          <PlayerName playerId={match.submitterId} name={match.submitterName} style={styles.strong} /> recorded it: your
+          team {result}.
         </Text>
       ) : (
         <Text style={[styles.text, styles.result, match.iWon ? styles.win : styles.loss]}>
@@ -111,6 +115,7 @@ function createStyles(colors: Colors) {
     cardActionable: { borderColor: colors.primary },
     teams: { color: colors.text, fontSize: 14, fontWeight: '700' },
     vs: { color: colors.textMuted, fontWeight: '400' },
+    strong: { fontWeight: '700' },
     time: { color: colors.textMuted, fontSize: 11, marginBottom: spacing.sm },
     text: { color: colors.text, fontSize: 14, marginBottom: spacing.xs },
     result: { fontWeight: '700' },

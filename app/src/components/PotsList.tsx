@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { Avatar } from '@/components/Avatar';
+import { PlayerLink } from '@/components/PlayerLink';
 import { groupByPot, potCountFor, potSizes, round1ByPot, round1Text } from '@/lib/pots';
 import { MIN_TOURNAMENT_PLAYERS, type TournamentParticipant } from '@/lib/tournaments';
 import { radius, spacing, useTheme, type Colors } from '@/theme';
@@ -104,14 +105,19 @@ export function PotsList({
               {group.players.map((p) => {
                 const isMe = p.playerId === meId;
                 return (
-                  <View key={p.playerId} style={[styles.player, isMe && styles.playerMe]}>
+                  <PlayerLink
+                    key={p.playerId}
+                    playerId={p.playerId}
+                    name={p.name}
+                    style={[styles.player, isMe && styles.playerMe]}
+                  >
                     {pot !== null && <Text style={styles.rank}>#{p.rank}</Text>}
                     <Avatar uri={p.avatarUrl} name={p.name} size={30} playerId={p.playerId} />
                     <Text style={[styles.name, isMe && styles.nameMe]} numberOfLines={1}>
                       {withYou(p.name, isMe)}
                     </Text>
                     {p.rating !== null && <Text style={styles.rating}>{rounded(p.rating)}</Text>}
-                  </View>
+                  </PlayerLink>
                 );
               })}
             </View>

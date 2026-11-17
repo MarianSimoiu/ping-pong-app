@@ -10,10 +10,15 @@ export type TabParamList = {
   Profile: NavigatorScreenParams<ProfileStackParamList>;
 };
 
+// A player's profile, which every tab's stack has: tapping a player anywhere
+// opens it on top of the current screen (components/PlayerLink.tsx).
+export type PlayerProfileParams = { playerId: string; displayName?: string };
+
 // The Home tab is a stack so it can push the Submit-match screen.
 export type HomeStackParamList = {
   Home: undefined;
   SubmitMatch: undefined;
+  PlayerProfile: PlayerProfileParams;
   HowRatingsWork: undefined;
 };
 
@@ -23,7 +28,7 @@ export type HomeStackScreenProps<T extends keyof HomeStackParamList> =
 // The Leaderboard tab is a stack so a row can open a player's profile.
 export type LeaderboardStackParamList = {
   Leaderboard: undefined;
-  PlayerProfile: { playerId: string; displayName?: string };
+  PlayerProfile: PlayerProfileParams;
   HowRatingsWork: undefined;
 };
 
@@ -35,7 +40,7 @@ export type LeaderboardStackScreenProps<T extends keyof LeaderboardStackParamLis
 export type ProfileStackParamList = {
   Account: undefined;
   Settings: undefined;
-  PlayerProfile: { playerId: string; displayName?: string };
+  PlayerProfile: PlayerProfileParams;
   HowRatingsWork: undefined;
 };
 
@@ -54,6 +59,8 @@ export type TournamentsStackParamList = {
     playerBName: string;
     bestOf: number;
   };
+  PlayerProfile: PlayerProfileParams;
+  HowRatingsWork: undefined;
 };
 
 export type TournamentsStackScreenProps<T extends keyof TournamentsStackParamList> =
@@ -63,6 +70,7 @@ export type TournamentsStackScreenProps<T extends keyof TournamentsStackParamLis
 export type DoublesStackParamList = {
   DoublesHome: undefined;
   RecordDoublesMatch: undefined;
+  PlayerProfile: PlayerProfileParams;
   HowRatingsWork: undefined;
 };
 

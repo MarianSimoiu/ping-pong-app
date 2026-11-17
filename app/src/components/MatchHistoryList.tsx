@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { Avatar } from '@/components/Avatar';
+import { PlayerLink } from '@/components/PlayerLink';
 import { pickStreakLine, UPSET_DELTA_THRESHOLD } from '@/lib/commentary';
 import { formatTimestamp } from '@/lib/format';
 import type { MatchHistoryItem } from '@/lib/leaderboard';
@@ -51,13 +52,13 @@ export function MatchHistoryList({ matches }: { matches: MatchHistoryItem[] }) {
                 <Text style={styles.badgeText}>{m.result === 'win' ? 'W' : 'L'}</Text>
               </View>
               <View style={styles.matchMain}>
-                <View style={styles.opponentLine}>
+                <PlayerLink playerId={m.opponentId} name={m.opponentName} style={styles.opponentLine}>
                   <Text style={styles.matchOpponent}>vs</Text>
                   <Avatar uri={m.opponentAvatarUrl} name={m.opponentName} size={24} playerId={m.opponentId} />
                   <Text style={[styles.matchOpponent, styles.opponentName]} numberOfLines={1}>
                     {m.opponentName}
                   </Text>
-                </View>
+                </PlayerLink>
                 {m.games.length > 0 && (
                   <Text style={styles.matchScore} numberOfLines={1}>
                     <Text style={styles.matchOverall}>

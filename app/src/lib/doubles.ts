@@ -25,8 +25,12 @@ export type RankedTeam = Team & { rank: number };
 // A pending doubles match, from the viewer's side.
 export type DoublesPendingMatch = {
   matchId: string;
+  // The players' ids too, so each name opens their profile.
+  partnerId: string;
   partnerName: string;
+  opponentIds: [string, string];
   opponentNames: [string, string];
+  submitterId: string;
   submitterName: string;
   iWon: boolean; // the viewer's team won
   myGames: number;
@@ -34,8 +38,6 @@ export type DoublesPendingMatch = {
   games: { myScore: number; opponentScore: number }[]; // the viewer's team first
   submittedAt: string;
 };
-
-export const teamName = (t: Team) => `${t.members[0].name} & ${t.members[1].name}`;
 
 const TEAM_SELECT =
   'id, rating, rd, matches_played, ' +
@@ -95,7 +97,7 @@ export async function fetchMyTeams(myPlayerId: string): Promise<Team[]> {
 
 const PENDING_SELECT =
   'id, team_a, team_b, winner_team, played_at, ' +
-  'creator:players!doubles_matches_created_by_fkey(display_name), ' +
+  'creator:players!doubles_matches_created_by_fkey(id, display_name), ' +
   'a:teams!doubles_matches_team_a_fkey(low:players!teams_player_low_fkey(id, display_name), high:players!teams_player_high_fkey(id, display_name)), ' +
   'b:teams!doubles_matches_team_b_fkey(low:players!teams_player_low_fkey(id, display_name), high:players!teams_player_high_fkey(id, display_name)), ' +
   'games:doubles_games(game_no, score_a, score_b)';
@@ -135,8 +137,11 @@ async function fetchPending(myPlayerId: string, mySide: 'a' | 'b'): Promise<Doub
     });
     return {
       matchId: m.id,
+      partnerId: partner?.id ?? '',
       partnerName: partner?.display_name ?? 'Someone',
+      opponentIds: [one(theirs?.low)?.id ?? '', one(theirs?.high)?.id ?? ''],
       opponentNames: [one(theirs?.low)?.display_name ?? '?', one(theirs?.high)?.display_name ?? '?'],
+      submitterId: one(m.creator)?.id ?? '',
       submitterName: one(m.creator)?.display_name ?? 'Someone',
       iWon: m.winner_team === (mySide === 'a' ? m.team_a : m.team_b),
       myGames,

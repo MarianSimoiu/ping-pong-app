@@ -4,7 +4,7 @@ import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, T
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { DoublesMatchCard, useDoublesConfirm } from '@/components/DoublesMatchCard';
-import { TeamAvatars } from '@/components/TeamAvatars';
+import { TeamAvatars, TeamNames } from '@/components/TeamAvatars';
 import { useAuth } from '@/context/AuthContext';
 import { MIN_MATCHES_FOR_LEADERBOARD } from '@/lib/constants';
 import {
@@ -12,7 +12,6 @@ import {
   fetchDoublesToConfirm,
   fetchMyTeams,
   fetchTeamLeaderboard,
-  teamName,
   type DoublesPendingMatch,
   type RankedTeam,
   type Team,
@@ -68,12 +67,6 @@ export function DoublesScreen({ navigation }: DoublesStackScreenProps<'DoublesHo
   );
 
   const { actingId, act } = useDoublesConfirm(load);
-
-  // "You & Emil" for the viewer's own teams.
-  const myTeamName = (t: Team) => {
-    const partner = t.members.find((m) => m.id !== myId) ?? t.members[1];
-    return `You & ${partner.name}`;
-  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -142,7 +135,7 @@ export function DoublesScreen({ navigation }: DoublesStackScreenProps<'DoublesHo
                       <View style={styles.nameLine}>
                         <TeamAvatars team={t} />
                         <Text style={styles.rowName} numberOfLines={1}>
-                          {teamName(t)}
+                          <TeamNames team={t} />
                         </Text>
                       </View>
                       <Text style={styles.rowMeta}>
@@ -167,7 +160,7 @@ export function DoublesScreen({ navigation }: DoublesStackScreenProps<'DoublesHo
                         <View style={styles.nameLine}>
                           <TeamAvatars team={t} />
                           <Text style={styles.rowName} numberOfLines={1}>
-                            {myTeamName(t)}
+                            <TeamNames team={t} meId={myId} />
                           </Text>
                         </View>
                         <Text style={styles.rowMeta}>
