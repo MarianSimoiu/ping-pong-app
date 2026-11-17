@@ -319,8 +319,11 @@ export const demoMyTeams = (): Team[] =>
 let doublesToConfirm: DoublesPendingMatch[] = [
   {
     matchId: 'dpm1',
+    partnerId: 'p6',
     partnerName: 'Emil',
+    opponentIds: ['p4', 'p5'],
     opponentNames: ['Cris', 'Dana'],
+    submitterId: 'p4',
     submitterName: 'Cris',
     iWon: false,
     myGames: 1,
@@ -337,8 +340,11 @@ let doublesToConfirm: DoublesPendingMatch[] = [
 const doublesAwaitingOpponents: DoublesPendingMatch[] = [
   {
     matchId: 'dspm1',
+    partnerId: 'p2',
     partnerName: 'Ana',
+    opponentIds: ['p7', 'p8'],
     opponentNames: ['Fei', 'Gabi'],
+    submitterId: DEMO_ME,
     submitterName: 'You',
     iWon: true,
     myGames: 2,

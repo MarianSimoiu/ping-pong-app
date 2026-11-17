@@ -3,6 +3,7 @@ import React from 'react';
 
 import { DoublesScreen } from '@/screens/DoublesScreen';
 import { HowRatingsWorkScreen } from '@/screens/HowRatingsWorkScreen';
+import { PlayerProfileScreen } from '@/screens/PlayerProfileScreen';
 import { RecordDoublesMatchScreen } from '@/screens/RecordDoublesMatchScreen';
 import { useTheme } from '@/theme';
 
@@ -27,6 +28,12 @@ export function DoublesStack() {
         name="RecordDoublesMatch"
         component={RecordDoublesMatchScreen}
         options={{ title: 'Record a doubles match', presentation: 'modal' }}
+      />
+      <Stack.Screen
+        name="PlayerProfile"
+        component={PlayerProfileScreen}
+        // From a link there's no name yet; the screen sets it once loaded.
+        options={({ route }) => ({ title: route.params.displayName ?? 'Player' })}
       />
       <Stack.Screen
         name="HowRatingsWork"

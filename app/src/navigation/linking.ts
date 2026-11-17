@@ -20,6 +20,7 @@ export const linking: LinkingOptions<TabParamList> = {
         screens: {
           Home: '',
           SubmitMatch: 'record',
+          PlayerProfile: 'player/:playerId',
           HowRatingsWork: 'how-ratings-work',
         },
       },
@@ -42,6 +43,8 @@ export const linking: LinkingOptions<TabParamList> = {
             // URL params come back as strings; the screen compares this as a number.
             parse: { bestOf: Number },
           },
+          PlayerProfile: 'tournaments/player/:playerId',
+          HowRatingsWork: 'tournaments/how-ratings-work',
         },
       },
       Doubles: {
@@ -49,6 +52,7 @@ export const linking: LinkingOptions<TabParamList> = {
         screens: {
           DoublesHome: 'doubles',
           RecordDoublesMatch: 'doubles/record',
+          PlayerProfile: 'doubles/player/:playerId',
           HowRatingsWork: 'doubles/how-ratings-work',
         },
       },

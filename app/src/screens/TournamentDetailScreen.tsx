@@ -7,6 +7,7 @@ import { BracketTree } from '@/components/BracketTree';
 import { Countdown } from '@/components/Countdown';
 import { DateTimeField } from '@/components/DateTimeField';
 import { ManageMatchSheet, ProposeTimeSheet } from '@/components/MatchSheets';
+import { PlayerName } from '@/components/PlayerLink';
 import { PotRules, PotsList, withYou } from '@/components/PotsList';
 import { inscription, Medal, MedalBadge, Sunburst, Trophy, TrophyBadge } from '@/components/TournamentArt';
 import { useAuth } from '@/context/AuthContext';
@@ -519,7 +520,13 @@ export function TournamentDetailScreen({ route, navigation }: TournamentsStackSc
         <View style={styles.card}>
           <Text style={styles.cardTitle}>You're out</Text>
           <Text style={styles.cardText}>
-            Lost {path.by ? `to ${nameOf(path.by, '')} ` : ''}in the {roundLabel(path.round, totalRounds).toLowerCase()}.
+            Lost{' '}
+            {path.by && (
+              <>
+                to <PlayerName playerId={path.by} name={nameOf(path.by, '')} style={styles.strong} />{' '}
+              </>
+            )}
+            in the {roundLabel(path.round, totalRounds).toLowerCase()}.
           </Text>
         </View>
       );
@@ -541,7 +548,9 @@ export function TournamentDetailScreen({ route, navigation }: TournamentsStackSc
       return (
         <View style={[styles.card, styles.cardHighlight]}>
           <Text style={styles.cardKicker}>Your match · {round}</Text>
-          <Text style={styles.versus}>vs {opponent}</Text>
+          <Text style={styles.versus}>
+            vs <PlayerName playerId={path.opponent} name={opponent} />
+          </Text>
           {ready && node.scheduledAt && (
             <Text style={[styles.when, overdue && styles.whenOverdue]}>🗓 {formatMatchTime(node.scheduledAt, clock)}</Text>
           )}
@@ -559,7 +568,8 @@ export function TournamentDetailScreen({ route, navigation }: TournamentsStackSc
           {askedByThem && (
             <View style={styles.proposal}>
               <Text style={styles.proposalText}>
-                {opponent} asks to move it to <Text style={styles.strong}>{formatMatchTime(node.proposedAt!, clock)}</Text>.
+                <PlayerName playerId={path.opponent} name={opponent} style={styles.strong} /> asks to move it to{' '}
+                <Text style={styles.strong}>{formatMatchTime(node.proposedAt!, clock)}</Text>.
               </Text>
               <View style={styles.buttonRow}>
                 <View style={{ flex: 1 }}>
@@ -580,7 +590,7 @@ export function TournamentDetailScreen({ route, navigation }: TournamentsStackSc
             <View style={styles.proposal}>
               <Text style={styles.proposalText}>
                 You asked to move it to <Text style={styles.strong}>{formatMatchTime(node.proposedAt!, clock)}</Text>.
-                Waiting for {opponent} to accept.
+                Waiting for <PlayerName playerId={path.opponent} name={opponent} style={styles.strong} /> to accept.
               </Text>
               {button(
                 'Take it back',
@@ -612,9 +622,15 @@ export function TournamentDetailScreen({ route, navigation }: TournamentsStackSc
           {dates ? ` · ${formatDayRange(dates.startsOn, dates.endsOn)}` : ''}
         </Text>
         <Text style={styles.cardText}>
-          {path.winnerOf
-            ? `You play the winner of ${nameOf(path.winnerOf[0], '')} v ${nameOf(path.winnerOf[1], '')}.`
-            : 'Your opponent is decided by an earlier match.'}{' '}
+          {path.winnerOf ? (
+            <>
+              You play the winner of{' '}
+              <PlayerName playerId={path.winnerOf[0]} name={nameOf(path.winnerOf[0], '')} style={styles.strong} /> v{' '}
+              <PlayerName playerId={path.winnerOf[1]} name={nameOf(path.winnerOf[1], '')} style={styles.strong} />.
+            </>
+          ) : (
+            'Your opponent is decided by an earlier match.'
+          )}{' '}
           Your match gets its time as soon as they've played.
         </Text>
       </View>
@@ -745,7 +761,16 @@ export function TournamentDetailScreen({ route, navigation }: TournamentsStackSc
       ...(runnerUp ? [{ place: 2 as const, label: 'Runner-up', ids: [runnerUp] }] : []),
       ...(thirds.length > 0 ? [{ place: 3 as const, label: 'Third place', ids: thirds }] : []),
     ];
-    const names = (ids: string[]) => ids.map((id) => withYou(nameOf(id, '?'), id === meId)).join(' · ');
+    // Each name opens its player's profile.
+    const names = (ids: string[]) =>
+      ids.map((id, i) => (
+        <React.Fragment key={id}>
+          {i > 0 && ' · '}
+          <PlayerName playerId={id} name={nameOf(id, '?')}>
+            {withYou(nameOf(id, '?'), id === meId)}
+          </PlayerName>
+        </React.Fragment>
+      ));
     return (
       <>
         <View style={styles.hero2}>

@@ -3,6 +3,7 @@ import React from 'react';
 
 import { HomeScreen } from '@/screens/HomeScreen';
 import { HowRatingsWorkScreen } from '@/screens/HowRatingsWorkScreen';
+import { PlayerProfileScreen } from '@/screens/PlayerProfileScreen';
 import { SubmitMatchScreen } from '@/screens/SubmitMatchScreen';
 import { useTheme } from '@/theme';
 
@@ -27,6 +28,12 @@ export function HomeStack() {
         name="SubmitMatch"
         component={SubmitMatchScreen}
         options={{ title: 'Record a match', presentation: 'modal' }}
+      />
+      <Stack.Screen
+        name="PlayerProfile"
+        component={PlayerProfileScreen}
+        // From a link there's no name yet; the screen sets it once loaded.
+        options={({ route }) => ({ title: route.params.displayName ?? 'Player' })}
       />
       <Stack.Screen
         name="HowRatingsWork"

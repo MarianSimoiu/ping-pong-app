@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Avatar } from '@/components/Avatar';
+import { PlayerLink } from '@/components/PlayerLink';
 import { withYou } from '@/components/PotsList';
 import { formatMatchTime, isOverdue } from '@/lib/schedule';
 import { winningScore, type TournamentNode } from '@/lib/tournaments';
@@ -194,12 +195,12 @@ export function BracketTree(props: BracketTreeProps) {
               <View style={[styles.champ, { left: champLeft, top: height / 2 - BOX_H / 2 }]}>
                 <Text style={styles.trophy}>🏆</Text>
                 {champion ? (
-                  <View style={styles.champRow}>
+                  <PlayerLink playerId={champion} name={nameOf(champion, '?')} style={styles.champRow}>
                     <Avatar uri={avatarOf(champion)} name={nameOf(champion, '?')} size={AVATAR} playerId={champion} />
                     <Text style={styles.champName} numberOfLines={1}>
                       {withYou(nameOf(champion, '?'), champion === meId)}
                     </Text>
-                  </View>
+                  </PlayerLink>
                 ) : (
                   <Text style={styles.champTbd}>?</Text>
                 )}
@@ -257,20 +258,17 @@ function MatchBox({
     said = overdue ? `was due ${time}` : time;
   }
 
+  const between = (
+    <>
+      <View style={styles.midLine} />
+      {middle}
+      {middle && <View style={styles.midLine} />}
+    </>
+  );
+  // Each player opens their profile; the line between them, when the match is
+  // the viewer's to record or manage, opens that.
   return (
-    <Pressable
-      accessibilityRole={pressable ? 'button' : undefined}
-      accessibilityLabel={[`${nameA} v ${nameB}`, said].filter(Boolean).join(', ')}
-      disabled={!pressable}
-      onPress={() => onPressMatch(node)}
-      style={[
-        styles.box,
-        { left, top },
-        ready && styles.boxReady,
-        mine && styles.boxMine,
-        bye && styles.boxBye,
-      ]}
-    >
+    <View style={[styles.box, { left, top }, ready && styles.boxReady, mine && styles.boxMine, bye && styles.boxBye]}>
       <Side
         id={node.playerA}
         name={nameA}
@@ -279,11 +277,21 @@ function MatchBox({
         isMe={!!meId && node.playerA === meId}
         styles={styles}
       />
-      <View style={styles.mid}>
-        <View style={styles.midLine} />
-        {middle}
-        {middle && <View style={styles.midLine} />}
-      </View>
+      {pressable ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={[`${nameA} v ${nameB}`, said].filter(Boolean).join(', ')}
+          onPress={() => onPressMatch(node)}
+          hitSlop={{ top: 4, bottom: 4 }}
+          style={styles.mid}
+        >
+          {between}
+        </Pressable>
+      ) : (
+        <View style={styles.mid} accessibilityLabel={[`${nameA} v ${nameB}`, said].filter(Boolean).join(', ')}>
+          {between}
+        </View>
+      )}
       <Side
         id={node.playerB}
         name={nameB}
@@ -292,12 +300,12 @@ function MatchBox({
         isMe={!!meId && node.playerB === meId}
         styles={styles}
       />
-    </Pressable>
+    </View>
   );
 }
 
-// One player of a match: photo (with their tier ring) and name, or an empty
-// circle while it's not known who plays.
+// One player of a match: photo (with their tier ring) and name, opening their
+// profile; or an empty circle while it's not known who plays.
 function Side({
   id,
   name,
@@ -314,12 +322,12 @@ function Side({
   styles: Styles;
 }) {
   return (
-    <View style={styles.side}>
+    <PlayerLink playerId={id} name={name} style={styles.side}>
       {id ? <Avatar uri={avatarUrl} name={name} size={AVATAR} playerId={id} /> : <View style={styles.avatarEmpty} />}
       <Text style={[styles.name, isMe && styles.nameMe, isWinner && styles.nameWinner]} numberOfLines={1}>
         {withYou(name, isMe)}
       </Text>
-    </View>
+    </PlayerLink>
   );
 }
 

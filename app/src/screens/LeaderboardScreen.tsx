@@ -11,11 +11,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/Avatar';
-import { TeamAvatars } from '@/components/TeamAvatars';
+import { TeamAvatars, TeamNames } from '@/components/TeamAvatars';
 import { TierPill } from '@/components/TierPill';
 import { useBadges } from '@/context/BadgesContext';
 import { MIN_MATCHES_FOR_LEADERBOARD } from '@/lib/constants';
-import { fetchTeamLeaderboard, teamName, type RankedTeam } from '@/lib/doubles';
+import { fetchTeamLeaderboard, type RankedTeam } from '@/lib/doubles';
 import {
   fetchLeaderboard,
   fetchSeasonStandings,
@@ -154,7 +154,7 @@ export function LeaderboardScreen({ navigation }: LeaderboardStackScreenProps<'L
             <Row
               rank={item.rank}
               avatar={<TeamAvatars team={item} />}
-              name={teamName(item)}
+              name={<TeamNames team={item} />}
               meta={record(item.matchesPlayed, item.wins, item.losses)}
               value={String(Math.round(item.rating))}
               valueNote={`±${Math.round(item.rd)}`}
@@ -192,7 +192,7 @@ function Row({
 }: {
   rank: number;
   avatar: React.ReactNode;
-  name: string;
+  name: React.ReactNode;
   title?: string | null;
   meta: string;
   flag?: string | null;
