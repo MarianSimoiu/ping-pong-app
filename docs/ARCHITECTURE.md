@@ -184,8 +184,17 @@ waiting to be played; and each player's row ends with their points in every
 game, lined up with the other player's, bold where they won the game (paler
 while a result waits to be confirmed). The boxes widen past best of 3 so
 the names keep their room. It scrolls sideways where it's wider than the screen
-and opens on the round being played; **Zoom out** scales it down to fit the
-screen's width instead (kept on the device, `pingpong.bracket.zoomedOut`).
+and opens on the round being played, and it zooms from the whole bracket
+across the screen up to twice its size: pinch it (two fingers also drag it
+around), Ctrl + scroll or a Mac trackpad's pinch on a computer, or **Zoom
+out** / **Zoom in** to jump between the whole bracket and the usual size.
+On the web the gestures are handled by the tree itself (`usePinchZoom`): its
+scroller has `touch-action: pan-x pan-y` so the browser never zooms the whole
+app, one finger still scrolls the tree or the page, and while fingers move the
+zoom is drawn straight onto the page, keeping the point under them still, then
+settles into React state (on the whole bracket or the usual size when it ends
+near either). Whether it opens on the whole bracket is kept on the device
+(`pingpong.bracket.zoomedOut`).
 
 Tournaments from before registration existed have no kickoff time or pots
 and show as before. The app only reads the tournament tables; every change is
