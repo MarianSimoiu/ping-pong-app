@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Avatar } from '@/components/Avatar';
 import { Countdown } from '@/components/Countdown';
 import { DateTimeField } from '@/components/DateTimeField';
 import { ManageMatchSheet, ProposeTimeSheet } from '@/components/MatchSheets';
@@ -230,7 +231,9 @@ export function TournamentDetailScreen({ route, navigation }: TournamentsStackSc
         .find((p) => p.playerId === meId)?.rank ?? null
     : null;
   const nameOf = (id: string | null, fallback: string) => (id ? nameById[id] ?? 'Unknown' : fallback);
-  const players = (n: number) => `${n} ${n === 1 ? 'player' : 'players'}`;
+  const avatarById = new Map(participants.map((p) => [p.playerId, p.avatarUrl]));
+  const avatarOf = (id: string | null) => (id ? avatarById.get(id) ?? null : null);
+  const players =(n: number) => `${n} ${n === 1 ? 'player' : 'players'}`;
 
   async function run(kind: Busy, action: () => Promise<void>) {
     setBusy(kind);
@@ -845,12 +848,16 @@ export function TournamentDetailScreen({ route, navigation }: TournamentsStackSc
                   >
                     <View style={{ flex: 1 }}>
                       <PlayerLine
+                        playerId={node.playerA}
+                        avatarUrl={avatarOf(node.playerA)}
                         name={nameOf(node.playerA, node.status === 'pending' ? 'TBD' : 'Bye')}
                         isWinner={!!node.winnerId && node.winnerId === node.playerA}
                         isMe={!!meId && node.playerA === meId}
                       />
                       <View style={styles.divider} />
                       <PlayerLine
+                        playerId={node.playerB}
+                        avatarUrl={avatarOf(node.playerB)}
                         name={nameOf(node.playerB, node.status === 'pending' ? 'TBD' : 'Bye')}
                         isWinner={!!node.winnerId && node.winnerId === node.playerB}
                         isMe={!!meId && node.playerB === meId}
@@ -949,13 +956,37 @@ export function TournamentDetailScreen({ route, navigation }: TournamentsStackSc
   );
 }
 
-function PlayerLine({ name, isWinner, isMe }: { name: string; isWinner: boolean; isMe: boolean }) {
+// The photos on the bracket: big enough for the 👑 and 🏆 corner badges.
+const BRACKET_AVATAR = 28;
+
+// One side of a bracket match: the player's photo (with their tier ring) and
+// name, or an empty circle while it's not known who plays.
+function PlayerLine({
+  playerId,
+  avatarUrl,
+  name,
+  isWinner,
+  isMe,
+}: {
+  playerId: string | null;
+  avatarUrl: string | null;
+  name: string;
+  isWinner: boolean;
+  isMe: boolean;
+}) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   return (
-    <Text style={[styles.player, isMe && styles.playerMe, isWinner && styles.winner]} numberOfLines={1}>
-      {withYou(name, isMe)}
-    </Text>
+    <View style={styles.playerRow}>
+      {playerId ? (
+        <Avatar uri={avatarUrl} name={name} size={BRACKET_AVATAR} playerId={playerId} />
+      ) : (
+        <View style={styles.avatarEmpty} />
+      )}
+      <Text style={[styles.player, isMe && styles.playerMe, isWinner && styles.winner]} numberOfLines={1}>
+        {withYou(name, isMe)}
+      </Text>
+    </View>
   );
 }
 
@@ -1155,10 +1186,25 @@ function createStyles(colors: Colors, dark = false) {
     },
     matchReady: { borderColor: colors.primary },
     matchMine: { backgroundColor: colors.surfaceAlt },
-    player: { color: colors.text, fontSize: 15 },
+    playerRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+    avatarEmpty: {
+      width: BRACKET_AVATAR,
+      height: BRACKET_AVATAR,
+      borderRadius: BRACKET_AVATAR / 2,
+      borderWidth: 1,
+      borderStyle: 'dashed',
+      borderColor: colors.border,
+    },
+    player: { color: colors.text, fontSize: 15, flexShrink: 1 },
     playerMe: { fontWeight: '700' },
     winner: { color: colors.success, fontWeight: '700' },
-    divider: { height: 1, backgroundColor: colors.border, marginVertical: spacing.sm },
+    // Starts where the names do.
+    divider: {
+      height: 1,
+      backgroundColor: colors.border,
+      marginVertical: spacing.sm - 2,
+      marginLeft: BRACKET_AVATAR + spacing.sm,
+    },
     record: { color: colors.primary, fontWeight: '600', marginLeft: spacing.md },
     done: { color: colors.success, fontSize: 18, marginLeft: spacing.md },
     error: { color: colors.danger, padding: spacing.lg },
