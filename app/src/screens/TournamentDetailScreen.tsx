@@ -36,6 +36,7 @@ import {
   rescheduleTournament,
   setRoundDates,
   startTournamentNow,
+  winningScore,
   withdrawFromTournament,
   type TournamentDetail,
   type TournamentNode,
@@ -838,6 +839,7 @@ export function TournamentDetailScreen({ route, navigation }: TournamentsStackSc
                 const manageable = canManage(node);
                 const recordable = isReady && canRecord(node);
                 const overdue = isOverdue(node, clock);
+                const score = winningScore(node);
                 return (
                   <Pressable
                     key={node.id}
@@ -854,7 +856,17 @@ export function TournamentDetailScreen({ route, navigation }: TournamentsStackSc
                         isWinner={!!node.winnerId && node.winnerId === node.playerA}
                         isMe={!!meId && node.playerA === meId}
                       />
-                      <View style={styles.divider} />
+                      {score ? (
+                        <View style={styles.scoreRow}>
+                          <View style={styles.scoreLine} />
+                          <Text style={styles.score} accessibilityLabel={`${nameOf(node.winnerId, '')} won ${score}`}>
+                            {score}
+                          </Text>
+                          <View style={styles.scoreLine} />
+                        </View>
+                      ) : (
+                        <View style={styles.divider} />
+                      )}
                       <PlayerLine
                         playerId={node.playerB}
                         avatarUrl={avatarOf(node.playerB)}
@@ -1204,6 +1216,22 @@ function createStyles(colors: Colors, dark = false) {
       backgroundColor: colors.border,
       marginVertical: spacing.sm - 2,
       marginLeft: BRACKET_AVATAR + spacing.sm,
+    },
+    // A played match: the divider with the winning score in its middle.
+    scoreRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      marginLeft: BRACKET_AVATAR + spacing.sm,
+      marginVertical: -1,
+    },
+    scoreLine: { flex: 1, height: 1, backgroundColor: colors.border },
+    score: {
+      color: colors.text,
+      fontSize: 13,
+      fontWeight: '800',
+      lineHeight: 15,
+      fontVariant: ['tabular-nums'],
     },
     record: { color: colors.primary, fontWeight: '600', marginLeft: spacing.md },
     done: { color: colors.success, fontSize: 18, marginLeft: spacing.md },

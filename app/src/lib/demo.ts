@@ -19,6 +19,7 @@ import {
   type TableTime,
 } from '@/lib/schedule';
 import type {
+  GameScore,
   TournamentDetail,
   TournamentListItem,
   TournamentNode,
@@ -674,6 +675,7 @@ export function demoRecordTournamentMatch(input: {
   const aWins = input.games.filter((g) => g.score_a > g.score_b).length;
   const bWins = input.games.length - aWins;
   const winner = aWins >= bWins ? node.playerA! : node.playerB!;
+  node.games = input.games.map((g) => ({ a: g.score_a, b: g.score_b }));
   advance(t, node, winner);
   return { winnerId: winner };
 }
@@ -897,6 +899,7 @@ function buildBracket(ids: string[]): { nodes: TournamentNode[]; size: number } 
         proposedAt: null,
         proposedBy: null,
         walkover: false,
+        games: [],
       });
     }
   }
@@ -926,20 +929,26 @@ function buildBracket(ids: string[]): { nodes: TournamentNode[]; size: number } 
   return { nodes, size };
 }
 
-// A finished tournament: Ana beat Dana and Ben beat Cris, then Ana won the
-// final against Ben (her champion title and laurel come from it).
+// A finished tournament: Ana beat Dana 2–0 and Ben beat Cris 2–1, then Ana won
+// the final against Ben 2–1 (her champion title and laurel come from it).
 function finishedTournament(): TStore {
   const ids = ['p2', 'p3', 'p4', 'p5'];
   const { nodes, size } = buildBracket(ids);
+  const firstRound: GameScore[][] = [
+    [{ a: 11, b: 6 }, { a: 11, b: 8 }], // Ana v Dana
+    [{ a: 11, b: 9 }, { a: 8, b: 11 }, { a: 11, b: 7 }], // Ben v Cris
+  ];
   for (const n of nodes.filter((x) => x.round === 1)) {
     n.winnerId = n.playerA;
     n.status = 'completed';
+    n.games = firstRound[n.slot];
   }
   const final = nodes.find((n) => n.round === 2)!;
   final.playerA = 'p2';
   final.playerB = 'p3';
   final.winnerId = 'p2';
   final.status = 'completed';
+  final.games = [{ a: 11, b: 9 }, { a: 9, b: 11 }, { a: 12, b: 10 }];
   return {
     summary: {
       id: 'demo-t0',
@@ -968,8 +977,8 @@ function finishedTournament(): TStore {
   };
 }
 
-// In progress, 8 players. Quarterfinals yesterday: you beat Cris, Ana beat
-// Gabi, Dana went through on a walkover, and Ben v Fei wasn't played (overdue:
+// In progress, 8 players. Quarterfinals yesterday: you beat Cris 2–1, Ana beat
+// Gabi 2–0, Dana went through on a walkover, and Ben v Fei wasn't played (overdue:
 // the organizer decides). Semifinals today and tomorrow: yours against Ana is
 // tomorrow at 11:00, and Ana asks to move it to 16:00.
 function sampleTournament(): TStore {
@@ -988,8 +997,16 @@ function sampleTournament(): TStore {
     else parent.playerB = winner;
     if (parent.playerA && parent.playerB) parent.status = 'ready';
   };
-  played(1, 0, 'p2', { scheduledAt: at(yesterday, '11:00'), plannedOn: yesterday }); // Ana v Gabi
-  played(1, 1, DEMO_ME, { scheduledAt: at(yesterday, '11:30'), plannedOn: yesterday }); // Cris v you
+  played(1, 0, 'p2', {
+    scheduledAt: at(yesterday, '11:00'),
+    plannedOn: yesterday,
+    games: [{ a: 11, b: 7 }, { a: 11, b: 5 }],
+  }); // Ana v Gabi
+  played(1, 1, DEMO_ME, {
+    scheduledAt: at(yesterday, '11:30'),
+    plannedOn: yesterday,
+    games: [{ a: 11, b: 8 }, { a: 9, b: 11 }, { a: 7, b: 11 }],
+  }); // Cris v you
   Object.assign(node(1, 2), { scheduledAt: at(yesterday, '16:00'), plannedOn: yesterday }); // Ben v Fei: not played
   played(1, 3, 'p5', { walkover: true }); // Dana v Emil
   Object.assign(node(2, 0), {
