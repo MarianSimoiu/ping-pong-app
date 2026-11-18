@@ -91,29 +91,32 @@ export function LeaderboardScreen({ navigation }: LeaderboardStackScreenProps<'L
         <Text style={styles.error}>{error}</Text>
       ) : tab === 'skill' ? (
         skill.length === 0 ? (
-          <Empty
-            emoji="🏓"
-            text={`No ranked players yet. Players appear once they've played at least ${MIN_MATCHES_FOR_LEADERBOARD} matches.`}
-          />
+          <Empty emoji="🏓" text="No players yet." />
         ) : (
           <FlatList
-            data={skill}
-            keyExtractor={(e) => e.playerId}
+            data={skillRows(skill)}
+            keyExtractor={(item) => (item === UNRANKED ? UNRANKED : item.playerId)}
             contentContainerStyle={styles.list}
-            renderItem={({ item }) => (
-              <Row
-                rank={item.rank}
-                avatar={<Avatar uri={item.avatarUrl} name={item.displayName} size={32} playerId={item.playerId} />}
-                name={item.displayName}
-                title={badges[item.playerId]?.titleLabel}
-                meta={record(item.matchesPlayed, item.wins, item.losses)}
-                flag={unanswered(item.unanswered)}
-                value={String(Math.round(item.rating))}
-                valueNote={`±${Math.round(item.rd)}`}
-                side={<TierPill badge={badges[item.playerId]} />}
-                onPress={() => openProfile(item.playerId, item.displayName)}
-              />
-            )}
+            renderItem={({ item }) =>
+              item === UNRANKED ? (
+                <Text style={styles.sectionLabel}>Not ranked yet</Text>
+              ) : (
+                <Row
+                  rank={item.rank}
+                  avatar={<Avatar uri={item.avatarUrl} name={item.displayName} size={32} playerId={item.playerId} />}
+                  name={item.displayName}
+                  title={badges[item.playerId]?.titleLabel}
+                  meta={item.matchesPlayed > 0 ? record(item.matchesPlayed, item.wins, item.losses) : 'No matches yet'}
+                  note={item.rank === null ? toRank(item.matchesPlayed) : null}
+                  flag={unanswered(item.unanswered)}
+                  value={String(Math.round(item.rating))}
+                  valueNote={`±${Math.round(item.rd)}`}
+                  muted={item.rank === null}
+                  side={<TierPill badge={badges[item.playerId]} />}
+                  onPress={() => openProfile(item.playerId, item.displayName)}
+                />
+              )
+            }
           />
         )
       ) : tab === 'season' ? (
@@ -166,6 +169,21 @@ export function LeaderboardScreen({ navigation }: LeaderboardStackScreenProps<'L
   );
 }
 
+// The skill board's rows: the ranked players, then (if there are any) a
+// heading and everyone without a rank yet.
+const UNRANKED = 'not-ranked-yet';
+function skillRows(entries: LeaderboardEntry[]): (LeaderboardEntry | typeof UNRANKED)[] {
+  const ranked = entries.filter((e) => e.rank !== null);
+  const unranked = entries.filter((e) => e.rank === null);
+  return unranked.length === 0 ? ranked : [...ranked, UNRANKED, ...unranked];
+}
+
+// "1 more match to get a rank": what a player without a rank still needs.
+function toRank(matches: number): string {
+  const left = MIN_MATCHES_FOR_LEADERBOARD - matches;
+  return `${left} ${matches > 0 ? 'more ' : ''}${left === 1 ? 'match' : 'matches'} to get a rank`;
+}
+
 // "41 matches · 25–16": matches played, then the win–loss record.
 const record = (matches: number, wins: number, losses: number): string =>
   `${matches} ${matches === 1 ? 'match' : 'matches'} · ${wins}–${losses}`;
@@ -175,29 +193,35 @@ const record = (matches: number, wins: number, losses: number): string =>
 const unanswered = (n: number): string | null =>
   n > 0 ? `⏳ ${n} unanswered ${n === 1 ? 'match' : 'matches'}` : null;
 
-// One card on the board. Left: the rank, then the avatar and name, the title
-// on its own line (so a long name can't push it out), a line of detail, and
-// any flag (unanswered matches). Right: the rating (with its ±) over the tier.
+// One card on the board. Left: the rank (a dash for a player without one),
+// then the avatar and name, the title on its own line (so a long name can't
+// push it out), a line of detail, a note (what's left to get a rank) and any
+// flag (unanswered matches). Right: the rating (with its ±) over the tier;
+// muted while it doesn't rank.
 function Row({
   rank,
   avatar,
   name,
   title,
   meta,
+  note,
   flag,
   value,
   valueNote,
+  muted,
   side,
   onPress,
 }: {
-  rank: number;
+  rank: number | null;
   avatar: React.ReactNode;
   name: React.ReactNode;
   title?: string | null;
   meta: string;
+  note?: string | null;
   flag?: string | null;
   value: string;
   valueNote?: string;
+  muted?: boolean;
   side?: React.ReactNode;
   onPress?: () => void;
 }) {
@@ -206,7 +230,13 @@ function Row({
   const content = (
     <>
       <View style={styles.rankCell}>
-        <Text style={rank <= MEDALS.length ? styles.medal : styles.rank}>{rankLabel(rank)}</Text>
+        {rank === null ? (
+          <Text style={styles.rank} accessibilityLabel="No rank yet">
+            –
+          </Text>
+        ) : (
+          <Text style={rank <= MEDALS.length ? styles.medal : styles.rank}>{rankLabel(rank)}</Text>
+        )}
       </View>
       <View style={styles.rowMain}>
         <View style={styles.nameLine}>
@@ -223,6 +253,11 @@ function Row({
         <Text style={styles.rowMeta} numberOfLines={1}>
           {meta}
         </Text>
+        {note ? (
+          <Text style={styles.rowMeta} numberOfLines={2}>
+            {note}
+          </Text>
+        ) : null}
         {flag ? (
           <Text style={styles.rowFlag} numberOfLines={1}>
             {flag}
@@ -231,7 +266,7 @@ function Row({
       </View>
       <View style={styles.rowSide}>
         <View style={styles.valueLine}>
-          <Text style={styles.rowValue}>{value}</Text>
+          <Text style={[styles.rowValue, muted && styles.rowValueMuted]}>{value}</Text>
           {valueNote ? <Text style={styles.valueNote}>{valueNote}</Text> : null}
         </View>
         {side ? <View style={styles.sideExtra}>{side}</View> : null}
@@ -304,6 +339,15 @@ function createStyles(colors: Colors) {
     tabText: { color: colors.textMuted, fontSize: 14, fontWeight: '600', textAlign: 'center' },
     tabTextActive: { color: colors.primaryText },
     list: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xl },
+    // Above the players without a rank yet.
+    sectionLabel: {
+      color: colors.textMuted,
+      fontSize: 13,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      marginTop: spacing.md,
+      marginBottom: spacing.sm,
+    },
     row: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -328,6 +372,7 @@ function createStyles(colors: Colors) {
     rowSide: { alignItems: 'flex-end', marginLeft: spacing.sm },
     valueLine: { flexDirection: 'row', alignItems: 'baseline' },
     rowValue: { color: colors.primary, fontSize: 20, fontWeight: '800' },
+    rowValueMuted: { color: colors.textMuted },
     valueNote: { color: colors.textMuted, fontSize: 12, fontWeight: '600', marginLeft: 3 },
     sideExtra: { marginTop: 3 },
     center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },

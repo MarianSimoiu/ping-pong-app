@@ -52,6 +52,9 @@ const players: P[] = [
   { id: 'p6', name: 'Emil', rating: 1487, rd: 74, matches: 22 },
   { id: 'p7', name: 'Fei', rating: 1402, rd: 96, matches: 12 },
   { id: 'p8', name: 'Gabi', rating: 1368, rd: 120, matches: 7 },
+  // Newcomers, not ranked yet: listed after the ranked players.
+  { id: 'p9', name: 'Hana', rating: 1574, rd: 262, matches: 2 },
+  { id: 'p10', name: 'Ion', rating: 1500, rd: 350, matches: 0 },
 ];
 const byId = (id: string) => players.find((p) => p.id === id);
 
@@ -165,21 +168,19 @@ export const demoPlayerById = (id: string): PlayerWithRating | null => {
   return p ? toProfile(p) : null;
 };
 
+// Everyone, in no order: fetchLeaderboard ranks them as it does the server's.
 export function demoLeaderboard(): LeaderboardEntry[] {
-  return [...players]
-    .filter((p) => p.matches >= 5)
-    .sort((a, b) => b.rating - a.rating)
-    .map((p, i) => ({
-      rank: i + 1,
-      playerId: p.id,
-      displayName: p.name,
-      avatarUrl: p.avatarUrl ?? null,
-      rating: p.rating,
-      rd: p.rd,
-      matchesPlayed: p.matches,
-      ...demoRecord(p.id),
-      unanswered: demoUnanswered(p.id),
-    }));
+  return players.map((p) => ({
+    rank: null,
+    playerId: p.id,
+    displayName: p.name,
+    avatarUrl: p.avatarUrl ?? null,
+    rating: p.rating,
+    rd: p.rd,
+    matchesPlayed: p.matches,
+    ...demoRecord(p.id),
+    unanswered: demoUnanswered(p.id),
+  }));
 }
 
 // Matches waiting on a player's answer: yours are the ones on Home (singles)
@@ -208,10 +209,13 @@ export function demoRatingHistory(id: string): HistoryPoint[] {
   const base = byId(id)?.rating ?? 1500;
   const deltas = [-70, -40, -55, -10, 15, -5, 30, 45, 20];
   let r = base - 60;
-  return deltas.map((d, i) => {
+  const points = deltas.map((d, i) => {
     r += d;
     return { at: new Date(Date.now() - (deltas.length - i) * 864e5).toISOString(), rating: r };
   });
+  // No more points than matches played (a newcomer has few, or none).
+  const played = byId(id)?.matches ?? points.length;
+  return played === 0 ? [] : points.slice(-played);
 }
 
 export function demoMatchHistory(id: string): MatchHistoryItem[] {
@@ -225,7 +229,7 @@ export function demoMatchHistory(id: string): MatchHistoryItem[] {
     [opponents[3], 'loss', -15],
     [opponents[4] ?? opponents[0], 'loss', -8],
   ];
-  return sample.map(([opponent, result, delta], i) => ({
+  return sample.slice(0, byId(id)?.matches ?? sample.length).map(([opponent, result, delta], i) => ({
     id: `mh-${id}-${i}`,
     opponentId: opponent.id,
     opponentName: opponent.name,
