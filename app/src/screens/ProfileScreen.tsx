@@ -190,7 +190,8 @@ export function ProfileScreen({ navigation }: ProfileStackScreenProps<'Account'>
                 />
                 {me.matchesPlayed < MIN_MATCHES_FOR_LEADERBOARD && (
                   <Text style={styles.note}>
-                    Not ranked yet — players join the leaderboard after {MIN_MATCHES_FOR_LEADERBOARD} matches.
+                    Not ranked yet — players get a rank on the leaderboard after {MIN_MATCHES_FOR_LEADERBOARD}{' '}
+                    matches.
                   </Text>
                 )}
                 <Text style={styles.listLabel}>Rating over time</Text>

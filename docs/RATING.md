@@ -88,13 +88,14 @@ Covered by step 3. Beating weak players ≈ 0 points; losing to them is costly.
 Worked example B is the proof.
 
 ### 2.2 Provisional players (the leaderboard threshold)
-While `matches_played < 3` a player is **provisional**: they don't appear on the
-public leaderboard yet. Their RD is high, so Glicko-2 already moves them quickly
+While `matches_played < 3` a player is **provisional**: they're on the
+leaderboard without a rank, listed after the ranked players under "Not ranked
+yet" (the nearest to a rank first). Their RD is high, so Glicko-2 already moves them quickly
 toward their real level — the first 3 matches move a rating the most, and it
 keeps settling after that. Rule: `isProvisional(n) = n < 3` in the engine
 (recorded on each rating event), mirrored by `MIN_MATCHES_FOR_LEADERBOARD` in
-the app. Players only ever see this one number; the app shows no separate
-"provisional" label.
+the app. Players only ever see this one number; the app says "not ranked yet"
+rather than "provisional".
 
 ### 2.3 Diminishing repeat-opponent returns
 The direct fix for "I'll just play the same weak friend 10 times today." Let
@@ -131,7 +132,7 @@ moves the rating a bit more.
 | Guard | Function | Applied in |
 |---|---|---|
 | Opponent weighting | `updateRating` (step 3) | every match |
-| Provisional | `isProvisional` / `MIN_MATCHES_FOR_LEADERBOARD` | leaderboard gate; flag on each rating event |
+| Provisional | `isProvisional` / `MIN_MATCHES_FOR_LEADERBOARD` | who gets a rank (the rest are listed last); flag on each rating event |
 | Repeat-opponent | `repeatFactor` + `applyRepeatFactor` | `confirm-match` before persisting (casual matches) |
 | Inactivity/RD | `applyInactivity` | every rated match, before the update (`engine.ts`) |
 

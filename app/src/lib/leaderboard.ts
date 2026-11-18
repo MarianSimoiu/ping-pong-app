@@ -5,7 +5,9 @@ import { supabase } from '@/lib/supabase';
 import type { PlayerWithRating } from '@/lib/types';
 
 export type LeaderboardEntry = {
-  rank: number;
+  // Place among the ranked players (MIN_MATCHES_FOR_LEADERBOARD matches or
+  // more); null for the rest, who are listed after them.
+  rank: number | null;
   playerId: string;
   displayName: string;
   avatarUrl: string | null;
@@ -18,30 +20,34 @@ export type LeaderboardEntry = {
   unanswered: number;
 };
 
-// Ranked skill leaderboard: players past the min-matches gate, best rating first.
+// The skill leaderboard: every player who has signed up. Those with
+// MIN_MATCHES_FOR_LEADERBOARD matches or more are ranked, best rating first;
+// the rest follow without a rank (see orderLeaderboard).
 export async function fetchLeaderboard(): Promise<LeaderboardEntry[]> {
-  if (DEMO) return demo.demoLeaderboard();
+  if (DEMO) return orderLeaderboard(demo.demoLeaderboard());
+  // Every player gets a rating row when they sign up (0001), so this is everyone.
   const { data, error } = await supabase
     .from('player_ratings')
-    .select('rating, rd, matches_played, player:players(id, display_name, avatar_url)')
-    .gte('matches_played', MIN_MATCHES_FOR_LEADERBOARD)
-    .order('rating', { ascending: false });
+    .select('rating, rd, matches_played, player:players(id, display_name, avatar_url)');
   if (error) throw error;
 
-  const entries = (data ?? []).map((row: any, i) => {
+  const entries: LeaderboardEntry[] = (data ?? []).flatMap((row: any) => {
     const player = Array.isArray(row.player) ? row.player[0] : row.player;
-    return {
-      rank: i + 1,
-      playerId: player.id,
-      displayName: player.display_name,
-      avatarUrl: player.avatar_url ?? null,
-      rating: row.rating,
-      rd: row.rd,
-      matchesPlayed: row.matches_played,
-      wins: 0,
-      losses: 0,
-      unanswered: 0,
-    };
+    if (!player) return [];
+    return [
+      {
+        rank: null,
+        playerId: player.id,
+        displayName: player.display_name,
+        avatarUrl: player.avatar_url ?? null,
+        rating: row.rating,
+        rd: row.rd,
+        matchesPlayed: row.matches_played,
+        wins: 0,
+        losses: 0,
+        unanswered: 0,
+      },
+    ];
   });
   if (entries.length === 0) return entries;
 
@@ -49,10 +55,9 @@ export async function fetchLeaderboard(): Promise<LeaderboardEntry[]> {
   // no row cap to run into): everyone's win/loss record (player_records), and
   // how many matches wait on their answer (unanswered_matches). The second
   // only adds a line to the board, so if it fails the board shows without it.
-  const ids = entries.map((e) => e.playerId);
   const [{ data: records, error: recordsError }, { data: waiting }] = await Promise.all([
-    supabase.from('player_records').select('player_id, wins, losses').in('player_id', ids),
-    supabase.from('unanswered_matches').select('player_id, matches').in('player_id', ids),
+    supabase.from('player_records').select('player_id, wins, losses'),
+    supabase.from('unanswered_matches').select('player_id, matches'),
   ]);
   if (recordsError) throw recordsError;
 
@@ -67,7 +72,25 @@ export async function fetchLeaderboard(): Promise<LeaderboardEntry[]> {
     entry.unanswered = waitingFor.get(entry.playerId) ?? 0;
   }
 
-  return entries;
+  return orderLeaderboard(entries);
+}
+
+// The board's order: the ranked players (MIN_MATCHES_FOR_LEADERBOARD matches
+// or more) by rating, numbered 1, 2, 3…; then everyone else, unranked, the
+// nearest to a rank first (most matches), then by rating and name.
+export function orderLeaderboard(entries: LeaderboardEntry[]): LeaderboardEntry[] {
+  const ranked = entries
+    .filter((e) => e.matchesPlayed >= MIN_MATCHES_FOR_LEADERBOARD)
+    .sort((a, b) => b.rating - a.rating)
+    .map((e, i) => ({ ...e, rank: i + 1 }));
+  const unranked = entries
+    .filter((e) => e.matchesPlayed < MIN_MATCHES_FOR_LEADERBOARD)
+    .sort(
+      (a, b) =>
+        b.matchesPlayed - a.matchesPlayed || b.rating - a.rating || a.displayName.localeCompare(b.displayName),
+    )
+    .map((e) => ({ ...e, rank: null }));
+  return [...ranked, ...unranked];
 }
 
 export type SeasonEntry = {

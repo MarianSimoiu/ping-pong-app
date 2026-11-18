@@ -398,7 +398,8 @@ it) alongside the existing `status`/`repeatFactor`.
    `players`/`player_ratings` + auth, this document.
 2. **Matches + rating engine** — match schema, `rating_events`, pure `glicko2.ts`
    + tests, `submit-match` Edge Function, submit-match screen, `RATING.md`.
-3. **Leaderboard & profiles** *(done)* — ranking query (min-matches gate),
+3. **Leaderboard & profiles** *(done)* — every player on the board, ranked
+   from 3 matches (the rest listed after them, "Not ranked yet"),
    player profiles with W–L record, match history, and a rating-over-time chart.
 4. **Tournaments** *(done)* — single-elim schema, rating-seeded brackets with
    byes, bracket UI, and tournament matches feeding the shared rating engine.

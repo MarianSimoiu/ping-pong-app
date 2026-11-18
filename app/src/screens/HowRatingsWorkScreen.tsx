@@ -89,8 +89,9 @@ export function HowRatingsWorkScreen() {
 
         <Section title="The leaderboard">
           <P>
-            You appear on the leaderboard after <B>{N} confirmed matches</B>. Your first {N} matches
-            move your rating the most.
+            Everyone is on the leaderboard, but you get a rank after <B>{N} confirmed matches</B>.
+            Until then you're listed after the ranked players, under "Not ranked yet". Your first{' '}
+            {N} matches move your rating the most.
           </P>
           <P>
             Players are ranked by rating alone; the ± says how far to trust each number. A newcomer
@@ -101,8 +102,7 @@ export function HowRatingsWorkScreen() {
 
         <Section title="Tiers">
           <P>
-            Everyone on the leaderboard has a tier from their rating, shown as a ring around their
-            photo:
+            Every ranked player has a tier from their rating, shown as a ring around their photo:
           </P>
           <View style={styles.table}>
             {tierRows.map(([label, from], i) => (
