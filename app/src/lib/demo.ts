@@ -519,8 +519,8 @@ const DEMO_PROGRESS: Record<string, Record<string, { progress: number; earnedAt:
   p5: { unlucky: { progress: 1, earnedAt: daysAgo(26) } },
 };
 const AUTUMN = { tournamentId: 'demo-t0', tournamentName: 'Autumn Open', at: daysAgo(25) };
-// The Autumn Open's podium: Ana won the final against Ben; Dana and Cris lost the semifinals.
-const DEMO_HONOURS: Record<string, 1 | 2 | 3> = { p2: 1, p3: 2, p4: 3, p5: 3 };
+// The Autumn Open's podium: Ana won the final against Ben; Cris beat Dana for third place.
+const DEMO_HONOURS: Record<string, 1 | 2 | 3> = { p2: 1, p3: 2, p4: 3 };
 const DEMO_TITLES: Record<string, string> = { p2: 'unkillable_demon_king', p3: 'finalist' };
 let myTitle: string | null = null;
 
@@ -559,10 +559,18 @@ const MIN_PLAYERS = 4;
 // For the pots and the draw, as tournament_live_pots (0020).
 const potRating = (p: P) => (p.matches === 0 ? 1500 : p.rating);
 
+// The last round's second match is for third place, between the semifinal
+// losers (0030); its first is the final. (As lib/tournaments' isThirdPlace,
+// which this module can't import: that one imports this. A function
+// declaration, as the demo tournaments are built before this line runs.)
+function isThird(n: Pick<TournamentNode, 'round' | 'slot'>, rounds: number): boolean {
+  return rounds >= 2 && n.round === rounds && n.slot === 1;
+}
+
 function listItem(t: TStore): TournamentListItem {
   const ids = t.summary.status === 'registration' ? t.registrations.map((r) => r.playerId) : t.participants.map((p) => p.playerId);
   const current = t.summary.status === 'registration' || t.summary.status === 'active';
-  const final = t.summary.size ? t.nodes.find((n) => n.round === Math.log2(t.summary.size!)) : undefined;
+  const final = t.summary.size ? t.nodes.find((n) => n.round === Math.log2(t.summary.size!) && n.slot === 0) : undefined;
   const champion = t.summary.status === 'completed' && final?.winnerId ? byId(final.winnerId)?.name ?? null : null;
   return { ...t.summary, registeredCount: current ? ids.length : null, imIn: ids.includes(DEMO_ME), champion };
 }
@@ -770,8 +778,10 @@ function waitingResults(recordedByYou: boolean) {
   );
 }
 
-// The match is over: the winner goes on (and the next match gets its time),
-// or the final finishes the tournament.
+// The match is over: the winner goes on (and the next match gets its time); a
+// semifinal's loser to the third-place match, seated first so it gets the
+// earlier time (0030). The final and the third-place match both played, the
+// tournament is over.
 function advance(t: TStore, node: TournamentNode, winner: string): void {
   Object.assign(node, { winnerId: winner, status: 'completed', proposedAt: null, proposedBy: null });
   const rounds = Math.log2(t.summary.size!);
@@ -779,9 +789,17 @@ function advance(t: TStore, node: TournamentNode, winner: string): void {
     const parent = t.nodes.find((n) => n.round === node.round + 1 && n.slot === Math.floor(node.slot / 2))!;
     if (node.slot % 2 === 0) parent.playerA = winner;
     else parent.playerB = winner;
+    const third = node.round === rounds - 1 ? t.nodes.find((n) => isThird(n, rounds)) : undefined;
+    if (third) {
+      const loser = node.playerA === winner ? node.playerB : node.playerA;
+      if (node.slot === 0) third.playerA = loser;
+      else third.playerB = loser;
+      if (third.playerA && third.playerB) third.status = 'ready';
+      scheduleMatches(t);
+    }
     if (parent.playerA && parent.playerB) parent.status = 'ready';
     scheduleMatches(t);
-  } else {
+  } else if (t.nodes.every((n) => n.round !== rounds || n.status === 'completed')) {
     t.summary.status = 'completed';
     t.summary.endedAt = new Date().toISOString();
   }
@@ -837,9 +855,11 @@ function scheduleMatches(t: TStore): void {
   const len = slotMinutes(t.summary.bestOf) * 60_000;
   const now = Date.now();
   const today = clubDay(now);
+  const rounds = Math.log2(t.summary.size);
+  // In order, the third-place match ahead of the final (0030).
   const waiting = t.nodes
     .filter((n) => n.status === 'ready' && !n.scheduledAt && n.playerA && n.playerB)
-    .sort((a, b) => a.round - b.round || a.slot - b.slot);
+    .sort((a, b) => a.round - b.round || Number(isThird(b, rounds)) - Number(isThird(a, rounds)) || a.slot - b.slot);
   // Play has started (a match played or given as a walkover; a bye isn't one):
   // the next matches get the first free time from now (0029).
   const started = t.nodes.some((n) => n.status === 'completed' && n.playerA && n.playerB);
@@ -973,15 +993,17 @@ function seedOrder(size: number): number[] {
 }
 
 // A single-elimination bracket from players in seed order; byes go to the top
-// seeds and move them straight on.
+// seeds and move them straight on. The last round also has the third-place
+// match (slot 1), when both semifinals are real matches (as bracket.ts).
 function buildBracket(ids: string[]): { nodes: TournamentNode[]; size: number } {
   let size = 2;
   while (size < ids.length) size *= 2;
   const rounds = Math.log2(size);
   const stamp = `${Date.now()}-${++bracketCount}`; // unique even for brackets built in the same millisecond
   const nodes: TournamentNode[] = [];
+  const third = rounds >= 3 || (rounds === 2 && ids.length === size);
   for (let r = 1; r <= rounds; r++) {
-    for (let s = 0; s < size / 2 ** r; s++) {
+    for (let s = 0; s < size / 2 ** r + (r === rounds && third ? 1 : 0); s++) {
       nodes.push({
         id: `n-${stamp}-${r}-${s}`,
         round: r,
@@ -1026,8 +1048,9 @@ function buildBracket(ids: string[]): { nodes: TournamentNode[]; size: number } 
   return { nodes, size };
 }
 
-// A finished tournament: Ana beat Dana 2–0 and Ben beat Cris 2–1, then Ana won
-// the final against Ben 2–1 (her champion title and laurel come from it).
+// A finished tournament: Ana beat Dana 2–0 and Ben beat Cris 2–1, then Cris
+// beat Dana 2–1 for third place and Ana won the final against Ben 2–1 (her
+// champion title and laurel come from it).
 function finishedTournament(): TStore {
   const ids = ['p2', 'p3', 'p4', 'p5'];
   const { nodes, size } = buildBracket(ids);
@@ -1040,12 +1063,20 @@ function finishedTournament(): TStore {
     n.status = 'completed';
     n.games = firstRound[n.slot];
   }
-  const final = nodes.find((n) => n.round === 2)!;
+  const final = nodes.find((n) => n.round === 2 && n.slot === 0)!;
   final.playerA = 'p2';
   final.playerB = 'p3';
   final.winnerId = 'p2';
   final.status = 'completed';
   final.games = [{ a: 11, b: 9 }, { a: 9, b: 11 }, { a: 12, b: 10 }];
+  // Third place: the first semifinal's loser on side A, the second's on B.
+  Object.assign(nodes.find((n) => isThird(n, 2))!, {
+    playerA: 'p5',
+    playerB: 'p4',
+    winnerId: 'p4',
+    status: 'completed',
+    games: [{ a: 11, b: 8 }, { a: 6, b: 11 }, { a: 9, b: 11 }],
+  });
   return {
     summary: {
       id: 'demo-t0',

@@ -4,8 +4,14 @@
 
 export const CLUB_TIME_ZONE = 'Europe/Bucharest';
 
-// A round's name, by how far it is from the final: "Quarterfinals".
-export function roundName(round: number, totalRounds: number): string {
+import { isThirdPlace } from './bracket.ts';
+
+export const THIRD_PLACE_MATCH = 'third-place match';
+
+// A round's name, by how far it is from the final: "Quarterfinals". The last
+// round's second match (`slot` 1) is the third-place match.
+export function roundName(round: number, totalRounds: number, slot = 0): string {
+  if (isThirdPlace(round, slot, totalRounds)) return 'Third place';
   const fromEnd = totalRounds - round;
   if (fromEnd === 0) return 'Final';
   if (fromEnd === 1) return 'Semifinals';
@@ -15,8 +21,10 @@ export function roundName(round: number, totalRounds: number): string {
   return `Round ${round}`;
 }
 
-// One match of that round, in a sentence: "your semifinal".
-export function matchName(round: number, totalRounds: number): string {
+// One match of that round, in a sentence: "your semifinal", "your
+// third-place match".
+export function matchName(round: number, totalRounds: number, slot = 0): string {
+  if (isThirdPlace(round, slot, totalRounds)) return THIRD_PLACE_MATCH;
   const fromEnd = totalRounds - round;
   if (fromEnd === 0) return 'final';
   if (fromEnd === 1) return 'semifinal';

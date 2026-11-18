@@ -32,7 +32,9 @@ import {
   answerMatchTime,
   cancelTournament,
   fetchTournamentDetail,
+  finalOf,
   isPastKickoff,
+  isThirdPlace,
   MIN_TOURNAMENT_PLAYERS,
   registerForTournament,
   requestKickoff,
@@ -42,6 +44,7 @@ import {
   setRoundDates,
   sideAWon,
   startTournamentNow,
+  thirdPlaces,
   withdrawFromTournament,
   type PendingResult,
   type TournamentDetail,
@@ -50,8 +53,10 @@ import {
 import type { TournamentsStackScreenProps } from '@/navigation/types';
 import { radius, spacing, useTheme, type Colors } from '@/theme';
 
-// As the server's notifications name them (_shared/rounds.ts).
-function roundLabel(round: number, totalRounds: number): string {
+// As the server's notifications name them (_shared/rounds.ts): the last
+// round's second match (`slot` 1) is the third-place match.
+function roundLabel(round: number, totalRounds: number, slot = 0): string {
+  if (isThirdPlace({ round, slot }, totalRounds)) return 'Third place';
   const fromEnd = totalRounds - round;
   if (fromEnd === 0) return 'Final';
   if (fromEnd === 1) return 'Semifinals';
@@ -61,29 +66,39 @@ function roundLabel(round: number, totalRounds: number): string {
   return `Round ${round}`;
 }
 
-// Where the signed-in player stands in a drawn bracket.
+// Where the signed-in player stands in a drawn bracket. A semifinal lost
+// leads to the third-place match (where there is one): 'third' is winning it.
 type MyPath =
   | { kind: 'play'; node: TournamentNode; opponent: string }
-  | { kind: 'wait'; node: TournamentNode; winnerOf: [string, string] | null }
-  | { kind: 'out'; round: number; by: string | null }
+  | { kind: 'wait'; node: TournamentNode; from: [string, string] | null }
+  | { kind: 'out'; node: TournamentNode; by: string | null }
+  | { kind: 'third' }
   | { kind: 'won' };
 
-function myPath(nodes: TournamentNode[], meId: string): MyPath | null {
+function myPath(nodes: TournamentNode[], meId: string, totalRounds: number): MyPath | null {
   const mine = nodes.filter((n) => n.playerA === meId || n.playerB === meId);
   if (mine.length === 0) return null;
+  const other = (n: TournamentNode) => (n.playerA === meId ? n.playerB : n.playerA);
+  const third = mine.find((n) => isThirdPlace(n, totalRounds));
+  if (third?.status === 'completed') {
+    return third.winnerId === meId ? { kind: 'third' } : { kind: 'out', node: third, by: other(third) };
+  }
   const lost = mine.find((n) => n.status === 'completed' && n.winnerId && n.winnerId !== meId);
-  if (lost) return { kind: 'out', round: lost.round, by: lost.playerA === meId ? lost.playerB : lost.playerA };
+  if (lost && !third) return { kind: 'out', node: lost, by: other(lost) };
   const next = mine.filter((n) => n.status !== 'completed').sort((a, b) => a.round - b.round)[0];
   if (!next) return { kind: 'won' };
   const isA = next.playerA === meId;
   const opponent = isA ? next.playerB : next.playerA;
   if (opponent) return { kind: 'play', node: next, opponent };
-  // Side A of a match is fed by slot 2s of the round before, side B by 2s + 1.
-  const feeder = nodes.find((n) => n.round === next.round - 1 && n.slot === next.slot * 2 + (isA ? 1 : 0));
+  // Side A of a match is fed by slot 2s of the round before, side B by 2s + 1;
+  // in the third-place match by the first and second semifinals' losers, so
+  // the opponent comes from the other one.
+  const feederSlot = next === third ? (isA ? 1 : 0) : next.slot * 2 + (isA ? 1 : 0);
+  const feeder = nodes.find((n) => n.round === next.round - 1 && n.slot === feederSlot);
   return {
     kind: 'wait',
     node: next,
-    winnerOf: feeder?.playerA && feeder.playerB ? [feeder.playerA, feeder.playerB] : null,
+    from: feeder?.playerA && feeder.playerB ? [feeder.playerA, feeder.playerB] : null,
   };
 }
 
@@ -203,9 +218,7 @@ export function TournamentDetailScreen({ route, navigation }: TournamentsStackSc
 
   // Computed before the early returns below so the hook order stays stable.
   const champion =
-    detail?.tournament.status === 'completed'
-      ? detail.nodes.find((n) => n.round === detail.totalRounds)?.winnerId ?? null
-      : null;
+    detail?.tournament.status === 'completed' ? finalOf(detail.nodes, detail.totalRounds)?.winnerId ?? null : null;
   const championName = champion ? detail?.nameById[champion] : null;
   // Picked once per champion so it doesn't change on every re-render/refresh.
   const championLine = useMemo(() => (championName ? pickChampionLine(championName) : null), [championName]);
@@ -522,25 +535,39 @@ export function TournamentDetailScreen({ route, navigation }: TournamentsStackSc
 
   function renderMyPath() {
     if (!meId) return null;
-    const path = myPath(nodes, meId);
+    const path = myPath(nodes, meId, totalRounds);
     if (!path || path.kind === 'won') return null;
-    if (path.kind === 'out') {
+    if (path.kind === 'third') {
       return (
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>You're out</Text>
-          <Text style={styles.cardText}>
-            Lost{' '}
-            {path.by && (
-              <>
-                to <PlayerName playerId={path.by} name={nameOf(path.by, '')} style={styles.strong} />{' '}
-              </>
-            )}
-            in the {roundLabel(path.round, totalRounds).toLowerCase()}.
-          </Text>
+          <Text style={styles.cardTitle}>🥉 Third place</Text>
+          <Text style={styles.cardText}>You won the third-place match, and the bronze medal.</Text>
         </View>
       );
     }
-    const round = roundLabel(path.node.round, totalRounds);
+    if (path.kind === 'out') {
+      const by = path.by && (
+        <PlayerName playerId={path.by} name={nameOf(path.by, '')} style={styles.strong} />
+      );
+      return (
+        <View style={styles.card}>
+          {isThirdPlace(path.node, totalRounds) ? (
+            <>
+              <Text style={styles.cardTitle}>Fourth place</Text>
+              <Text style={styles.cardText}>Lost the third-place match{by && <> to {by}</>}.</Text>
+            </>
+          ) : (
+            <>
+              <Text style={styles.cardTitle}>You're out</Text>
+              <Text style={styles.cardText}>
+                Lost{by && <> to {by}</>} in the {roundLabel(path.node.round, totalRounds).toLowerCase()}.
+              </Text>
+            </>
+          )}
+        </View>
+      );
+    }
+    const round = roundLabel(path.node.round, totalRounds, path.node.slot);
     if (path.kind === 'play') {
       const node = path.node;
       const opponent = nameOf(path.opponent, '');
@@ -635,11 +662,12 @@ export function TournamentDetailScreen({ route, navigation }: TournamentsStackSc
           {dates ? ` · ${formatDayRange(dates.startsOn, dates.endsOn)}` : ''}
         </Text>
         <Text style={styles.cardText}>
-          {path.winnerOf ? (
+          {path.from ? (
             <>
-              You play the winner of{' '}
-              <PlayerName playerId={path.winnerOf[0]} name={nameOf(path.winnerOf[0], '')} style={styles.strong} /> v{' '}
-              <PlayerName playerId={path.winnerOf[1]} name={nameOf(path.winnerOf[1], '')} style={styles.strong} />.
+              You play the {isThirdPlace(path.node, totalRounds) ? 'loser' : 'winner'} of{' '}
+              <PlayerName playerId={path.from[0]} name={nameOf(path.from[0], '')} style={styles.strong} /> v{' '}
+              <PlayerName playerId={path.from[1]} name={nameOf(path.from[1], '')} style={styles.strong} />
+              {isThirdPlace(path.node, totalRounds) ? ', for third place and the bronze medal.' : '.'}
             </>
           ) : (
             'Your opponent is decided by an earlier match.'
@@ -740,7 +768,7 @@ export function TournamentDetailScreen({ route, navigation }: TournamentsStackSc
                 {nameOf(n.playerA, '?')} v {nameOf(n.playerB, '?')}
               </Text>
               <Text style={styles.lateMeta}>
-                {roundLabel(n.round, totalRounds)} ·{' '}
+                {roundLabel(n.round, totalRounds, n.slot)} ·{' '}
                 {n.pending
                   ? `${nameOf(n.pending.by, '?')} recorded ${scoreLine(n.pending.games, sideAWon(n.pending.games))}, not confirmed yet`
                   : `due ${formatMatchTime(n.scheduledAt!, clock)}`}
@@ -795,8 +823,8 @@ export function TournamentDetailScreen({ route, navigation }: TournamentsStackSc
   }
 
   // Until it's over: what's up for grabs, lettered as the real ones will be
-  // (the champion's trophy, silver for the runner-up, bronze for both
-  // semifinal losers), set out like a podium.
+  // (the champion's trophy, silver for the runner-up, bronze for third place),
+  // set out like a podium.
   function renderPrizes() {
     return (
       <View style={[styles.hero2, styles.prizes]}>
@@ -821,7 +849,9 @@ export function TournamentDetailScreen({ route, navigation }: TournamentsStackSc
             <View style={styles.prizeArt}>
               <Medal place={3} size={62} text={lettering} label={`The ${tournament.name} bronze medal`} />
             </View>
-            <Text style={styles.prizeLabel}>Both semifinal losers</Text>
+            <Text style={styles.prizeLabel}>
+              {nodes.some((n) => isThirdPlace(n, totalRounds)) ? 'Third place' : 'Both semifinal losers'}
+            </Text>
           </View>
         </View>
       </View>
@@ -829,15 +859,14 @@ export function TournamentDetailScreen({ route, navigation }: TournamentsStackSc
   }
 
   // Over: the champion with the trophy, then the podium (the runner-up's
-  // silver medal, and bronze for both semifinal losers, as the server's
-  // tournament_podium has it).
+  // silver medal, and bronze for the third-place match's winner, or both
+  // semifinal losers before there was one, as the server's tournament_podium
+  // has it).
   function renderPodium() {
-    const final = nodes.find((n) => n.round === totalRounds);
+    const final = finalOf(nodes, totalRounds);
     if (!final?.winnerId) return null;
     const runnerUp = final.playerA === final.winnerId ? final.playerB : final.playerA;
-    const thirds = nodes
-      .filter((n) => n.round === totalRounds - 1 && n.winnerId && n.playerA && n.playerB)
-      .map((n) => (n.playerA === n.winnerId ? n.playerB : n.playerA) as string);
+    const thirds = thirdPlaces(nodes, totalRounds);
     const places: { place: 1 | 2 | 3; label: string; ids: string[] }[] = [
       { place: 1, label: 'Champion', ids: [final.winnerId] },
       ...(runnerUp ? [{ place: 2 as const, label: 'Runner-up', ids: [runnerUp] }] : []),
@@ -982,7 +1011,7 @@ export function TournamentDetailScreen({ route, navigation }: TournamentsStackSc
           node={sheetNode}
           tournamentName={tournament.name}
           bestOf={tournament.bestOf}
-          roundName={roundLabel(sheetNode.round, totalRounds)}
+          roundName={roundLabel(sheetNode.round, totalRounds, sheetNode.slot)}
           table={table}
           nameOf={(id) => nameOf(id, '?')}
           onRecord={() => {

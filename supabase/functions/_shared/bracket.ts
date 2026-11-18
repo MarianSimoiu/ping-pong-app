@@ -2,7 +2,10 @@
 //
 // Given players in seed order (index 0 = top seed), produce every bracket node
 // across all rounds. Byes (when the field isn't a power of two) are given to the
-// top seeds and auto-advance. The result is persisted as `tournament_matches`.
+// top seeds and auto-advance. The last round also has the third-place match
+// (slot 1, beside the final in slot 0) between the two semifinal losers, which
+// the database fills in as the semifinals are decided (migration 0030). The
+// result is persisted as `tournament_matches`.
 
 export type NodeStatus = 'pending' | 'ready' | 'completed';
 
@@ -14,6 +17,11 @@ export type BracketNode = {
   winner: string | null;
   status: NodeStatus;
 };
+
+// The third-place match is the last round's second match.
+export const THIRD_PLACE_SLOT = 1;
+export const isThirdPlace = (round: number, slot: number, totalRounds: number): boolean =>
+  totalRounds >= 2 && round === totalRounds && slot === THIRD_PLACE_SLOT;
 
 export function nextPowerOfTwo(n: number): number {
   let p = 1;
@@ -88,11 +96,18 @@ export function generateSingleElim(seededPlayerIds: string[]): BracketNode[] {
     }
   }
 
+  // The third-place match, when both semifinals are real matches: a bye is
+  // only ever in round 1, so that's every field but three players in a
+  // two-round bracket.
+  if (rounds >= 3 || (rounds === 2 && n === size)) {
+    nodes.push({ round: rounds, slot: THIRD_PLACE_SLOT, playerA: null, playerB: null, winner: null, status: 'pending' });
+  }
+
   return nodes;
 }
 
 // Given a completed node's coordinates, where does the winner go next?
-// Returns null when the node is the final.
+// Returns null when the node is the final (or the third-place match).
 export function parentSlot(
   round: number,
   slot: number,

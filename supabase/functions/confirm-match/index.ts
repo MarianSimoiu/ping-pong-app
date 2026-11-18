@@ -92,20 +92,23 @@ Deno.serve(async (req) => {
     // A tournament result: which tournament and match, for the messages.
     const inTournament = match.context === 'tournament' && !!match.tournament_id;
     let tournament: { id: string; name: string; size: number } | null = null;
+    let slot = 0;
     if (inTournament) {
-      const { data: t, error: tErr } = await admin
-        .from('tournaments')
-        .select('id, name, size')
-        .eq('id', match.tournament_id)
-        .single();
+      const [{ data: t, error: tErr }, { data: bracketMatch }] = await Promise.all([
+        admin.from('tournaments').select('id, name, size').eq('id', match.tournament_id).single(),
+        // The bracket match waiting on this result: the final and the
+        // third-place match share the last round (0030).
+        admin.from('tournament_matches').select('slot').eq('pending_match_id', matchId).maybeSingle(),
+      ]);
       if (tErr || !t) return jsonResponse({ error: 'Tournament not found' }, 404);
       tournament = t;
+      slot = bracketMatch?.slot ?? 0;
     }
     const tournamentResult = tournament && {
       ...submitterResult,
       tournamentId: tournament.id,
       tournament: tournament.name,
-      match: matchName(match.round ?? 1, Math.log2(tournament.size)),
+      match: matchName(match.round ?? 1, Math.log2(tournament.size), slot),
     };
 
     if (action === 'decline') {

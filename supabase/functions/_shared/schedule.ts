@@ -77,7 +77,7 @@ export async function announceSchedules(
       .eq('schedule_announced', false)
       .eq('status', 'ready')
       .not('scheduled_at', 'is', null)
-      .select('round, player_a, player_b, scheduled_at');
+      .select('round, slot, player_a, player_b, scheduled_at');
     if (error) throw error;
     if (!claimed || claimed.length === 0) return;
 
@@ -95,7 +95,7 @@ export async function announceSchedules(
           message: matchScheduled({
             tournamentId,
             tournament: t.name,
-            match: matchName(m.round, total),
+            match: matchName(m.round, total, m.slot),
             opponent: nameOf.get(them) ?? 'your opponent',
             at: m.scheduled_at,
             moved: !!opts.moved,
@@ -120,7 +120,7 @@ export async function announceOverdue(admin: SupabaseClient, now = new Date(), s
       .eq('status', 'ready')
       .eq('overdue_notified', false)
       .lt('scheduled_at', todayStarts)
-      .select('tournament_id, round, player_a, player_b, scheduled_at, pending_match_id');
+      .select('tournament_id, round, slot, player_a, player_b, scheduled_at, pending_match_id');
     if (error) throw error;
     if (!claimed || claimed.length === 0) return;
 
@@ -150,7 +150,7 @@ export async function announceOverdue(admin: SupabaseClient, now = new Date(), s
       const message = matchOverdue({
         tournamentId: m.tournament_id,
         tournament: t.name,
-        match: matchName(m.round, Math.log2(t.size)),
+        match: matchName(m.round, Math.log2(t.size), m.slot),
         playerA: nameOf.get(m.player_a) ?? '?',
         playerB: nameOf.get(m.player_b) ?? '?',
         at: m.scheduled_at,

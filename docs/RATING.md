@@ -159,15 +159,20 @@ event:
 |---|---|
 | Champion | 100 |
 | Runner-up (lost final) | 60 |
-| Semifinalist | 36 |
+| Third place (won the third-place match) | 45 |
+| Fourth place (lost it) | 36 |
 | Quarterfinalist | 18 |
 | Round of 16 | 9 |
 | Round of 32 | 4 |
 | Earlier | 2 |
 
-`placementPoints(lostRound, totalRounds, tier)` rounds `base × tier`. A player's
-finish is read from the completed bracket by `computePlacements`: everyone loses
-exactly one real match (byes don't count), and the final's winner is the champion.
+`placementPoints(lostRound, totalRounds, tier, thirdPlace)` rounds `base × tier`.
+A player's finish is read from the completed bracket by `computePlacements`:
+where they lost their one real match on the way (byes don't count), and the
+final's winner is the champion. The two semifinal losers then play each other
+for third place (migration 0030): its winner gets 45, its loser keeps a
+semifinal's 36. (Tournaments from before it have no third-place match: both
+semifinal losers got 36, "Semifinalist".)
 
 **The rolling window (this is the anti-farming part).** A player's **season
 standing** is the **sum of their best `N = 8` results** whose `expires_at` is still
@@ -181,16 +186,18 @@ was earned. Computed by the `season_standings(best_n)` SQL function. Consequence
 ### Worked example
 
 A **4-player** tournament (`totalRounds = 2`), tier 1, played to seed (top seed
-wins every match):
+wins every match, seed 3 the third-place match):
 
 | Player | Finish | `lostRound` | Points |
 |---|---|---|---|
 | Seed 1 | Champion | — | **100** |
 | Seed 2 | Runner-up | 2 | **60** |
-| Seeds 3 & 4 | Lost round 1 (= semifinal in a 4-field) | 1 | **36** each |
+| Seed 3 | Lost the semifinal, won the third-place match | 1 | **45** |
+| Seed 4 | Lost the semifinal and the third-place match | 1 | **36** |
 
-`points.test.ts` asserts these exact values, and that each participant is placed
-exactly once. At tier 2 every number doubles (champion 200, runner-up 120, …).
+`points.test.ts` asserts these values (on an 8-player bracket too), and that
+each participant is placed exactly once. At tier 2 every number doubles
+(champion 200, runner-up 120, …).
 
 ---
 

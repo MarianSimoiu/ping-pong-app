@@ -63,6 +63,24 @@ export type TournamentNode = {
 export type GameScore = { a: number; b: number };
 export type PendingResult = { matchId: string; by: string; games: GameScore[] };
 
+// The last round's first match is the final; its second is for third place,
+// between the two semifinal losers (migration 0030; tournaments from before
+// it have none, and both semifinal losers share third place).
+export const isThirdPlace = (node: Pick<TournamentNode, 'round' | 'slot'>, totalRounds: number): boolean =>
+  totalRounds >= 2 && node.round === totalRounds && node.slot === 1;
+export const finalOf = (nodes: TournamentNode[], totalRounds: number): TournamentNode | undefined =>
+  nodes.find((n) => n.round === totalRounds && n.slot === 0);
+
+// Who took third place: the third-place match's winner, or (before it
+// existed) both semifinal losers. Empty until it's decided.
+export function thirdPlaces(nodes: TournamentNode[], totalRounds: number): string[] {
+  const match = nodes.find((n) => isThirdPlace(n, totalRounds));
+  if (match) return match.winnerId ? [match.winnerId] : [];
+  return nodes
+    .filter((n) => n.round === totalRounds - 1 && n.winnerId && n.playerA && n.playerB)
+    .map((n) => (n.playerA === n.winnerId ? n.playerB : n.playerA) as string);
+}
+
 // Whether side A won these games (the most games; one game: the most points).
 export const sideAWon = (games: GameScore[]): boolean =>
   games.filter((g) => g.a > g.b).length > games.filter((g) => g.b > g.a).length;

@@ -180,6 +180,12 @@ Deno.test('match times: in the draw message, scheduled, moved, proposed, decline
     },
   );
   assertEquals(walkoverGiven({ ...t, match: 'semifinal', youWon: true, opponent: 'Ben' }).title, 'Winter Cup: you go through');
+  // Nothing to go through to after the final or the third-place match.
+  assertEquals(walkoverGiven({ ...t, match: 'third-place match', youWon: true, opponent: 'Ben' }).title, 'Winter Cup: walkover to you');
+  assertEquals(
+    walkoverGiven({ ...t, match: 'third-place match', youWon: true, opponent: 'Ben' }).body,
+    'The organizer gave you your third-place match against Ben as a walkover.',
+  );
   assertEquals(
     walkoverGiven({ ...t, match: 'semifinal', youWon: false, opponent: 'Ana' }).body,
     'The organizer gave Ana your semifinal as a walkover.',

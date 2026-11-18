@@ -59,13 +59,13 @@ Deno.serve(async (req) => {
     // The match, for the checks below and the messages.
     const { data: m, error: mError } = await admin
       .from('tournament_matches')
-      .select('id, tournament_id, round, player_a, player_b, scheduled_at, proposed_at, proposed_by, tournament:tournaments(name, size)')
+      .select('id, tournament_id, round, slot, player_a, player_b, scheduled_at, proposed_at, proposed_by, tournament:tournaments(name, size)')
       .eq('id', a.matchId)
       .maybeSingle();
     if (mError) throw mError;
     if (!m) return jsonResponse({ error: 'Match not found' }, 404);
     const t = Array.isArray(m.tournament) ? m.tournament[0] : m.tournament;
-    const match = matchName(m.round, Math.log2(t.size ?? 2));
+    const match = matchName(m.round, Math.log2(t.size ?? 2), m.slot);
     const { data: people } = await admin
       .from('players')
       .select('id, display_name')
