@@ -304,6 +304,19 @@ Web Crypto only), signed with a key pair the server creates on first use and
 keeps in `push_keys`. A subscription the push service reports as gone is
 deleted.
 
+### Staying up to date
+
+The service worker caches nothing, so opening the app always loads the
+latest deploy. But phones keep the installed app alive in the background for
+days, and an app left open across a deploy goes on running the old version
+(after the third-place match went live, its players' old apps still showed
+them as out, with nothing to record). `app/src/lib/appUpdate.ts` closes that
+gap: whenever the app comes back on screen after at least 30 seconds away, it
+fetches the deployed page and compares its script (whose name changes with
+every build) with the one it's running; if they differ, it reloads, on the
+same page. It reloads at most once per new build, and does nothing in
+development.
+
 ## Security model (Row-Level Security)
 
 - Any **authenticated** user can **read** `players` and `player_ratings`
