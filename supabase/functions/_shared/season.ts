@@ -31,8 +31,8 @@ export async function awardSeasonPoints(admin: SupabaseClient, tournamentId: str
   const expiresAt = new Date(Date.now() + WINDOW_DAYS * DAY_MS).toISOString();
   const awards = placements.map((p) => ({
     player_id: p.playerId,
-    placement: placementLabel(p.lostRound, totalRounds),
-    points: placementPoints(p.lostRound, totalRounds, finished.tier),
+    placement: placementLabel(p.lostRound, totalRounds, p.thirdPlace),
+    points: placementPoints(p.lostRound, totalRounds, finished.tier, p.thirdPlace),
     expires_at: expiresAt,
   }));
   const { error } = await admin.rpc('award_season_points', { payload: { tournament_id: tournamentId, awards } });

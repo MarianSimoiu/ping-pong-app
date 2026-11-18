@@ -2,7 +2,7 @@
 
 import { assertEquals, assertThrows } from 'jsr:@std/assert@1';
 
-import { generateSingleElim, nextPowerOfTwo, parentSlot, seedOrder } from './bracket.ts';
+import { generateSingleElim, isThirdPlace, nextPowerOfTwo, parentSlot, seedOrder } from './bracket.ts';
 
 Deno.test('nextPowerOfTwo', () => {
   assertEquals(nextPowerOfTwo(2), 2);
@@ -16,17 +16,33 @@ Deno.test('seedOrder builds the standard 8-bracket', () => {
   assertEquals(seedOrder(8), [1, 8, 4, 5, 2, 7, 3, 6]);
 });
 
-Deno.test('4 players, no byes: two ready semifinals + a pending final', () => {
+Deno.test('4 players, no byes: two ready semifinals, then the final and the third-place match', () => {
   const nodes = generateSingleElim(['p1', 'p2', 'p3', 'p4']);
   const r1 = nodes.filter((n) => n.round === 1);
   const r2 = nodes.filter((n) => n.round === 2);
   assertEquals(r1.length, 2);
-  assertEquals(r2.length, 1);
+  assertEquals(r2.map((n) => n.slot), [0, 1]); // the final, the third-place match
   // Top seed meets bottom seed.
   assertEquals(r1[0].playerA, 'p1');
   assertEquals(r1[0].playerB, 'p4');
   assertEquals(r1.every((n) => n.status === 'ready'), true);
-  assertEquals(r2[0].status, 'pending');
+  // Both wait for the semifinals: the winners to the final, the losers to third place.
+  assertEquals(r2.every((n) => n.status === 'pending' && !n.playerA && !n.playerB), true);
+  assertEquals(isThirdPlace(2, 1, 2), true);
+  assertEquals(isThirdPlace(2, 0, 2), false);
+});
+
+Deno.test('the third-place match: in every bracket with two real semifinals', () => {
+  const thirds = (n: number) => {
+    const nodes = generateSingleElim(Array.from({ length: n }, (_, i) => `p${i + 1}`));
+    const total = Math.max(...nodes.map((x) => x.round));
+    return nodes.filter((x) => isThirdPlace(x.round, x.slot, total)).length;
+  };
+  assertEquals([4, 5, 6, 7, 8, 9, 16, 80].map(thirds), [1, 1, 1, 1, 1, 1, 1, 1]);
+  // Three players: one semifinal is a bye, so there's nobody to play for third.
+  assertEquals(thirds(3), 0);
+  // Two: just a final.
+  assertEquals(thirds(2), 0);
 });
 
 Deno.test('5 players: three byes, top seeds advance for free', () => {

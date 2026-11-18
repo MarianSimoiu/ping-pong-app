@@ -63,7 +63,8 @@ Deno.test('starts a due tournament: every registered player drawn, bracket sent 
   assertEquals(payload.participants.map((p) => p.player_id).sort(), ['p1', 'p2', 'p3', 'p4', 'p5', 'p6']);
   assertEquals(payload.participants.map((p) => p.seed), [1, 2, 3, 4, 5, 6]);
   assertEquals(payload.participants.slice(0, 3).every((p) => p.pot === 1), true, 'Pot 1 takes the top seeds');
-  assertEquals(payload.nodes.length, 7);
+  // 4 + 2 + 1 bracket matches, and the third-place match.
+  assertEquals(payload.nodes.length, 8);
 });
 
 Deno.test("won't start: not due (unless an admin starts it), too few players, not open", async () => {

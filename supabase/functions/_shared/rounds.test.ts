@@ -11,6 +11,13 @@ Deno.test('round names count back from the final', () => {
   assertEquals(matchName(1, 6), 'round 1 match');
 });
 
+Deno.test("the last round's second match is the third-place match", () => {
+  assertEquals([roundName(3, 3, 0), roundName(3, 3, 1)], ['Final', 'Third place']);
+  assertEquals([matchName(2, 2, 0), matchName(2, 2, 1)], ['final', 'third-place match']);
+  // Slot 1 of an earlier round is just another match of it.
+  assertEquals([roundName(2, 3, 1), matchName(1, 3, 1)], ['Semifinals', 'quarterfinal']);
+});
+
 Deno.test('times read in Bucharest time, winter and summer', () => {
   assertEquals(clubTime('2026-11-16T09:00:00Z'), 'Mon 16 Nov, 11:00'); // UTC+2
   assertEquals(clubTime('2026-07-06T08:00:00Z'), 'Mon 6 Jul, 11:00'); // UTC+3

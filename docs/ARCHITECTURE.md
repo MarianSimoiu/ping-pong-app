@@ -128,8 +128,10 @@ casual play (`context = 'tournament'`). A tournament goes through:
    confirms or declines it through `confirm-match`, which for a tournament
    result runs the shared rating engine without repeat-opponent damping,
    then `confirm_tournament_result` completes the node and advances the
-   winner (`advance_tournament_winner`), or finishes the tournament on the
-   final, which awards season points (`_shared/season.ts`); declining
+   winner (`advance_tournament_winner`; a semifinal's loser goes to the
+   third-place match, `0030_third_place.sql`), or finishes the tournament
+   once the final and the third-place match are both played, which awards
+   season points (`_shared/season.ts`); declining
    (`reject_match`) leaves the match still to be recorded. The recorder is
    told either way. A result the organizer or an admin records, not as one
    of the players, counts straight away (`apply_tournament_result`) and
@@ -177,7 +179,9 @@ whatever the phone's zone).
 
 The bracket is drawn as a tree (`components/BracketTree.tsx`): a column per
 round with its days, each match half-way between the two it comes from and
-joined to them by lines, then the champion. Between a match's two players
+joined to them by lines, then the champion; under the final, the
+third-place match ("Third place", the last round's slot 1) and beside it the
+bronze medallist. Between a match's two players
 it shows the winning score once it's played (games won, or the points of a
 one-game match; read from `match_games`), "Walkover", or its time while it's
 waiting to be played; and each player's row ends with their points in every
@@ -263,8 +267,9 @@ on profiles, a cabinet on profiles (`TrophyCabinet`) with two tabs — Titles
 per device, never in the same visit as another popup.
 
 **Trophy and medals.** `0021_tournament_podium.sql` adds `tournament_podium`:
-each completed tournament's champion (1), runner-up (2) and both semifinal
-losers (3; there's no third-place match). The app draws the champion's trophy
+each completed tournament's champion (1), runner-up (2) and third place (3):
+since `0030_third_place.sql` the third-place match's winner, before it both
+semifinal losers. The app draws the champion's trophy
 and the silver and bronze medals (`components/TournamentArt.tsx`, SVG in a
 cartoon style, lettered with the tournament's name and year in Lilita One,
 bundled through `@expo-google-fonts/lilita-one`). They show from the start:

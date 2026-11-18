@@ -18,8 +18,8 @@ type Tab = 'titles' | 'trophies';
 // A player's titles and trophies, in two tabs. Titles: every achievement with
 // their progress, and (on their own profile) which earned title to show under
 // their name. Trophies: the trophy for each tournament they won, the medals
-// for their other podiums (silver for a lost final, bronze for a lost
-// semifinal), and the crown while they lead the season points. `heading:
+// for their other podiums (silver for a lost final, bronze for third place),
+// and the crown while they lead the season points. `heading:
 // false` leaves out its "Titles and trophies" heading (your own Profile shows it
 // under an Awards tab instead).
 export function TrophyCabinet({ playerId, isMe, heading = true }: { playerId: string; isMe: boolean; heading?: boolean }) {
@@ -188,8 +188,8 @@ function TitlesTab({ playerId, isMe, trophies }: { playerId: string; isMe: boole
 }
 
 // The trophy shelf: the crown while they lead the season, then every podium,
-// newest first: the trophy for a win, silver for a final, bronze for a
-// semifinal (components/TournamentArt.tsx).
+// newest first: the trophy for a win, silver for a final, bronze for third
+// place (components/TournamentArt.tsx).
 function TrophiesTab({ isMe, honours, leader }: { isMe: boolean; honours: Honour[]; leader: boolean }) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -201,7 +201,7 @@ function TrophiesTab({ isMe, honours, leader }: { isMe: boolean; honours: Honour
         <Text style={styles.emptyTitle}>No trophies yet</Text>
         <Text style={styles.emptyText}>
           Win a tournament for its trophy and a gold laurel around {isMe ? 'your' : 'their'} avatar. Lose the final
-          for a silver medal, a semifinal for bronze. Lead the season points for the 👑.
+          for a silver medal; win the third-place match for bronze. Lead the season points for the 👑.
         </Text>
       </View>
     );

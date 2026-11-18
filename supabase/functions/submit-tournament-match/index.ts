@@ -97,7 +97,7 @@ Deno.serve(async (req) => {
     const winnerId = aWon ? node.player_a : node.player_b;
     const gameRows = outcome.games.map((g) => ({ game_no: g.game_no, score_a: g.score_a, score_b: g.score_b }));
     const totalRounds = Math.log2(tournament.size);
-    const match = matchName(node.round, totalRounds);
+    const match = matchName(node.round, totalRounds, node.slot);
 
     const { data: names } = await admin
       .from('players')

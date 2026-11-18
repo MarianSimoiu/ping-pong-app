@@ -20,7 +20,8 @@ const N = MIN_MATCHES_FOR_LEADERBOARD;
 const SEASON_POINTS: [string, number][] = [
   ['Champion', 100],
   ['Runner-up', 60],
-  ['Semifinalist', 36],
+  ['Third place', 45],
+  ['Fourth place', 36],
   ['Quarterfinalist', 18],
   ['Round of 16', 9],
   ['Round of 32', 4],
@@ -186,7 +187,7 @@ export function HowRatingsWorkScreen() {
             🏆 Tournament champions get a gold laurel around their photo and a title for each
             tournament they win. 👑 Whoever leads the season points wears a crown while they hold
             the lead. Every podium goes on the Trophies tab of your profile: the tournament's trophy
-            for a win, a silver medal for a lost final, bronze for a lost semifinal.
+            for a win, a silver medal for a lost final, bronze for third place.
           </P>
         </Section>
 
@@ -196,6 +197,11 @@ export function HowRatingsWorkScreen() {
             which pot their rating puts them in (1500 if they haven't played a match yet): 4 pots
             from 8 players, otherwise 2. At kickoff the pots freeze and the draw is made: in round 1,
             Pot 1 plays Pot 4 and Pot 2 plays Pot 3, and the top seeds get any byes.
+          </P>
+          <P>
+            The two semifinal losers play each other in a <B>third-place match</B>: the winner takes
+            third place and the bronze medal, the loser finishes fourth. It gets its time on the
+            table ahead of the final, and the tournament ends once both are played.
           </P>
           <P>
             Matches are lined up back to back on the one table, from 11:00 to 18:00 (Bucharest time)

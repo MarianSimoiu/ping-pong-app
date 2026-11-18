@@ -1,4 +1,4 @@
-import { clubTime } from './rounds.ts';
+import { clubTime, THIRD_PLACE_MATCH } from './rounds.ts';
 import { TIER_EMOJI, TIER_NAMES, type Tier } from './tiers.ts';
 
 // The text of every push notification, in one place. The match Edge Functions
@@ -291,9 +291,11 @@ export function walkoverGiven(o: {
   youWon: boolean;
   opponent: string;
 }): PushMessage {
+  // Nothing to go through to after the final or the third-place match.
+  const last = o.match === 'final' || o.match === THIRD_PLACE_MATCH;
   return o.youWon
     ? {
-        title: `${o.tournament}: you go through`,
+        title: last ? `${o.tournament}: walkover to you` : `${o.tournament}: you go through`,
         body: `The organizer gave you your ${o.match} against ${o.opponent} as a walkover.`,
         url: tournamentPage(o.tournamentId),
         tag: `tournament-${o.tournamentId}`,

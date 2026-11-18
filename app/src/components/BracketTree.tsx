@@ -6,12 +6,13 @@ import { Avatar } from '@/components/Avatar';
 import { PlayerLink } from '@/components/PlayerLink';
 import { withYou } from '@/components/PotsList';
 import { formatMatchTime, isOverdue } from '@/lib/schedule';
-import { scoreLine, sideAWon, winningScore, type TournamentNode } from '@/lib/tournaments';
+import { isThirdPlace, scoreLine, sideAWon, winningScore, type TournamentNode } from '@/lib/tournaments';
 import { radius, spacing, useTheme, type Colors } from '@/theme';
 
 // A tournament's bracket drawn as a tree: a column per round, each match
 // half-way between the two matches its players come from, with lines joining
-// them, and the champion at the end. From the semifinals back it's wider than
+// them, and the champion at the end; under the final, the third-place match
+// and the bronze medallist beside it. From the semifinals back it's wider than
 // a phone, so it scrolls sideways, and it zooms: pinch it (or Ctrl + scroll on
 // a computer, or use the button) anywhere from the whole bracket across the
 // screen up to twice its size. Whether it opens on the whole bracket is kept
@@ -26,6 +27,8 @@ const SLOT = BOX_H + ROW_GAP;
 const AVATAR = 20;
 const CHAMP_W = 112;
 const LINE = 1.5;
+const THIRD_GAP = 14; // between the final and the third-place match's label
+const THIRD_LABEL = 18; // the "Third place" label, above its match
 const ZOOM_KEY = 'pingpong.bracket.zoomedOut'; // '1': open on the whole bracket
 const MAX_ZOOM = 2; // twice the usual size, for the small print
 const SNAP = 0.04; // a pinch ending this near the whole bracket, or the usual size, settles there
@@ -95,6 +98,11 @@ export function BracketTree(props: BracketTreeProps) {
   // Each round's matches share the height equally; a match sits in the
   // middle of its share, so half-way between the two that lead to it.
   const centre = (round: number, slot: number) => (slot + 0.5) * SLOT * 2 ** (round - 1) - ROW_GAP / 2;
+  // The third-place match isn't part of the tree: it sits under the final
+  // (which is in the middle), making the drawing taller if need be.
+  const third = nodes.find((n) => isThirdPlace(n, totalRounds));
+  const thirdTop = height / 2 + BOX_H / 2 + THIRD_GAP + THIRD_LABEL;
+  const canvasHeight = third ? Math.max(height, thirdTop + BOX_H) : height;
 
   // The lines: each pair of matches joined, and on to the match they lead to.
   const lines: React.ReactElement[] = [];
@@ -226,7 +234,7 @@ export function BracketTree(props: BracketTreeProps) {
               </View>
             </View>
 
-            <View style={{ width, height }}>
+            <View style={{ width, height: canvasHeight }}>
               {lines}
               {nodes.map((node) => (
                 <MatchBox
@@ -234,11 +242,42 @@ export function BracketTree(props: BracketTreeProps) {
                   node={node}
                   left={left(node.round)}
                   width={boxW}
-                  top={centre(node.round, node.slot) - BOX_H / 2}
+                  top={node === third ? thirdTop : centre(node.round, node.slot) - BOX_H / 2}
                   {...props}
                   styles={styles}
                 />
               ))}
+              {third && (
+                <>
+                  <Text
+                    style={[styles.thirdLabel, { left: left(totalRounds), top: thirdTop - THIRD_LABEL, width: boxW }]}
+                    numberOfLines={1}
+                  >
+                    Third place
+                  </Text>
+                  <View
+                    style={[styles.line, { left: left(totalRounds) + boxW, top: thirdTop + BOX_H / 2 - LINE / 2, width: GAP }]}
+                  />
+                  <View style={[styles.champ, { left: champLeft, top: thirdTop }]}>
+                    <Text style={styles.trophy}>🥉</Text>
+                    {third.winnerId ? (
+                      <PlayerLink playerId={third.winnerId} name={nameOf(third.winnerId, '?')} style={styles.champRow}>
+                        <Avatar
+                          uri={avatarOf(third.winnerId)}
+                          name={nameOf(third.winnerId, '?')}
+                          size={AVATAR}
+                          playerId={third.winnerId}
+                        />
+                        <Text style={styles.champName} numberOfLines={1}>
+                          {withYou(nameOf(third.winnerId, '?'), third.winnerId === meId)}
+                        </Text>
+                      </PlayerLink>
+                    ) : (
+                      <Text style={styles.champTbd}>?</Text>
+                    )}
+                  </View>
+                </>
+              )}
               <View style={[styles.champ, { left: champLeft, top: height / 2 - BOX_H / 2 }]}>
                 <Text style={styles.trophy}>🏆</Text>
                 {champion ? (
@@ -771,6 +810,14 @@ function createStyles(colors: Colors) {
       borderColor: colors.border,
     },
     trophy: { fontSize: 20, lineHeight: 24 },
+    thirdLabel: {
+      position: 'absolute',
+      color: colors.textMuted,
+      fontSize: 12,
+      fontWeight: '700',
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
     champRow: { flexDirection: 'row', alignItems: 'center', gap: 6, maxWidth: '100%' },
     champName: { color: colors.text, fontSize: 13, fontWeight: '800', flexShrink: 1 },
     champTbd: { color: colors.textMuted, fontSize: 15, fontWeight: '700' },

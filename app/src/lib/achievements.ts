@@ -16,7 +16,8 @@ export type Achievement = {
 };
 
 // A place on a tournament's podium: 1 the champion (the trophy), 2 the
-// runner-up (silver), 3 a semifinal loser (bronze).
+// runner-up (silver), 3 the third-place match's winner (bronze; both semifinal
+// losers in tournaments from before it).
 export type Honour = { tournamentId: string; tournamentName: string; place: 1 | 2 | 3; won: boolean; at: string };
 
 export type EarnedTitle = { title: string; label: string; earnedAt: string };
