@@ -1,3 +1,4 @@
+import { boostLabel } from './challenges.ts';
 import { clubTime, THIRD_PLACE_MATCH } from './rounds.ts';
 import { TIER_EMOJI, TIER_NAMES, type Tier } from './tiers.ts';
 
@@ -27,23 +28,58 @@ export function gamesWon(games: { score_a: number; score_b: number }[]) {
   };
 }
 
-// To the opponent of a singles match that was just recorded.
-export function singlesToConfirm(o: Result & { matchId: string; submitter: string }): PushMessage {
+// To the opponent of a singles match that was just recorded (a challenge
+// match, migration 0031, says so, with its format).
+export function singlesToConfirm(
+  o: Result & { matchId: string; submitter: string; challenge?: { bestOf: number } | null },
+): PushMessage {
   return {
-    title: `${o.submitter} recorded a match`,
-    body: `You ${wonOrLost(o)} ${score(o)}. Tap to confirm or decline.`,
+    title: o.challenge ? `${o.submitter} recorded a challenge match` : `${o.submitter} recorded a match`,
+    body: o.challenge
+      ? `You ${wonOrLost(o)} ${score(o)} (best of ${o.challenge.bestOf}). Tap to confirm or decline.`
+      : `You ${wonOrLost(o)} ${score(o)}. Tap to confirm or decline.`,
     url: '/',
     tag: `match-${o.matchId}`,
   };
 }
 
-// To the player who recorded a singles match, once the opponent confirms it.
-export function singlesConfirmed(o: Result & RatingChange & { matchId: string; opponent: string }): PushMessage {
+// To the player who recorded a singles match, once the opponent confirms it,
+// with a challenge win's boost when there was one.
+export function singlesConfirmed(
+  o: Result & RatingChange & { matchId: string; opponent: string; boost?: number | null },
+): PushMessage {
+  const boost = o.boost ? ` (⚡ challenge win ${boostLabel(o.boost)})` : '';
   return {
     title: `${o.opponent} confirmed your match`,
-    body: `You ${wonOrLost(o)} ${score(o)} · rating ${signed(o.delta)}, now ${o.rating}.`,
+    body: `You ${wonOrLost(o)} ${score(o)} · rating ${signed(o.delta)}${boost}, now ${o.rating}.`,
     url: '/',
     tag: `match-${o.matchId}`,
+  };
+}
+
+// "Ana", "Ana and Ben", "Ana, Ben and Cris".
+function names(list: string[]): string {
+  return list.length <= 1 ? (list[0] ?? '') : `${list.slice(0, -1).join(', ')} and ${list[list.length - 1]}`;
+}
+
+// Monday (migration 0031): the week's challenges, to each player taking part.
+export function challengesAnnounced(o: { opponents: string[] }): PushMessage {
+  return {
+    title: '⚡ Your challenges this week',
+    body: `${names(o.opponents)}. Win them for bonus rating: +25%, then +50%, then double.`,
+    url: '/',
+    tag: 'challenges',
+  };
+}
+
+// Thursday: the challenges still to play.
+export function challengesReminder(o: { opponents: string[] }): PushMessage {
+  const n = o.opponents.length;
+  return {
+    title: `⚡ ${n} challenge${n === 1 ? '' : 's'} left this week`,
+    body: `${names(o.opponents)}. The week ends on Sunday.`,
+    url: '/',
+    tag: 'challenges',
   };
 }
 

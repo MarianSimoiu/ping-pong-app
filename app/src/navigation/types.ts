@@ -17,7 +17,8 @@ export type PlayerProfileParams = { playerId: string; displayName?: string };
 // The Home tab is a stack so it can push the Submit-match screen.
 export type HomeStackParamList = {
   Home: undefined;
-  SubmitMatch: undefined;
+  // opponentId: a challenge opponent to record the match with (Home's card).
+  SubmitMatch: { opponentId?: string } | undefined;
   PlayerProfile: PlayerProfileParams;
   HowRatingsWork: undefined;
 };

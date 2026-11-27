@@ -2,6 +2,8 @@
 import { assertEquals } from 'jsr:@std/assert@1';
 
 import {
+  challengesAnnounced,
+  challengesReminder,
   doublesConfirmed,
   doublesDeclined,
   doublesToConfirm,
@@ -232,4 +234,32 @@ Deno.test('tournament results: to confirm, confirmed, declined, and the organize
     url: '/tournaments/t1',
     tag: 'result-m9',
   });
+});
+
+Deno.test('challenges: a challenge match to confirm, a boosted win, the week, the reminder', () => {
+  assertEquals(
+    singlesToConfirm({ matchId: 'm1', submitter: 'Ana', youWon: false, yourGames: 1, theirGames: 2, challenge: { bestOf: 3 } }),
+    { title: 'Ana recorded a challenge match', body: 'You lost 1–2 (best of 3). Tap to confirm or decline.', url: '/', tag: 'match-m1' },
+  );
+  assertEquals(
+    singlesConfirmed({ matchId: 'm1', opponent: 'Ben', youWon: true, yourGames: 3, theirGames: 1, delta: 18, rating: 1612, boost: 1.5 }).body,
+    'You won 3–1 · rating +18 (⚡ challenge win +50%), now 1612.',
+  );
+  assertEquals(
+    singlesConfirmed({ matchId: 'm1', opponent: 'Ben', youWon: true, yourGames: 2, theirGames: 0, delta: 24, rating: 1630, boost: 2 }).body,
+    'You won 2–0 · rating +24 (⚡ challenge win ×2), now 1630.',
+  );
+  assertEquals(challengesAnnounced({ opponents: ['Ana', 'Ben', 'Cris'] }), {
+    title: '⚡ Your challenges this week',
+    body: 'Ana, Ben and Cris. Win them for bonus rating: +25%, then +50%, then double.',
+    url: '/',
+    tag: 'challenges',
+  });
+  assertEquals(challengesReminder({ opponents: ['Ben', 'Cris'] }), {
+    title: '⚡ 2 challenges left this week',
+    body: 'Ben and Cris. The week ends on Sunday.',
+    url: '/',
+    tag: 'challenges',
+  });
+  assertEquals(challengesReminder({ opponents: ['Cris'] }).title, '⚡ 1 challenge left this week');
 });

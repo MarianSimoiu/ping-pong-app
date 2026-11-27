@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { Avatar } from '@/components/Avatar';
 import { PlayerLink } from '@/components/PlayerLink';
+import { boostLabel } from '@/lib/challenges';
 import { pickStreakLine, UPSET_DELTA_THRESHOLD } from '@/lib/commentary';
 import { formatTimestamp } from '@/lib/format';
 import type { MatchHistoryItem } from '@/lib/leaderboard';
@@ -71,6 +72,12 @@ export function MatchHistoryList({ matches }: { matches: MatchHistoryItem[] }) {
                 <Text style={styles.matchTime}>{formatTimestamp(m.at)}</Text>
               </View>
               {isUpset && <Text style={styles.upsetTag}>{m.result === 'win' ? '🔥 SHOCKER' : '😱 SHOCKER'}</Text>}
+              {/* A challenge match (0031), with a win's boost. */}
+              {m.challenge && (
+                <Text style={styles.challengeTag} accessibilityLabel={m.boost ? `Challenge win, ${boostLabel(m.boost)}` : 'Challenge match'}>
+                  ⚡{m.boost ? ` ${boostLabel(m.boost)}` : ''}
+                </Text>
+              )}
               <Text style={[styles.matchDelta, m.delta >= 0 ? styles.deltaUp : styles.deltaDown]}>
                 {m.delta >= 0 ? '+' : ''}
                 {Math.round(m.delta)}
@@ -97,6 +104,12 @@ function createStyles(colors: Colors) {
     streakText: { color: colors.text, fontSize: 13, fontWeight: '600' },
     upsetTag: {
       color: colors.accent,
+      fontSize: 11,
+      fontWeight: '700',
+      marginRight: spacing.sm,
+    },
+    challengeTag: {
+      color: colors.primary,
       fontSize: 11,
       fontWeight: '700',
       marginRight: spacing.sm,

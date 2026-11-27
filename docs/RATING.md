@@ -134,12 +134,13 @@ moves the rating a bit more.
 | Opponent weighting | `updateRating` (step 3) | every match |
 | Provisional | `isProvisional` / `MIN_MATCHES_FOR_LEADERBOARD` | who gets a rank (the rest are listed last); flag on each rating event |
 | Repeat-opponent | `repeatFactor` + `applyRepeatFactor` | `confirm-match` before persisting (casual matches) |
+| Challenge boost (§6) | `challengeBoost` + `computeRatingUpdate`'s `boost` | `confirm-match`, a challenge match's winner |
 | Inactivity/RD | `applyInactivity` | every rated match, before the update (`engine.ts`) |
 
 Every match writes an append-only pair of rows to **`rating_events`** recording
 `rating_before/after`, `rd_before/after`, `volatility_before/after`, `delta`,
-`repeat_factor`, and `provisional` — so any number in the app can be traced back
-to its inputs.
+`repeat_factor`, `provisional` and, for a challenge win, `challenge_multiplier`
+— so any number in the app can be traced back to its inputs.
 
 ---
 
@@ -223,3 +224,67 @@ Ana & Cris are different teams). Implemented in
   app's `MIN_MATCHES_FOR_LEADERBOARD`, as in singles). The team leaderboard is
   under Doubles on the Leaderboard tab, and in the Doubles tab.
 - Doubles matches never change singles ratings, and don't earn season points.
+
+---
+
+## 6. Weekly challenges
+
+Optional, and weekly (migration `0031_weekly_challenges.sql`). A player who
+switches them on, on Home or in Settings, gets **3 opponents every week**,
+Monday to Sunday in club time. Each is played as one **challenge match**,
+best of 3 or best of 5 as the two agree; winning it boosts the rating you gain.
+
+**Joining.** Switched on by Wednesday, a player can start the same week (their
+3 are picked at once); otherwise they start next Monday. Switched off, they
+get no more weeks, and this week's challenges still count if played.
+
+**Picking opponents** (`make_challenges`). Only active players are picked: 3+
+matches and a match in the last 30 days (or taking part that week, then they
+mean to play). For everyone still short, every possible pick is scored and the
+lowest taken first:
+
+| | Score |
+|---|---|
+| each confirmed match between the two in the last 90 days | +10 |
+| they were each other's challenge last week (only if nobody else will do) | +1000 |
+| more than 300 rating points apart: each 10 points over | +1 |
+| the pick takes part that week too (then it's both players' challenge) | −5 |
+| tie-break | a random fraction |
+
+So the people you play most come last, and 100 points over the 300 weighs
+like one more recent match. While others are free, nobody is someone else's
+pick more than 4 times a week. A newcomer can take part, but is nobody's pick
+until they have 3 matches. The hourly job runs it all week, filling only
+what's missing, so a player short on Monday can still get an opponent who
+turns up later.
+
+**The match.** Recorded and confirmed like any casual match, with its format:
+`resolveChallengeMatch` takes 2–0 or 2–1 in a best of 3, and 3–0, 3–1 or 3–2
+in a best of 5. One challenge match between two players waits for
+confirmation at a time; the first one confirmed settles the challenge (both
+players', when it's both), and later matches between them that week count as
+usual.
+
+**The boost** (`challengeBoost`, applied by `confirm-match` through
+`computeRatingUpdate`'s `boost`). If it was the winner's challenge, their
+rating **gain** is multiplied by how many challenges they'd already won that
+week:
+
+| Challenge wins before this one | Boost | A +12 win becomes |
+|---|---|---|
+| 0 | ×1.25 | +15 |
+| 1 | ×1.5 | +18 |
+| 2 | ×2 | +24 |
+
+It goes on top of the repeat-opponent damping (§2.3), and RD and volatility
+update as usual. The loser's change is as usual, also when it was their
+challenge, and an unplayed challenge costs nothing. Because only wins are
+boosted, challenge winners gain a little more than they otherwise would: the
+reward for playing new people, at most three boosted wins a week. Stored as
+`rating_events.challenge_multiplier`; the `challenges` row keeps the result,
+the boost and the match.
+
+**Notifications** (`challenge-notices`, called by the hourly `run_challenges`
+job when something is due): "your challenges this week" on Monday from 09:00,
+and a reminder of the open ones on Thursday from 10:00, never after 21:00.
+

@@ -19,11 +19,13 @@ export async function fetchOpponents(myUserId: string): Promise<OpponentOption[]
 
 // Record a match by invoking the server-side Edge Function (which computes and
 // writes ratings). Scores are from the caller's perspective: a = you, b = them.
+// A challenge match (0031) says its format: best of 3 or 5, as the two agreed.
 export async function submitMatch(input: {
   opponentId: string;
   games: RawGameInput[];
+  challenge?: { bestOf: number } | null;
 }): Promise<SubmitMatchResult> {
-  if (DEMO) return demo.demoSubmitMatch();
+  if (DEMO) return demo.demoSubmitMatch(input);
   const { data, error } = await supabase.functions.invoke<SubmitMatchResult>('submit-match', {
     body: input,
   });
@@ -38,6 +40,8 @@ const tournamentOf = (m: any): { id: string; name: string } | null => {
   const t = Array.isArray(m.tournament) ? m.tournament[0] : m.tournament;
   return m.context === 'tournament' && t ? { id: t.id, name: t.name } : null;
 };
+// A challenge match's format (0031).
+const challengeOf = (m: any): { bestOf: number } | null => (m.challenge ? { bestOf: m.best_of } : null);
 
 // Pending matches the given player must confirm (logged by the opponent):
 // casual ones, and tournament results (0028).
@@ -46,7 +50,7 @@ export async function fetchPendingConfirmations(myPlayerId: string): Promise<Pen
   const { data, error } = await supabase
     .from('matches')
     .select(
-      'id, player_a, player_b, winner_id, created_by, played_at, ' +
+      'id, player_a, player_b, winner_id, created_by, played_at, challenge, best_of, ' +
         'creator:players!matches_created_by_fkey(display_name, avatar_url), ' +
         'games:match_games(game_no, score_a, score_b), ' +
         TOURNAMENT,
@@ -83,6 +87,7 @@ export async function fetchPendingConfirmations(myPlayerId: string): Promise<Pen
       games,
       submittedAt: m.played_at,
       tournament: tournamentOf(m),
+      challenge: challengeOf(m),
     };
   });
 }
@@ -96,7 +101,7 @@ export async function fetchSubmittedPending(myPlayerId: string): Promise<Submitt
   const { data, error } = await supabase
     .from('matches')
     .select(
-      'id, player_a, player_b, winner_id, played_at, ' +
+      'id, player_a, player_b, winner_id, played_at, challenge, best_of, ' +
         'pa:players!matches_player_a_fkey(display_name, avatar_url), ' +
         'pb:players!matches_player_b_fkey(display_name, avatar_url), ' +
         'games:match_games(game_no, score_a, score_b), ' +
@@ -134,6 +139,7 @@ export async function fetchSubmittedPending(myPlayerId: string): Promise<Submitt
       games,
       submittedAt: m.played_at,
       tournament: tournamentOf(m),
+      challenge: challengeOf(m),
     };
   });
 }
@@ -141,7 +147,8 @@ export async function fetchSubmittedPending(myPlayerId: string): Promise<Submitt
 // Confirm or decline a pending match (only the opponent may act).
 export type ConfirmMatchResult = {
   status: string;
-  you?: { delta: number; rating: number; rd: number };
+  // boost: a challenge win's (0031), already in the delta.
+  you?: { delta: number; rating: number; rd: number; boost?: number | null };
 };
 
 export async function confirmMatch(

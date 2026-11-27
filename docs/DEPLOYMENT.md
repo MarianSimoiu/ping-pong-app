@@ -47,12 +47,15 @@ supabase functions serve   # serves the Edge Functions locally
    supabase functions deploy submit-doubles-match
    supabase functions deploy confirm-doubles-match
    supabase functions deploy push-subscription
+   supabase functions deploy challenge-settings
+   supabase functions deploy challenge-notices --no-verify-jwt
    ```
 
    Or skip the local CLI entirely: the **Deploy Supabase** GitHub workflow
    (`.github/workflows/supabase-deploy.yml`) runs the same `db push` and
-   `functions deploy` (then `tournament-kickoff` again with `--no-verify-jwt`,
-   since the database calls it without a user's token) on every merge that
+   `functions deploy` (then `tournament-kickoff` and `challenge-notices` again
+   with `--no-verify-jwt`, since the database calls them without a user's
+   token) on every merge that
    touches `supabase/`, and can be run
    by hand from the Actions tab. It needs two repository secrets
    (Settings → Secrets and variables → Actions):
@@ -125,6 +128,7 @@ Otherwise the link lands on the wrong page and the reset can't finish.
 | `0028_tournament_confirmation.sql` | tournament results are confirmed by both players: a player's result waits as a pending match (`tournament_matches.pending_match_id`, `record_tournament_result`) until the other confirms it (`confirm_tournament_result`: ratings, then the bracket moves on) or declines it (`reject_match` frees the match); an organizer's result (`apply_tournament_result`) or a walkover replaces one still waiting |
 | `0029_next_match_asap.sql` | once play has started, a tournament match whose two players are known gets the first free time from then on (11:00–18:00 weekdays, 15 minutes ahead, the same day if there's room) instead of its round's planned day; at the draw nothing changes; `tournament_rounds.fixed` marks the rounds whose days an admin set (`set_round_dates`), which keep their matches within them |
 | `0030_third_place.sql` | a third-place match between the two semifinal losers: the last round's slot 1, beside the final (slot 0). Each semifinal's loser is seated as it's decided (`seat_third_place`); it gets its time ahead of the final; the tournament completes once both are played. Tournaments being played get theirs on deploy; finished ones keep both bronzes. `tournament_honours`, `tournament_podium` (one bronze, the third-place winner's) and `achievement_progress` (Supernova, Dark Horse) take the final as slot 0 |
+| `0031_weekly_challenges.sql` | weekly challenges: players who switch them on (`challenge_players`, via the `challenge-settings` function) get 3 opponents a week (`challenges`, made by `make_challenges`: least played in 3 months, not last week's, within ~300 rating, active players only); a challenge match (`matches.challenge`, best of 3 or 5) settles one on confirm, and a winner's gain is boosted ×1.25, ×1.5, ×2 (`rating_events.challenge_multiplier`). Every hour `pg_cron` runs `run_challenges`, which makes what's missing and calls `challenge-notices` (Monday's list, Thursday's reminder) |
 
 ### Club time zone
 
@@ -216,6 +220,23 @@ Extensions, then run the `do $$ … $$;` block at the end of
 `0013_tournament_kickoff_schedule.sql` in the SQL Editor. To check it's
 scheduled: `select jobname, schedule from cron.job;` should list
 `tournament-kickoff`.
+
+### Weekly challenges
+
+`0031` schedules `run_challenges` every hour (minute 7) with `pg_cron`: it
+makes the week's challenges that are missing and, when a notification is due,
+calls the `challenge-notices` function (deployed with `--no-verify-jwt`, like
+`tournament-kickoff`). If `pg_cron` wasn't on, the migration only warns
+("Weekly challenges won't be made on their own…"): turn it on, then run the
+`do $$ … $$;` block at the end of `0031_weekly_challenges.sql`. Players who
+join by Wednesday get this week's straight away either way. To check:
+`select jobname, schedule from cron.job;` lists `weekly-challenges`, and
+
+```sql
+select * from public.challenges where week_start = public.club_week_start();
+```
+
+shows this week's.
 
 ---
 

@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AwaitingOpponentList } from '@/components/AwaitingOpponentList';
+import { ChallengesCard, useChallenges } from '@/components/Challenges';
 import { DoublesMatchCard, useDoublesConfirm } from '@/components/DoublesMatchCard';
 import { PendingMatchCard, useMatchConfirm } from '@/components/PendingMatchCard';
 import { useAuth } from '@/context/AuthContext';
@@ -38,6 +39,8 @@ export function HomeScreen({ navigation }: HomeStackScreenProps<'Home'>) {
   const [error, setError] = useState<string | null>(null);
   // Picked once per mount so it doesn't change mid-view, but varies on revisit.
   const [homeTip] = useState(() => pickHomeTip());
+  const challenges = useChallenges();
+  const { load: loadChallenges } = challenges;
 
   const load = useCallback(async () => {
     if (!session) return;
@@ -51,6 +54,7 @@ export function HomeScreen({ navigation }: HomeStackScreenProps<'Home'>) {
           fetchPendingConfirmations(p.id),
           fetchSubmittedPending(p.id),
           fetchDoublesToConfirm(p.id),
+          loadChallenges(p.id),
         ]);
         setRank(leaderboard.find((entry) => entry.playerId === p.id)?.rank ?? null);
         setPending(toConfirm);
@@ -67,7 +71,7 @@ export function HomeScreen({ navigation }: HomeStackScreenProps<'Home'>) {
     } finally {
       setLoading(false);
     }
-  }, [session]);
+  }, [session, loadChallenges]);
 
   const singles = useMatchConfirm(load);
   const doubles = useDoublesConfirm(load);
@@ -80,6 +84,15 @@ export function HomeScreen({ navigation }: HomeStackScreenProps<'Home'>) {
   );
 
   const rating = profile?.rating;
+  // Challenge opponents with a challenge match waiting to be confirmed.
+  const waitingWith = useMemo(
+    () =>
+      new Set([
+        ...pending.filter((m) => m.challenge).map((m) => m.submitterId),
+        ...submittedPending.filter((m) => m.challenge).map((m) => m.opponentId),
+      ]),
+    [pending, submittedPending],
+  );
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -165,6 +178,13 @@ export function HomeScreen({ navigation }: HomeStackScreenProps<'Home'>) {
         <Pressable style={styles.cta} onPress={() => navigation.navigate('SubmitMatch')}>
           <Text style={styles.ctaText}>+ Record a match</Text>
         </Pressable>
+
+        <ChallengesCard
+          c={challenges}
+          waitingWith={waitingWith}
+          onRecord={(opponentId) => navigation.navigate('SubmitMatch', { opponentId })}
+          onHowItWorks={() => navigation.navigate('HowRatingsWork')}
+        />
 
         <AwaitingOpponentList matches={submittedPending} style={styles.pendingSection} />
 

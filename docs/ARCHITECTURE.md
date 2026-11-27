@@ -216,6 +216,37 @@ updates, computed by `_shared/doubles.ts` through the same engine) or decline
 (`reject_doubles_match`). The repeat guard counts confirmed matches between the
 same two teams in the last 24 h. See docs/RATING.md §5.
 
+### Weekly challenges
+
+Optional, switched on from Home's card or Settings (`challenge-settings` →
+`set_challenges`). `0031_weekly_challenges.sql` keeps who takes part
+(`challenge_players`, from which Monday), each player's week
+(`challenge_weeks`, with when they were told and reminded) and the challenges
+themselves (`challenges`: one row per player per opponent per week; when both
+take part and were paired together, each has their own row). Every hour
+`pg_cron` runs `run_challenges`: `make_challenges` fills whatever this week is
+missing (the picking rules are in docs/RATING.md §6), and if a notice is due
+it calls the `challenge-notices` function, which claims the due ones
+(`claim_challenge_notices`, so each goes once) and pushes them.
+
+A challenge match is a casual match with `matches.challenge` set and its
+format in `best_of` (3 or 5): `submit-match` checks the score fits
+(`resolveChallengeMatch`) and `create_pending_match` that there's an open
+challenge between the two and no other challenge match of theirs waiting.
+On confirm, `confirm-match` asks `match_challenges` which challenges it
+settles and how many the winner had already won that week, boosts the
+winner's rating gain (×1.25, ×1.5, ×2), and `confirm_match` stores the boost on
+the rating event and settles the challenges in the same transaction (if one
+was settled meanwhile, nothing is confirmed and the player tries again).
+
+The app reads the tables directly (`lib/challenges.ts`; the rules alone, for
+the demo too, in `lib/challengeRules.ts`). Home's card (`components/
+Challenges.tsx`) shows the week: each opponent with Record (which opens Record
+a match on them), "Waiting to be confirmed", or how it went, and who picked
+you. Recording against a challenge opponent asks Best of 3, Best of 5 or
+Normal match; pending matches and match history mark challenge matches (⚡,
+with a win's boost).
+
 ### Tiers
 
 Players on the leaderboard have a tier from their skill rating: Bronze,
@@ -298,7 +329,9 @@ a match they recorded confirmed (with the rating change) or declined. The
 tournament functions notify too: a new tournament open for registration, the
 draw (each player's first opponent and when), a moved kickoff, a
 cancellation, each match's time (and any change), a proposed time to answer
-or a declined one, a walkover, and admins a match not played on its day. Sending
+or a declined one, a walkover, and admins a match not played on its day.
+`challenge-notices` sends players in weekly challenges their week's opponents
+on Monday and a reminder of the open ones on Thursday. Sending
 is standard Web Push (`_shared/webpush.ts`: RFC 8291 encryption and VAPID,
 Web Crypto only), signed with a key pair the server creates on first use and
 keeps in `push_keys`. A subscription the push service reports as gone is

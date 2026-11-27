@@ -5,15 +5,20 @@
 // at confirmation time. The caller submits their opponent and per-game scores
 // (from their perspective: score_a = you, score_b = opponent). The opponent
 // gets a push notification asking them to confirm it.
+//
+// A challenge match (migration 0031) also sends `challenge: { bestOf }`, 3 or
+// 5 as the two agreed: the score has to fit that format, there has to be an
+// open challenge between them this week, and no other challenge match of
+// theirs waiting to be confirmed.
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
 import { corsHeaders, jsonResponse } from '../_shared/cors.ts';
-import { resolveFreeformMatch, type RawGame } from '../_shared/match.ts';
+import { resolveChallengeMatch, resolveFreeformMatch, type RawGame } from '../_shared/match.ts';
 import { singlesToConfirm } from '../_shared/messages.ts';
 import { afterResponse, notifyPlayers } from '../_shared/notify.ts';
 
-type Body = { opponentId?: string; games?: RawGame[] };
+type Body = { opponentId?: string; games?: RawGame[]; challenge?: { bestOf?: number } | null };
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -52,9 +57,10 @@ Deno.serve(async (req) => {
       .single();
     if (oppErr || !opponent) return jsonResponse({ error: 'Opponent not found' }, 404);
 
+    const challenge = body.challenge ? { bestOf: Number(body.challenge.bestOf) } : null;
     let outcome;
     try {
-      outcome = resolveFreeformMatch(games);
+      outcome = challenge ? resolveChallengeMatch(challenge.bestOf, games) : resolveFreeformMatch(games);
     } catch (e) {
       return jsonResponse({ error: e instanceof Error ? e.message : 'Invalid match' }, 400);
     }
@@ -65,15 +71,17 @@ Deno.serve(async (req) => {
         player_a: me.id,
         player_b: opponent.id,
         winner_id: winnerId,
-        best_of: outcome.games.length,
+        best_of: challenge ? challenge.bestOf : outcome.games.length,
         played_at: new Date().toISOString(),
         created_by: me.id,
+        challenge: !!challenge,
       },
       games: outcome.games.map((g) => ({ game_no: g.game_no, score_a: g.score_a, score_b: g.score_b })),
     };
 
     const { data: matchId, error: applyErr } = await admin.rpc('create_pending_match', { payload });
-    if (applyErr) return jsonResponse({ error: applyErr.message }, 500);
+    // The challenge checks raise (P0001) with a message for the player.
+    if (applyErr) return jsonResponse({ error: applyErr.message }, applyErr.code === 'P0001' ? 400 : 500);
 
     await afterResponse(
       notifyPlayers(admin, [opponent.id], singlesToConfirm({
@@ -82,6 +90,7 @@ Deno.serve(async (req) => {
         youWon: outcome.winner === 'b',
         yourGames: outcome.bWins,
         theirGames: outcome.aWins,
+        challenge,
       })),
     );
 

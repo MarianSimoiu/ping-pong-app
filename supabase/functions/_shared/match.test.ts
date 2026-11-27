@@ -2,7 +2,7 @@
 
 import { assertEquals, assertThrows } from 'jsr:@std/assert@1';
 
-import { isValidGame, resolveFreeformMatch, resolveMatch } from './match.ts';
+import { isValidGame, resolveChallengeMatch, resolveFreeformMatch, resolveMatch } from './match.ts';
 
 Deno.test('isValidGame enforces 11-point win-by-2', () => {
   assertEquals(isValidGame({ score_a: 11, score_b: 7 }), true);
@@ -93,4 +93,20 @@ Deno.test('resolveFreeformMatch rejects invalid games, empty input, and over-cap
     i % 2 === 0 ? { score_a: 11, score_b: 0 } : { score_a: 0, score_b: 11 },
   );
   assertThrows(() => resolveFreeformMatch(tooMany), Error, 'at most');
+});
+
+Deno.test('resolveChallengeMatch: a best of 3 is 2–0 or 2–1, a best of 5 is 3–0 to 3–2', () => {
+  const w = { score_a: 11, score_b: 7 };
+  const l = { score_a: 8, score_b: 11 };
+  assertEquals(resolveChallengeMatch(3, [w, w]).winner, 'a');
+  assertEquals(resolveChallengeMatch(3, [w, l, w]).aWins, 2);
+  assertEquals(resolveChallengeMatch(3, [l, w, l]).winner, 'b');
+  assertEquals(resolveChallengeMatch(5, [w, w, w]).winner, 'a');
+  assertEquals(resolveChallengeMatch(5, [w, l, l, w, w]).bWins, 2);
+  assertThrows(() => resolveChallengeMatch(3, [w]), Error, 'best of 3 ends when someone wins 2 games');
+  assertThrows(() => resolveChallengeMatch(3, [w, w, w]), Error, 'not 3–0');
+  assertThrows(() => resolveChallengeMatch(5, [w, w]), Error, 'best of 5');
+  assertThrows(() => resolveChallengeMatch(5, [w, l, w, l, w, w]), Error, 'not 4–2');
+  assertThrows(() => resolveChallengeMatch(7, [w, w, w, w]), Error, 'best of 3 or best of 5');
+  assertThrows(() => resolveChallengeMatch(3, [w, l]), Error, 'tied');
 });

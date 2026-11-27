@@ -82,6 +82,8 @@ export type PendingMatch = {
   submittedAt: string;
   // A tournament match's result (0028), which also moves its bracket on.
   tournament?: { id: string; name: string } | null;
+  // A challenge match (0031): its format, best of 3 or 5.
+  challenge?: { bestOf: number } | null;
 };
 
 // A match the current user submitted, awaiting the opponent's confirmation —
@@ -97,4 +99,5 @@ export type SubmittedPendingMatch = {
   games: { myScore: number; opponentScore: number }[];
   submittedAt: string;
   tournament?: { id: string; name: string } | null;
+  challenge?: { bestOf: number } | null;
 };

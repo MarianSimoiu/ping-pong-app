@@ -150,6 +150,29 @@ export function HowRatingsWorkScreen() {
           <P>They still count as matches played and in your win–loss record.</P>
         </Section>
 
+        <Section title="Weekly challenges">
+          <P>
+            Switch them on from Home or Settings and you get <B>3 opponents every week</B>, Monday to
+            Sunday, picked so you play people you rarely meet: the ones you've played least in the
+            last 3 months, not last week's, within about 300 rating points, and only active players
+            (at least {N} matches, and one in the last 30 days). Other challenge players come first.
+          </P>
+          <P>
+            You and your opponent pick <B>best of 3 or best of 5</B>. Record it from Home as usual:
+            choose them, then "Best of 3" or "Best of 5". Each challenge is one match: once it's
+            played, more matches against them that week count as usual.
+          </P>
+          <P>Win your challenge and the rating you gain gets a boost:</P>
+          <Bullet>1st challenge win of the week: +25%</Bullet>
+          <Bullet>2nd: +50%</Bullet>
+          <Bullet>3rd: double</Bullet>
+          <P>
+            A loss counts as usual, and a challenge you don't get to costs nothing. Join by
+            Wednesday to start the same week; after that you start next Monday. Switched off, this
+            week's challenges still count if you play them.
+          </P>
+        </Section>
+
         <Section title="2v2 doubles">
           <P>
             In doubles, every pair of players is a <B>team</B> with its own rating, separate from

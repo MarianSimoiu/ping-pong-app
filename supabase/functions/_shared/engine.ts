@@ -43,20 +43,25 @@ export type RatingUpdate = {
 };
 
 // Compute the rating change for A vs B. `factor` is the repeat-opponent damping
-// (1 = no damping; tournament matches always pass 1).
+// (1 = no damping; tournament matches always pass 1). `boost` is a challenge
+// win's boost (migration 0031) for the winner's side: it scales their rating
+// move on top of the damping, like it, leaving RD and volatility as computed.
 export function computeRatingUpdate(opts: {
   aRow: RatingRow;
   bRow: RatingRow;
   aWon: boolean;
   factor: number;
   now: Date;
+  boost?: { a?: number; b?: number };
 }): RatingUpdate {
   const { aRow, bRow, aWon, factor, now } = opts;
+  const aBoost = opts.boost?.a ?? 1;
+  const bBoost = opts.boost?.b ?? 1;
 
   const aBefore = decay(aRow, now);
   const bBefore = decay(bRow, now);
-  const aAfter = applyRepeatFactor(aBefore, updateRating(aBefore, bBefore, aWon ? 1 : 0), factor);
-  const bAfter = applyRepeatFactor(bBefore, updateRating(bBefore, aBefore, aWon ? 0 : 1), factor);
+  const aAfter = applyRepeatFactor(aBefore, updateRating(aBefore, bBefore, aWon ? 1 : 0), factor * aBoost);
+  const bAfter = applyRepeatFactor(bBefore, updateRating(bBefore, aBefore, aWon ? 0 : 1), factor * bBoost);
   const playedAt = now.toISOString();
 
   const event = (
@@ -66,6 +71,7 @@ export function computeRatingUpdate(opts: {
     before: Rating,
     after: Rating,
     matchesPlayed: number,
+    boost: number,
   ) => ({
     player_id: playerId,
     opponent_id: opponentId,
@@ -79,6 +85,7 @@ export function computeRatingUpdate(opts: {
     delta: after.rating - before.rating,
     repeat_factor: factor,
     provisional: isProvisional(matchesPlayed),
+    challenge_multiplier: boost === 1 ? null : boost,
   });
 
   return {
@@ -87,8 +94,8 @@ export function computeRatingUpdate(opts: {
     aAfter,
     bAfter,
     events: [
-      event(aRow.player_id, bRow.player_id, aWon, aBefore, aAfter, aRow.matches_played),
-      event(bRow.player_id, aRow.player_id, !aWon, bBefore, bAfter, bRow.matches_played),
+      event(aRow.player_id, bRow.player_id, aWon, aBefore, aAfter, aRow.matches_played, aBoost),
+      event(bRow.player_id, aRow.player_id, !aWon, bBefore, bAfter, bRow.matches_played, bBoost),
     ],
     ratings: [
       { player_id: aRow.player_id, rating: aAfter.rating, rd: aAfter.rd, volatility: aAfter.volatility, played_at: playedAt },

@@ -11,9 +11,15 @@
 // confirm the bracket moves on (confirm_tournament_result), the winner's next
 // match gets its time and, after the final, season points are awarded. On
 // decline the match is still to be recorded (reject_match frees it).
+//
+// A challenge match (migration 0031) settles the open challenges between the
+// two that week: won or lost. If it was the winner's challenge, their rating
+// gain is boosted by how many they'd already won that week: the 1st win by
+// 25%, the 2nd by 50%, the 3rd doubles it. The loser's change is as usual.
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
+import { challengeBoost } from '../_shared/challenges.ts';
 import { corsHeaders, jsonResponse } from '../_shared/cors.ts';
 import { repeatFactor } from '../_shared/glicko2.ts';
 import { computeRatingUpdate, roundRating, type RatingRow } from '../_shared/engine.ts';
@@ -65,7 +71,7 @@ Deno.serve(async (req) => {
 
     const { data: match, error: mErr } = await admin
       .from('matches')
-      .select('id, player_a, player_b, winner_id, best_of, created_by, status, context, tournament_id, round')
+      .select('id, player_a, player_b, winner_id, best_of, created_by, status, context, tournament_id, round, challenge')
       .eq('id', matchId)
       .single();
     if (mErr || !match) return jsonResponse({ error: 'Match not found' }, 404);
@@ -152,20 +158,37 @@ Deno.serve(async (req) => {
       factor = repeatFactor(priorToday ?? 0);
     }
 
+    // A challenge match: the challenges it settles, and the winner's boost if
+    // it was their challenge.
+    const boost: { a?: number; b?: number } = {};
+    const challenges: { player_id: string; opponent_id: string; result: 'won' | 'lost'; multiplier: number | null }[] = [];
+    if (!tournament && match.challenge) {
+      const { data: open, error: chErr } = await admin.rpc('match_challenges', { p_match: matchId });
+      if (chErr) return jsonResponse({ error: chErr.message }, 500);
+      for (const c of (open ?? []) as { player_id: string; opponent_id: string; wins_before: number }[]) {
+        const won = c.player_id === match.winner_id;
+        const multiplier = won ? challengeBoost(c.wins_before) : null;
+        if (multiplier) boost[c.player_id === match.player_a ? 'a' : 'b'] = multiplier;
+        challenges.push({ player_id: c.player_id, opponent_id: c.opponent_id, result: won ? 'won' : 'lost', multiplier });
+      }
+    }
+
     const aWon = match.winner_id === match.player_a;
-    const update = computeRatingUpdate({ aRow, bRow, aWon, factor, now: new Date() });
+    const update = computeRatingUpdate({ aRow, bRow, aWon, factor, now: new Date(), boost });
 
     // A tournament result also completes the bracket match and moves the winner on.
     const { error: confirmErr } = await admin.rpc(tournament ? 'confirm_tournament_result' : 'confirm_match', {
-      payload: { match_id: matchId, events: update.events, ratings: update.ratings },
+      payload: { match_id: matchId, events: update.events, ratings: update.ratings, challenges },
     });
-    if (confirmErr) return jsonResponse({ error: confirmErr.message }, 500);
+    // A challenge settled by another match meanwhile (P0001): nothing changed, try again.
+    if (confirmErr) return jsonResponse({ error: confirmErr.message }, confirmErr.code === 'P0001' ? 409 : 500);
 
     const submitterBefore = submitterIsA ? update.aBefore : update.bBefore;
     const submitterAfter = submitterIsA ? update.aAfter : update.bAfter;
     const change = {
       delta: Math.round(submitterAfter.rating - submitterBefore.rating),
       rating: Math.round(submitterAfter.rating),
+      boost: (submitterIsA ? boost.a : boost.b) ?? null,
     };
     await afterResponse(
       notifyPlayers(
@@ -198,6 +221,8 @@ Deno.serve(async (req) => {
         delta: Math.round(callerAfter.rating - callerBefore.rating),
         rating: Math.round(callerAfter.rating),
         rd: Math.round(callerAfter.rd),
+        // A challenge win's boost, included in the delta.
+        boost: (callerIsA ? boost.a : boost.b) ?? null,
       },
       playerA: { before: roundRating(update.aBefore), after: roundRating(update.aAfter) },
       playerB: { before: roundRating(update.bBefore), after: roundRating(update.bAfter) },

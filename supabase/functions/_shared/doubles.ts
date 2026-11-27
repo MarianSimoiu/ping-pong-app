@@ -40,9 +40,13 @@ export function computeTeamRatingUpdate(opts: {
   return {
     ...update,
     // team_rating_events rows: the team ids in place of player ids, and no
-    // "provisional" flag (teams are ranked from MIN matches by the app).
+    // "provisional" flag (teams are ranked from MIN matches by the app) or
+    // challenge boost (challenges are singles).
     events: update.events.map(
-      ({ player_id, opponent_id, provisional: _provisional, ...rest }): Record<string, unknown> => ({
+      ({ player_id, opponent_id, provisional: _provisional, challenge_multiplier: _boost, ...rest }): Record<
+        string,
+        unknown
+      > => ({
         team_id: player_id,
         opponent_team_id: opponent_id,
         ...rest,
