@@ -3,6 +3,7 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { ChallengeStartChoice, ChallengeSwitch, challengeSettingHint, useChallenges } from '@/components/Challenges';
 import { useAuth } from '@/context/AuthContext';
 import { openInstall, useInstall } from '@/lib/install';
 import { showAlert } from '@/lib/platformAlert';
@@ -20,8 +21,9 @@ const PUSH_HINTS: Record<PushStatus, string> = {
 };
 
 // Profile → Settings, the one place for these: your name (and changing it),
-// who you're signed in as, dark mode, notifications, how ratings work (and
-// installing the app, where the browser can), and signing out.
+// who you're signed in as, dark mode, notifications, weekly challenges (also
+// on Home), how ratings work (and installing the app, where the browser can),
+// and signing out.
 export function SettingsScreen({ navigation }: ProfileStackScreenProps<'Settings'>) {
   const { colors, scheme, setDarkMode } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -34,13 +36,21 @@ export function SettingsScreen({ navigation }: ProfileStackScreenProps<'Settings
   const [editingName, setEditingName] = useState(false);
   const [draft, setDraft] = useState('');
   const [savingName, setSavingName] = useState(false);
+  const challenges = useChallenges();
+  const { load: loadChallenges } = challenges;
 
   // On every visit: also catches a permission changed in the phone's settings meanwhile.
   useFocusEffect(
     useCallback(() => {
       getPushStatus().then(setPush, () => setPush('unsupported'));
-      if (session) fetchMyProfile(session.user.id).then((p) => p && setName(p.display_name), () => {});
-    }, [session]),
+      if (session) {
+        fetchMyProfile(session.user.id).then((p) => {
+          if (!p) return;
+          setName(p.display_name);
+          loadChallenges(p.id);
+        }, () => {});
+      }
+    }, [session, loadChallenges]),
   );
 
   const draftLength = [...tidyName(draft)].length;
@@ -206,6 +216,24 @@ export function SettingsScreen({ navigation }: ProfileStackScreenProps<'Settings
           )}
         </View>
 
+        <Text style={styles.groupLabel}>Challenges</Text>
+        <View style={styles.group}>
+          <View style={styles.row}>
+            <View style={styles.rowText}>
+              <Text style={styles.rowTitle}>Weekly challenges</Text>
+              {challenges.state && !challenges.choosing && (
+                <Text style={styles.rowHint}>{challengeSettingHint(challenges.state)}</Text>
+              )}
+            </View>
+            <ChallengeSwitch c={challenges} />
+          </View>
+          {challenges.choosing && (
+            <View style={styles.choiceRow}>
+              <ChallengeStartChoice c={challenges} />
+            </View>
+          )}
+        </View>
+
         <Text style={styles.groupLabel}>Help</Text>
         <View style={styles.group}>
           <Pressable style={styles.row} onPress={() => navigation.navigate('HowRatingsWork')} accessibilityRole="link">
@@ -256,6 +284,7 @@ function createStyles(colors: Colors) {
       minHeight: 52,
     },
     rowDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
+    choiceRow: { paddingBottom: spacing.md },
     rowText: { flex: 1 },
     rowTitle: { color: colors.text, fontSize: 16 },
     rowLabel: { color: colors.textMuted, fontSize: 13, lineHeight: 18, marginBottom: 2 },

@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Avatar } from '@/components/Avatar';
 import { PlayerLink } from '@/components/PlayerLink';
 import { useBadges } from '@/context/BadgesContext';
+import { boostLabel } from '@/lib/challenges';
 import { pickDeclineLine, pickMatchResultLine, pickPendingLine } from '@/lib/commentary';
 import { formatTimestamp } from '@/lib/format';
 import { confirmMatch } from '@/lib/matches';
@@ -25,15 +26,18 @@ export function useMatchConfirm(onDone: () => void | Promise<void>) {
         // A confirmed result can move tiers: refresh the rings (and the tier popup).
         if (action === 'confirm') refreshBadges();
         if (action === 'confirm' && result.you) {
+          const line = pickMatchResultLine({
+            iWon: match.iWon,
+            myGames: match.myGames,
+            opponentGames: match.opponentGames,
+            opponentName: match.submitterName,
+            delta: result.you.delta,
+          });
+          // A challenge win's boost (0031) is already in the delta.
+          const boost = result.you.boost;
           showAlert(
             'MATCH CALLED!',
-            pickMatchResultLine({
-              iWon: match.iWon,
-              myGames: match.myGames,
-              opponentGames: match.opponentGames,
-              opponentName: match.submitterName,
-              delta: result.you.delta,
-            }),
+            boost ? `${line}\n\n⚡ Challenge win: ${boostLabel(boost)} on your rating gain.` : line,
           );
         } else if (action === 'decline') {
           showAlert('Waved off', pickDeclineLine());
@@ -68,6 +72,7 @@ export function PendingMatchCard({
   return (
     <View style={styles.card}>
       {m.tournament && <Text style={styles.kicker}>🏆 {m.tournament.name} · tournament result</Text>}
+      {m.challenge && <Text style={styles.kicker}>⚡ Challenge match · best of {m.challenge.bestOf}</Text>}
       <PlayerLink playerId={m.submitterId} name={m.submitterName} style={styles.headerRow}>
         <Avatar uri={m.submitterAvatarUrl} name={m.submitterName} size={36} playerId={m.submitterId} />
         <View style={styles.headerText}>

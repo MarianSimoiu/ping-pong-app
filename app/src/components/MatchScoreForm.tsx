@@ -23,7 +23,9 @@ function randomCloseGameScore(): [number, number] {
 }
 
 // null = not answered yet (no error to show); a string = answered but invalid.
-function describeSetScoreError(mySetsStr: string, oppSetsStr: string): string | null {
+// With `bestOf` (a challenge match, 0031) the score has to fit it: 2–0 or 2–1
+// in a best of 3; 3–0, 3–1 or 3–2 in a best of 5.
+function describeSetScoreError(mySetsStr: string, oppSetsStr: string, bestOf?: number | null): string | null {
   if (mySetsStr === '' || oppSetsStr === '') return null;
   const mine = Number(mySetsStr);
   const theirs = Number(oppSetsStr);
@@ -33,19 +35,27 @@ function describeSetScoreError(mySetsStr: string, oppSetsStr: string): string | 
   if (mine === theirs) return 'The score can’t be tied — someone has to win the match';
   const total = mine + theirs;
   if (total > MAX_GAMES) return `That’s ${total} games — the most a match can have is ${MAX_GAMES}`;
+  if (bestOf) {
+    const needed = Math.floor(bestOf / 2) + 1;
+    if (Math.max(mine, theirs) !== needed || Math.min(mine, theirs) >= needed) {
+      return `A best of ${bestOf} ends when someone wins ${needed} games: ${needed}–0 to ${needed}–${needed - 1}`;
+    }
+  }
   return null;
 }
 
 // The score part of recording a match, shared by singles and doubles: the
 // overall score (games won by each side), then each game's points, then
 // Submit. Side A is always the person recording (and their partner), so
-// `onSubmit` gets games with score_a = side A.
+// `onSubmit` gets games with score_a = side A. `bestOf`: a challenge match's
+// format, which the score has to fit.
 export function MatchScoreForm({
   firstStep,
   sideA,
   sideB,
   winnerA,
   hint,
+  bestOf = null,
   submitting,
   submitError,
   onSubmit,
@@ -55,6 +65,7 @@ export function MatchScoreForm({
   sideB: string; // e.g. "Ana" or "Cris & Dana"
   winnerA: string; // shown when side A wins, e.g. "You won"
   hint: string;
+  bestOf?: number | null;
   submitting: boolean;
   submitError: string | null;
   onSubmit: (games: RawGameInput[]) => void;
@@ -66,7 +77,7 @@ export function MatchScoreForm({
   const [rows, setRows] = useState<GameRow[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  const setScoreError = describeSetScoreError(mySets, oppSets);
+  const setScoreError = describeSetScoreError(mySets, oppSets, bestOf);
   const mine = Number(mySets);
   const theirs = Number(oppSets);
   const setScoreReady = mySets !== '' && oppSets !== '' && setScoreError === null;
@@ -89,6 +100,12 @@ export function MatchScoreForm({
     for (let i = outcomes.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [outcomes[i], outcomes[j]] = [outcomes[j], outcomes[i]];
+    }
+    // A best-of match ends on the winner's deciding game.
+    const winner = mine > theirs ? 'a' : 'b';
+    if (bestOf && outcomes[outcomes.length - 1] !== winner) {
+      const k = outcomes.indexOf(winner);
+      [outcomes[k], outcomes[outcomes.length - 1]] = [outcomes[outcomes.length - 1], outcomes[k]];
     }
     setRows(
       outcomes.map((who) => {

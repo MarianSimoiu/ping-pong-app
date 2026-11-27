@@ -26,6 +26,7 @@ Deno.test('events and ratings are keyed by team, without the singles-only provis
     ['B', 'A', 'win'],
   ]);
   assertEquals('provisional' in u.events[0], false);
+  assertEquals('challenge_multiplier' in u.events[0], false);
   assertEquals('player_id' in u.events[0], false);
   assertEquals(u.ratings.map((r) => r.team_id), ['A', 'B']);
 });

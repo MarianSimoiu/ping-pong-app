@@ -30,6 +30,7 @@ export function AwaitingOpponentList({
       {matches.map((m) => (
         <View key={m.matchId} style={styles.card}>
           {m.tournament && <Text style={styles.kicker}>🏆 {m.tournament.name} · tournament result</Text>}
+          {m.challenge && <Text style={styles.kicker}>⚡ Challenge match · best of {m.challenge.bestOf}</Text>}
           <View style={styles.headerRow}>
             <PlayerLink playerId={m.opponentId} name={m.opponentName} style={styles.opponent}>
               <Avatar uri={m.opponentAvatarUrl} name={m.opponentName} size={36} playerId={m.opponentId} />

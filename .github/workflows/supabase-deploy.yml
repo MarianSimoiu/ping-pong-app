@@ -64,3 +64,8 @@ jobs:
       # kickoff time has come, which is safe for anyone to trigger.
       - name: Let the database call tournament-kickoff
         run: supabase functions deploy tournament-kickoff --no-verify-jwt --project-ref "$SUPABASE_PROJECT_REF" --use-api --yes
+
+      # Likewise challenge-notices (migration 0031): it takes no input and only
+      # sends the weekly challenge notifications that are due, each once.
+      - name: Let the database call challenge-notices
+        run: supabase functions deploy challenge-notices --no-verify-jwt --project-ref "$SUPABASE_PROJECT_REF" --use-api --yes

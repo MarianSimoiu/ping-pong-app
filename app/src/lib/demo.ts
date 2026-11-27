@@ -3,6 +3,13 @@
 // network, no auth, no database. This file is only reached on the DEMO path;
 // with real Supabase env set, none of it runs.
 
+import {
+  canStartThisWeek,
+  challengeBoost,
+  thisWeek,
+  type ChallengeOpponent,
+  type ChallengeState,
+} from '@/lib/challengeRules';
 import type { DoublesPendingMatch, RankedTeam, Team } from '@/lib/doubles';
 import type { LeaderboardEntry, HistoryPoint, MatchHistoryItem, SeasonEntry } from '@/lib/leaderboard';
 import {
@@ -109,11 +116,29 @@ let pending: PendingMatch[] = [
     ],
     submittedAt: new Date(Date.now() - 20 * 60 * 1000).toISOString(),
   },
+  {
+    // Your challenge with Fei (and Fei's with you): confirming it is your 2nd
+    // challenge win this week, +50% on the rating you gain.
+    matchId: 'pm3',
+    submitterId: 'p7',
+    submitterName: 'Fei',
+    submitterAvatarUrl: null,
+    iWon: true,
+    myGames: 2,
+    opponentGames: 1,
+    games: [
+      { myScore: 11, opponentScore: 8 },
+      { myScore: 6, opponentScore: 11 },
+      { myScore: 11, opponentScore: 9 },
+    ],
+    submittedAt: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
+    challenge: { bestOf: 3 },
+  },
 ];
 
 // Matches "you" submitted, still awaiting the opponent's confirmation — the
 // mirror image of `pending` above. Static seed data, same as `pending`:
-// demoSubmitMatch() doesn't append here either (see its comment).
+// demoSubmitMatch() only appends challenge matches (see its comment).
 let submittedPending: SubmittedPendingMatch[] = [
   {
     matchId: 'spm1',
@@ -229,7 +254,7 @@ export function demoMatchHistory(id: string): MatchHistoryItem[] {
     [opponents[3], 'loss', -15],
     [opponents[4] ?? opponents[0], 'loss', -8],
   ];
-  return sample.slice(0, byId(id)?.matches ?? sample.length).map(([opponent, result, delta], i) => ({
+  const rows: MatchHistoryItem[] = sample.slice(0, byId(id)?.matches ?? sample.length).map(([opponent, result, delta], i) => ({
     id: `mh-${id}-${i}`,
     opponentId: opponent.id,
     opponentName: opponent.name,
@@ -243,6 +268,17 @@ export function demoMatchHistory(id: string): MatchHistoryItem[] {
         ? [{ myScore: 11, opponentScore: 7 }, { myScore: 11, opponentScore: 9 }]
         : [{ myScore: 7, opponentScore: 11 }, { myScore: 9, opponentScore: 11 }],
   }));
+  // Yours starts with this week's challenge win against Ana (+25%).
+  if (id === DEMO_ME && rows[0]) {
+    rows[0] = {
+      ...rows[0],
+      delta: 11,
+      challenge: true,
+      boost: 1.25,
+      games: [{ myScore: 11, opponentScore: 7 }, { myScore: 8, opponentScore: 11 }, { myScore: 11, opponentScore: 9 }],
+    };
+  }
+  return rows;
 }
 
 export const demoRecord = (id: string) => {
@@ -257,9 +293,41 @@ export const demoPlayerSeasonPoints = (id: string): number =>
 export const demoOpponents = (): OpponentOption[] =>
   players.filter((p) => p.id !== DEMO_ME).map((p) => ({ id: p.id, display_name: p.name }));
 
-export function demoSubmitMatch(): { matchId: string; status: 'pending' } {
-  // Submitted by "you" → awaits the opponent, so it doesn't join your own list.
-  return { matchId: `m-${Date.now()}`, status: 'pending' };
+export function demoSubmitMatch(input: {
+  opponentId: string;
+  games: { score_a: number; score_b: number }[];
+  challenge?: { bestOf: number } | null;
+}): { matchId: string; status: 'pending' } {
+  const matchId = `m-${Date.now()}`;
+  // Submitted by "you" → awaits the opponent, so a normal one doesn't join
+  // your own list. A challenge match does, with the server's checks (0031).
+  if (input.challenge) {
+    const them = byId(input.opponentId)!;
+    const open =
+      myChallenges.some((c) => c.opponentId === them.id && c.result === null) || challengedBy.includes(them.id);
+    if (!open) throw new Error('There\u2019s no challenge between you two this week to play.');
+    const waiting =
+      submittedPending.some((m) => m.challenge && m.opponentId === them.id) ||
+      pending.some((m) => m.challenge && m.submitterId === them.id);
+    if (waiting) throw new Error('Your challenge match is already recorded: it\u2019s waiting to be confirmed.');
+    const myGames = input.games.filter((g) => g.score_a > g.score_b).length;
+    submittedPending = [
+      {
+        matchId,
+        opponentId: them.id,
+        opponentName: them.name,
+        opponentAvatarUrl: them.avatarUrl ?? null,
+        iWon: myGames * 2 > input.games.length,
+        myGames,
+        opponentGames: input.games.length - myGames,
+        games: input.games.map((g) => ({ myScore: g.score_a, opponentScore: g.score_b })),
+        submittedAt: new Date().toISOString(),
+        challenge: input.challenge,
+      },
+      ...submittedPending,
+    ];
+  }
+  return { matchId, status: 'pending' };
 }
 
 export const demoPending = (): PendingMatch[] => [
@@ -285,7 +353,7 @@ export const demoSubmittedPending = (): SubmittedPendingMatch[] => [
 export function demoConfirm(
   matchId: string,
   action: 'confirm' | 'decline',
-): { status: string; you?: { delta: number; rating: number; rd: number } } {
+): { status: string; you?: { delta: number; rating: number; rd: number; boost?: number | null } } {
   const result = waitingResult(matchId);
   if (result) {
     const { t, node } = result;
@@ -308,11 +376,79 @@ export function demoConfirm(
     return { status: action === 'confirm' ? 'confirmed' : 'rejected' };
   }
   const me = byId(DEMO_ME)!;
-  const delta = match.iWon ? 14 : -12;
+  let delta = match.iWon ? 14 : -12;
+  // A challenge match settles your challenge with them (and theirs with you):
+  // a win's gain is boosted by your challenge wins so far this week.
+  let boost: number | null = null;
+  if (match.challenge) {
+    const mine = myChallenges.find((c) => c.opponentId === match.submitterId && c.result === null);
+    if (mine) {
+      if (match.iWon) {
+        boost = challengeBoost(myChallenges.filter((c) => c.result === 'won').length);
+        delta = Math.round(14 * boost);
+      }
+      Object.assign(mine, {
+        result: match.iWon ? 'won' : 'lost',
+        multiplier: boost,
+        delta,
+        score: { mine: match.myGames, theirs: match.opponentGames },
+      });
+    }
+    challengedBy = challengedBy.filter((id) => id !== match.submitterId);
+  }
   me.matches += 1;
   me.rating += delta;
   me.rd = Math.max(40, me.rd - 3);
-  return { status: 'confirmed', you: { delta, rating: me.rating, rd: me.rd } };
+  return { status: 'confirmed', you: { delta, rating: me.rating, rd: me.rd, boost } };
+}
+
+// --- weekly challenges -------------------------------------------------------
+
+type DChallenge = Omit<ChallengeOpponent, 'name' | 'avatarUrl' | 'rating'>;
+
+// You're in (since last week): Ana beaten (+25%), Fei and Dana still to play
+// (Fei's match is waiting for you to confirm); Gabi has you as a challenge.
+let challengeStart: string | null = addDays(thisWeek(), -7);
+let myChallenges: DChallenge[] = [
+  { opponentId: 'p2', result: 'won', multiplier: 1.25, delta: 11, score: { mine: 2, theirs: 1 }, mutual: true },
+  { opponentId: 'p7', result: null, multiplier: null, delta: null, score: null, mutual: true },
+  { opponentId: 'p5', result: null, multiplier: null, delta: null, score: null, mutual: false },
+];
+let challengedBy: string[] = ['p8'];
+
+export function demoChallengeState(): ChallengeState {
+  return {
+    week: thisWeek(),
+    startsOn: challengeStart,
+    mine: myChallenges.map((c) => {
+      const p = byId(c.opponentId)!;
+      return { ...c, name: p.name, avatarUrl: p.avatarUrl ?? null, rating: p.rating };
+    }),
+    pickedBy: challengedBy.map((id) => ({ playerId: id, name: byId(id)!.name, avatarUrl: byId(id)!.avatarUrl ?? null })),
+  };
+}
+
+// The server's switch (0031): this week until Wednesday if asked, else from
+// next Monday; this week's 3 straight away (three you've hardly played).
+export function demoSetChallenges(on: boolean, startThisWeek: boolean): string | null {
+  if (!on) {
+    challengeStart = null;
+    return null;
+  }
+  const week = thisWeek();
+  const start = startThisWeek && canStartThisWeek() ? week : addDays(week, 7);
+  challengeStart = challengeStart && challengeStart < start ? challengeStart : start;
+  if (challengeStart <= week && myChallenges.length === 0) {
+    myChallenges = ['p4', 'p6', 'p3'].map((opponentId) => ({
+      opponentId,
+      result: null,
+      multiplier: null,
+      delta: null,
+      score: null,
+      mutual: false,
+    }));
+  }
+  return challengeStart;
 }
 
 // --- doubles -----------------------------------------------------------------

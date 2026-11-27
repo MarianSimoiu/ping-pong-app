@@ -81,3 +81,22 @@ export function resolveFreeformMatch(raw: RawGame[]): MatchOutcome {
   }
   return { games, winner: aWins > bWins ? 'a' : 'b', aWins, bWins };
 }
+
+/**
+ * A challenge match (migration 0031): best of 3 or best of 5, as the two
+ * players agreed, so the winner took exactly the games that decide it (2, or
+ * 3) and the loser fewer: 2–0 or 2–1; 3–0, 3–1 or 3–2.
+ */
+export function resolveChallengeMatch(bestOf: number, raw: RawGame[]): MatchOutcome {
+  if (bestOf !== 3 && bestOf !== 5) throw new Error('A challenge match is best of 3 or best of 5');
+  const outcome = resolveFreeformMatch(raw);
+  const needed = Math.floor(bestOf / 2) + 1;
+  const won = Math.max(outcome.aWins, outcome.bWins);
+  const lost = Math.min(outcome.aWins, outcome.bWins);
+  if (won !== needed || lost >= needed) {
+    throw new Error(
+      `A best of ${bestOf} ends when someone wins ${needed} games: ${needed}–0 to ${needed}–${needed - 1}, not ${won}–${lost}`,
+    );
+  }
+  return outcome;
+}

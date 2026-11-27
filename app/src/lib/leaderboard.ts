@@ -201,6 +201,9 @@ export type MatchHistoryItem = {
   at: string;
   // Per-set scores, from this player's perspective, in play order.
   games: { myScore: number; opponentScore: number }[];
+  // A challenge match (0031), and a challenge win's boost (in the delta).
+  challenge?: boolean;
+  boost?: number | null;
 };
 
 // Recent matches for a player, newest first, derived from the rating audit log.
@@ -209,9 +212,9 @@ export async function fetchMatchHistory(playerId: string, limit = 25): Promise<M
   const { data, error } = await supabase
     .from('rating_events')
     .select(
-      'id, opponent_id, result, delta, rating_after, created_at, ' +
+      'id, opponent_id, result, delta, rating_after, created_at, challenge_multiplier, ' +
         'opponent:players!rating_events_opponent_id_fkey(display_name, avatar_url), ' +
-        'match:matches(player_a, games:match_games(game_no, score_a, score_b))',
+        'match:matches(player_a, challenge, games:match_games(game_no, score_a, score_b))',
     )
     .eq('player_id', playerId)
     .order('created_at', { ascending: false })
@@ -238,6 +241,8 @@ export async function fetchMatchHistory(playerId: string, limit = 25): Promise<M
       ratingAfter: r.rating_after,
       games,
       at: r.created_at,
+      challenge: !!match?.challenge,
+      boost: r.challenge_multiplier ?? null,
     };
   });
 }
