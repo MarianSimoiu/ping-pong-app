@@ -9,6 +9,7 @@ import { InstallSheet } from '@/components/InstallSheet';
 import { PushPromptSheet } from '@/components/PushPromptSheet';
 import { TierCelebration } from '@/components/TierCelebration';
 import { TitleCelebration } from '@/components/TitleCelebration';
+import { WhatsNewSheet } from '@/components/WhatsNewSheet';
 import { AuthProvider } from '@/context/AuthContext';
 import { BadgesProvider } from '@/context/BadgesContext';
 import { startUpdateChecks } from '@/lib/appUpdate';
@@ -27,6 +28,7 @@ function AppChrome() {
           <PushPromptSheet />
           <TierCelebration />
           <TitleCelebration />
+          <WhatsNewSheet />
         </>
       )}
     </>

@@ -8,6 +8,7 @@ import { showAlert } from '@/lib/platformAlert';
 import { tierPopupThisVisit } from '@/components/TierCelebration';
 import { titlePopupThisVisit } from '@/components/TitleCelebration';
 import { getPushStatus, markPushPromptShown, pushPromptSnoozed, snoozePushPrompt, turnOnPush } from '@/lib/push';
+import { whatsNewThisVisit } from '@/lib/whatsNew';
 import { radius, useTheme, type Colors } from '@/theme';
 
 // Let the app settle before the popup slides in (the install popup, when due,
@@ -18,7 +19,7 @@ const OPEN_DELAY_MS = 4000;
 // a signed-in player whose notifications are off on this device. Not shown
 // while snoozed ("Not now": 3 days), once they're on, when they're blocked or
 // unsupported (Profile → Settings explains those), or in a visit with the
-// install or tier popup.
+// install, tier, title or What's new popup.
 // The Notifications switch in Profile → Settings does the same thing.
 export function PushPromptSheet() {
   const { colors } = useTheme();
@@ -32,9 +33,17 @@ export function PushPromptSheet() {
     if (!userId || recovering) return;
     let cancelled = false;
     const timer = setTimeout(async () => {
-      if (installPopupThisVisit() || tierPopupThisVisit() || titlePopupThisVisit() || pushPromptSnoozed()) return;
+      if (
+        installPopupThisVisit() ||
+        tierPopupThisVisit() ||
+        titlePopupThisVisit() ||
+        whatsNewThisVisit() ||
+        pushPromptSnoozed()
+      ) {
+        return;
+      }
       const status = await getPushStatus().catch(() => 'unsupported');
-      if (cancelled || status !== 'off' || tierPopupThisVisit() || titlePopupThisVisit()) return;
+      if (cancelled || status !== 'off' || tierPopupThisVisit() || titlePopupThisVisit() || whatsNewThisVisit()) return;
       markPushPromptShown();
       setOpen(true);
     }, OPEN_DELAY_MS);

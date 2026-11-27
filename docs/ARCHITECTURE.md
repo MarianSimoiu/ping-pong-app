@@ -350,6 +350,20 @@ every build) with the one it's running; if they differ, it reloads, on the
 same page. It reloads at most once per new build, and does nothing in
 development.
 
+### What's new
+
+When a signed-in player opens the app (web), a short "What's new" popup
+(`components/WhatsNewSheet.tsx`) tells them about the latest update: what it
+is, where to find it, and how to switch it on or off. It shows once per
+player on each device (remembered in `pingpong.whatsNew.seen.<user id>`), and
+only until the update's `until` day. It comes about 1.5 seconds after the
+app opens, ahead of the install, notification, tier and title popups, which
+then wait for the next visit; if one of them is already open, What's new
+waits instead. Its button can take the player to the feature (for weekly
+challenges, Home scrolled to the challenges card). To announce the next
+update, add an entry at the top of `UPDATES` in `app/src/lib/whatsNew.ts`
+with a new `id`: everyone sees it once more.
+
 ## Security model (Row-Level Security)
 
 - Any **authenticated** user can **read** `players` and `player_ratings`

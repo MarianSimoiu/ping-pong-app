@@ -8,6 +8,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useBadges } from '@/context/BadgesContext';
 import { installPopupThisVisit } from '@/lib/install';
 import { pushPromptThisVisit } from '@/lib/push';
+import { whatsNewThisVisit } from '@/lib/whatsNew';
 import { RING_COLORS, TIER_EMOJI, TIER_NAMES, TIERS, tierRank, type Tier } from '@/lib/tiers';
 import { useTheme, type Colors } from '@/theme';
 
@@ -54,7 +55,7 @@ export function TierCelebration() {
       return;
     }
     const timer = setTimeout(() => {
-      if (installPopupThisVisit() || pushPromptThisVisit()) return; // next visit
+      if (installPopupThisVisit() || pushPromptThisVisit() || whatsNewThisVisit()) return; // next visit
       shownThisVisit = true;
       setMoment({ kind: !seen ? 'intro' : seen === 'unranked' ? 'placement' : 'promotion', tier });
     }, 1200);

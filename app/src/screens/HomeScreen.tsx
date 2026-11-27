@@ -1,5 +1,5 @@
 import { useFocusEffect } from '@react-navigation/native';
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -23,6 +23,7 @@ import { fetchLeaderboard } from '@/lib/leaderboard';
 import { fetchPendingConfirmations, fetchSubmittedPending } from '@/lib/matches';
 import { fetchMyProfile } from '@/lib/players';
 import type { PendingMatch, PlayerWithRating, SubmittedPendingMatch } from '@/lib/types';
+import { onChallengesCardRequest, takeChallengesCardRequest } from '@/lib/whatsNew';
 import type { HomeStackScreenProps } from '@/navigation/types';
 import { radius, spacing, useTheme, type Colors } from '@/theme';
 
@@ -41,6 +42,27 @@ export function HomeScreen({ navigation }: HomeStackScreenProps<'Home'>) {
   const [homeTip] = useState(() => pickHomeTip());
   const challenges = useChallenges();
   const { load: loadChallenges } = challenges;
+
+  // Opened on the challenges card (What's new's "Show me"): scrolls to it once
+  // it's there.
+  const scrollRef = useRef<ScrollView>(null);
+  const challengesBox = useRef<{ y: number; height: number } | null>(null);
+  const wantChallenges = useRef(false);
+  const showChallenges = useCallback(() => {
+    const box = challengesBox.current;
+    if (!wantChallenges.current || !box || box.height === 0) return;
+    wantChallenges.current = false;
+    scrollRef.current?.scrollTo({ y: Math.max(0, box.y - spacing.md), animated: true });
+  }, []);
+  useEffect(() => {
+    const check = () => {
+      if (!takeChallengesCardRequest()) return;
+      wantChallenges.current = true;
+      showChallenges();
+    };
+    check();
+    return onChallengesCardRequest(check);
+  }, [showChallenges]);
 
   const load = useCallback(async () => {
     if (!session) return;
@@ -97,6 +119,7 @@ export function HomeScreen({ navigation }: HomeStackScreenProps<'Home'>) {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={load} tintColor={colors.text} />}
       >
@@ -179,12 +202,19 @@ export function HomeScreen({ navigation }: HomeStackScreenProps<'Home'>) {
           <Text style={styles.ctaText}>+ Record a match</Text>
         </Pressable>
 
-        <ChallengesCard
-          c={challenges}
-          waitingWith={waitingWith}
-          onRecord={(opponentId) => navigation.navigate('SubmitMatch', { opponentId })}
-          onHowItWorks={() => navigation.navigate('HowRatingsWork')}
-        />
+        <View
+          onLayout={(e) => {
+            challengesBox.current = e.nativeEvent.layout;
+            showChallenges();
+          }}
+        >
+          <ChallengesCard
+            c={challenges}
+            waitingWith={waitingWith}
+            onRecord={(opponentId) => navigation.navigate('SubmitMatch', { opponentId })}
+            onHowItWorks={() => navigation.navigate('HowRatingsWork')}
+          />
+        </View>
 
         <AwaitingOpponentList matches={submittedPending} style={styles.pendingSection} />
 
