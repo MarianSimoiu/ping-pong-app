@@ -8,6 +8,7 @@ import { useBadges } from '@/context/BadgesContext';
 import { fetchTrophies, type EarnedTitle } from '@/lib/achievements';
 import { installPopupThisVisit } from '@/lib/install';
 import { pushPromptThisVisit } from '@/lib/push';
+import { whatsNewThisVisit } from '@/lib/whatsNew';
 import { navigationRef } from '@/navigation/RootNavigator';
 import { radius, useTheme, type Colors } from '@/theme';
 
@@ -54,7 +55,9 @@ export function TitleCelebration() {
         const unseen = t.titles.filter((x) => !seen.includes(x.title));
         if (unseen.length === 0) return;
         timer.current = setTimeout(() => {
-          if (!live || installPopupThisVisit() || pushPromptThisVisit() || tierPopupThisVisit()) return;
+          if (!live || installPopupThisVisit() || pushPromptThisVisit() || tierPopupThisVisit() || whatsNewThisVisit()) {
+            return;
+          }
           shownThisVisit = true;
           setFresh(unseen);
         }, 2500);

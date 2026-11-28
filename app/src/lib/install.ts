@@ -1,6 +1,8 @@
 import { useSyncExternalStore } from 'react';
 import { Platform } from 'react-native';
 
+import { whatsNewThisVisit } from '@/lib/whatsNew';
+
 // Helps people add the web app to their home screen ("install" it).
 //
 // - Chrome, Edge, Samsung Internet (Android, and desktop): when the app can be
@@ -72,12 +74,12 @@ function isSnoozed(): boolean {
 }
 
 // Pops the sheet up on its own once per visit — phones and tablets only, and
-// not while snoozed.
+// not while snoozed, or in a visit with the What's new popup.
 function scheduleAutoOpen() {
   if (autoOpenScheduled || !isPhoneOrTablet || isSnoozed()) return;
   autoOpenScheduled = true;
   setTimeout(() => {
-    if (state.method && !isSnoozed()) update({ open: true });
+    if (state.method && !isSnoozed() && !whatsNewThisVisit()) update({ open: true });
   }, AUTO_OPEN_DELAY_MS);
 }
 
@@ -86,6 +88,9 @@ function scheduleAutoOpen() {
 export function installPopupThisVisit(): boolean {
   return autoOpenScheduled || state.open;
 }
+
+// Whether the install popup is open right now (What's new waits if it is).
+export const installSheetOpen = (): boolean => state.open;
 
 function capturePrompt(event: BeforeInstallPromptEvent) {
   deferredPrompt = event;
